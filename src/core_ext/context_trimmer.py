@@ -94,5 +94,6 @@ def trim_messages(messages: List[Dict], target_tokens: int, model: str) -> Tuple
         "output_tokens": trimmed_tokens,
         "compress_ratio": round(ratio, 3),
         "token_counter": counter.describe(),
+        "semantic_retention": None,
     }
     return output_messages, metrics

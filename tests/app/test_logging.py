@@ -126,12 +126,80 @@ def anyio_backend() -> str:
 
 
 @pytest.mark.anyio
+async def test_on_message_computes_semantic_retention(
+    monkeypatch, caplog, app_module, stub_chainlit
+):
+    metrics = {
+        "input_tokens": 120,
+        "output_tokens": 60,
+        "compress_ratio": 0.5,
+        "semantic_retention": None,
+    }
+    trimmed_messages = [
+        {"role": "system", "content": "system prompt"},
+        {"role": "user", "content": "hello"},
+    ]
+
+    monkeypatch.setattr(
+        app_module,
+        "trim_messages",
+        lambda history, target_tokens, model: (list(trimmed_messages), dict(metrics)),
+    )
+
+    observed: Dict[str, Any] = {}
+
+    def fake_observe_trim(*, compress_ratio: float, semantic_retention: float | None = None) -> None:
+        observed["compress_ratio"] = compress_ratio
+        observed["semantic_retention"] = semantic_retention
+
+    monkeypatch.setattr(app_module.METRICS_REGISTRY, "observe_trim", fake_observe_trim)
+
+    calls: List[Dict[str, Any]] = []
+
+    def fake_compute(before, after):
+        calls.append({"before": list(before), "after": list(after)})
+        return 0.8
+
+    async def immediate_to_thread(func, /, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    monkeypatch.setenv("SEMANTIC_RETENTION_PROVIDER", "stub")
+    monkeypatch.setattr(app_module, "compute_semantic_retention", fake_compute)
+    monkeypatch.setattr(app_module.asyncio, "to_thread", immediate_to_thread)
+
+    provider = _StubProvider(["hi"])
+    monkeypatch.setattr(app_module, "get_provider", lambda model: provider)
+    monkeypatch.setattr(app_module, "get_chain_steps", lambda chain_id: ["final"])
+
+    clock = iter([100.0, 100.1, 100.2, 100.6])
+    monkeypatch.setattr(app_module, "perf_counter", lambda: next(clock), raising=False)
+
+    with caplog.at_level("INFO", logger="katamari.request"):
+        await app_module.on_message(_DummyMessage("hello"))
+
+    assert observed == {
+        "compress_ratio": metrics["compress_ratio"],
+        "semantic_retention": 0.8,
+    }
+    assert len(calls) == 1
+    assert calls[0]["before"][1]["content"] == "hello"
+    assert calls[0]["after"] == trimmed_messages
+
+    stored_metrics = app_module.cl.user_session.get("trim_metrics")
+    assert stored_metrics["semantic_retention"] == pytest.approx(0.8)
+
+    assert len(caplog.records) == 1
+    payload = json.loads(caplog.records[0].msg)
+    assert payload["semantic_retention"] == pytest.approx(0.8)
+
+
+@pytest.mark.anyio
 async def test_on_message_emits_structured_log(monkeypatch, caplog, app_module, stub_chainlit):
     metrics = {
         "input_tokens": 120,
         "output_tokens": 60,
         "compress_ratio": 0.5,
-        "semantic_retention": 0.8,
+        "semantic_retention": None,
     }
     trimmed_messages = [
         {"role": "system", "content": "system prompt"},
@@ -156,6 +224,12 @@ async def test_on_message_emits_structured_log(monkeypatch, caplog, app_module, 
     monkeypatch.setattr(app_module, "get_provider", lambda model: provider)
     monkeypatch.setattr(app_module, "get_chain_steps", lambda chain_id: ["final"])
 
+    async def immediate_to_thread(func, /, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    monkeypatch.delenv("SEMANTIC_RETENTION_PROVIDER", raising=False)
+    monkeypatch.setattr(app_module.asyncio, "to_thread", immediate_to_thread)
+
     clock = iter([100.0, 100.1, 100.2, 100.6])
     monkeypatch.setattr(app_module, "perf_counter", lambda: next(clock), raising=False)
 
@@ -164,8 +238,11 @@ async def test_on_message_emits_structured_log(monkeypatch, caplog, app_module, 
 
     assert observed == {
         "compress_ratio": metrics["compress_ratio"],
-        "semantic_retention": metrics["semantic_retention"],
+        "semantic_retention": None,
     }
+
+    stored_metrics = app_module.cl.user_session.get("trim_metrics")
+    assert stored_metrics["semantic_retention"] is None
 
     assert len(caplog.records) == 1
     payload = json.loads(caplog.records[0].msg)
@@ -176,7 +253,7 @@ async def test_on_message_emits_structured_log(monkeypatch, caplog, app_module, 
     assert payload["token_in"] == metrics["input_tokens"]
     assert payload["token_out"] == metrics["output_tokens"]
     assert payload["compress_ratio"] == metrics["compress_ratio"]
-    assert payload["semantic_retention"] == metrics["semantic_retention"]
+    assert payload["semantic_retention"] is None
     assert payload["retryable"] is None
     assert payload["latency_ms"] == pytest.approx((100.6 - 100.0) * 1000)
     steps = payload["step_latency_ms"]

@@ -82,6 +82,22 @@ def test_collects_metrics_from_chainlit_log(tmp_path: Path) -> None:
     }
 
 
+def test_missing_semantic_retention_falls_back(tmp_path: Path) -> None:
+    log_path = tmp_path / "fallback.log"
+    log_path.write_text(
+        "INFO metrics={\"compress_ratio\": 0.55}\nINFO done",
+        encoding="utf-8",
+    )
+    output_path = tmp_path / "fallback.json"
+
+    _run_cli("--log-path", str(log_path), "--output", str(output_path))
+
+    assert json.loads(output_path.read_text(encoding="utf-8")) == {
+        "compress_ratio": 0.55,
+        "semantic_retention": 1.0,
+    }
+
+
 def test_exit_code_is_non_zero_on_missing_metrics(tmp_path: Path) -> None:
     empty_log = tmp_path / "empty.log"
     empty_log.write_text("INFO nothing", encoding="utf-8")

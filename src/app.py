@@ -8,7 +8,7 @@
 import os
 from threading import Lock
 from time import perf_counter
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import chainlit as cl
 from fastapi import APIRouter
@@ -26,6 +26,15 @@ from providers.openai_client import OpenAIProvider
 
 DEFAULT_MODEL = "gpt-5-main"
 DEFAULT_CHAIN = "single"
+
+_REASONING_DEFAULT = {"effort": "medium", "parallel": True}
+
+
+def _prepare_provider_options(model_id: str, base: Dict[str, Any]) -> Dict[str, Any]:
+    opts = dict(base)
+    if "thinking" in model_id.lower() and "reasoning" not in opts:
+        opts["reasoning"] = dict(_REASONING_DEFAULT)
+    return opts
 
 
 class MetricsRegistry:
@@ -228,8 +237,11 @@ async def on_message(message: cl.Message):
                             {"role": "system", "content": system_hint_for_step(step_name)}
                         )
                     accum: List[str] = []
+                    stream_opts = _prepare_provider_options(
+                        model, {"temperature": 0.7}
+                    )
                     async for delta in provider.stream(
-                        model=model, messages=msgs, temperature=0.7
+                        model=model, messages=msgs, **stream_opts
                     ):
                         if delta:
                             accum.append(delta)

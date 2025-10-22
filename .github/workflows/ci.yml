@@ -125,24 +125,37 @@ jobs:
       - node
     permissions:
       contents: read
-    if: ${{ secrets.OPENAI_API_KEY != '' && secrets.GEMINI_API_KEY != '' }}
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GOOGLE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
+      - name: Check provider secrets
+        id: check-secrets
+        run: |
+          if [ -z "${OPENAI_API_KEY:-}" ] || [ -z "${GEMINI_API_KEY:-}" ]; then
+            echo "Provider secrets not configured; skipping smoke tests."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
       - name: Capture job start
+        if: steps.check-secrets.outputs.ready == 'true'
         run: echo "PROVIDER_JOB_START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
+        if: steps.check-secrets.outputs.ready == 'true'
       - uses: actions/setup-python@v5
+        if: steps.check-secrets.outputs.ready == 'true'
         with:
           python-version: "3.11"
       - name: Compute dependency hashes
         id: provider-lock-hash
+        if: steps.check-secrets.outputs.ready == 'true'
         run: >-
           python scripts/cache/hash_lockfiles.py --python requirements.txt --node upstream/chainlit/pnpm-lock.yaml --node upstream/chainlit/frontend/pnpm-lock.yaml
       - name: Cache pip dependencies
         id: provider-cache-python
+        if: steps.check-secrets.outputs.ready == 'true'
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
@@ -151,7 +164,7 @@ jobs:
           restore-keys: |
             provider-${{ env.CACHE_VERSION }}-${{ runner.os }}-
       - name: Cache pnpm store (optional)
-        if: steps.provider-lock-hash.outputs.node-hash != ''
+        if: steps.check-secrets.outputs.ready == 'true' && steps.provider-lock-hash.outputs.node-hash != ''
         id: provider-cache-node
         uses: actions/cache@v4
         with:
@@ -161,10 +174,12 @@ jobs:
           restore-keys: |
             provider-node-${{ env.CACHE_VERSION }}-${{ runner.os }}-
       - name: Install provider dependencies
+        if: steps.check-secrets.outputs.ready == 'true'
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt google-generativeai
       - name: OpenAI smoke test
+        if: steps.check-secrets.outputs.ready == 'true'
         run: |
           python - <<'PY'
           from openai import OpenAI
@@ -186,6 +201,7 @@ jobs:
               raise SystemExit("Unexpected OpenAI response")
           PY
       - name: Gemini smoke test
+        if: steps.check-secrets.outputs.ready == 'true'
         run: |
           python - <<'PY'
           import os
@@ -202,7 +218,7 @@ jobs:
               raise SystemExit("Unexpected Gemini response")
           PY
       - name: Summarize provider job metrics
-        if: always()
+        if: always() && steps.check-secrets.outputs.ready == 'true'
         run: |
           end_ts=$(date +%s)
           duration=$((end_ts - PROVIDER_JOB_START))

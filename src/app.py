@@ -128,6 +128,7 @@ async def on_start():
     cl.user_session.set("model", os.getenv("DEFAULT_MODEL", DEFAULT_MODEL))
     cl.user_session.set("chain", os.getenv("DEFAULT_CHAIN", DEFAULT_CHAIN))
     cl.user_session.set("trim_tokens", 4096)
+    cl.user_session.set("min_turns", 0)
     cl.user_session.set("system", "You are a helpful assistant named Katamari.")
 
     settings = await cl.ChatSettings(
@@ -139,6 +140,7 @@ async def on_start():
                    initial_index=0),
             Select(id="chain", label="Multi-step Chain", values=["single","reflect"], initial_index=0),
             Slider(id="trim_tokens", label="Trim target tokens", initial=4096, min=1024, max=8192, step=256),
+            Slider(id="min_turns", label="Minimum turns to keep", initial=0, min=0, max=10, step=1),
             TextInput(id="persona_yaml", label="Persona YAML", initial="", description="name/style/forbid/notes"),
             Switch(id="show_debug", label="Show debug metrics", initial=False)
         ]
@@ -151,7 +153,7 @@ async def on_settings_update(settings: Dict):
     await apply_settings(settings)
 
 async def apply_settings(settings: Dict):
-    for k in ("model","chain","trim_tokens","show_debug"):
+    for k in ("model","chain","trim_tokens","min_turns","show_debug"):
         if k in settings:
             cl.user_session.set(k, settings[k])
 
@@ -167,6 +169,7 @@ async def on_message(message: cl.Message):
     model: str = cl.user_session.get("model") or DEFAULT_MODEL
     chain_id: str = cl.user_session.get("chain") or DEFAULT_CHAIN
     target_tokens: int = int(cl.user_session.get("trim_tokens") or 4096)
+    min_turns = _to_int(cl.user_session.get("min_turns"))
     show_debug: bool = bool(cl.user_session.get("show_debug"))
 
     # 1) Prethought (optional display as a step)
@@ -181,7 +184,7 @@ async def on_message(message: cl.Message):
         hist = [{"role":"system","content":system}] + hist
     hist.append({"role":"user","content":message.content})
 
-    trimmed, metrics = trim_messages(hist, target_tokens, model)
+    trimmed, metrics = trim_messages(hist, target_tokens, model, min_turns=min_turns)
     token_in = _to_int(metrics.get("input_tokens"))
     token_out = _to_int(metrics.get("output_tokens"))
     compress_ratio = _to_float(metrics.get("compress_ratio"))

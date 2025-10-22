@@ -109,6 +109,7 @@ def stub_chainlit(app_module):
     session.set("model", "gpt-5-main")
     session.set("chain", "single")
     session.set("trim_tokens", 512)
+    session.set("min_turns", 0)
     session.set("system", "system prompt")
     session.set("show_debug", False)
     session.set("history", [])
@@ -138,11 +139,19 @@ async def test_on_message_emits_structured_log(monkeypatch, caplog, app_module, 
         {"role": "user", "content": "hello"},
     ]
 
-    monkeypatch.setattr(
-        app_module,
-        "trim_messages",
-        lambda history, target_tokens, model: (list(trimmed_messages), dict(metrics)),
-    )
+    observed_min_turns: Dict[str, int] = {}
+
+    def _fake_trim_messages(
+        history: List[Dict[str, Any]],
+        target_tokens: int,
+        model: str,
+        *,
+        min_turns: int = 0,
+    ) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        observed_min_turns["value"] = min_turns
+        return list(trimmed_messages), dict(metrics)
+
+    monkeypatch.setattr(app_module, "trim_messages", _fake_trim_messages)
 
     observed: Dict[str, Any] = {}
 
@@ -159,8 +168,12 @@ async def test_on_message_emits_structured_log(monkeypatch, caplog, app_module, 
     clock = iter([100.0, 100.1, 100.2, 100.6])
     monkeypatch.setattr(app_module, "perf_counter", lambda: next(clock), raising=False)
 
+    stub_chainlit.set("min_turns", 2)
+
     with caplog.at_level("INFO", logger="katamari.request"):
         await app_module.on_message(_DummyMessage("hello"))
+
+    assert observed_min_turns["value"] == 2
 
     assert observed == {
         "compress_ratio": metrics["compress_ratio"],
@@ -190,6 +203,13 @@ class _RetryableError(RuntimeError):
 
 
 @pytest.mark.anyio
+async def test_apply_settings_persists_min_turns(app_module, stub_chainlit):
+    await app_module.apply_settings({"min_turns": 3})
+
+    assert app_module.cl.user_session.get("min_turns") == 3
+
+
+@pytest.mark.anyio
 async def test_on_message_logs_retryable_error(monkeypatch, caplog, app_module, stub_chainlit):
     metrics = {
         "input_tokens": 80,
@@ -201,11 +221,16 @@ async def test_on_message_logs_retryable_error(monkeypatch, caplog, app_module, 
         {"role": "system", "content": "system prompt"},
         {"role": "user", "content": "oops"},
     ]
-    monkeypatch.setattr(
-        app_module,
-        "trim_messages",
-        lambda history, target_tokens, model: (list(trimmed_messages), dict(metrics)),
-    )
+    def _failing_trim(
+        history: List[Dict[str, Any]],
+        target_tokens: int,
+        model: str,
+        *,
+        min_turns: int = 0,
+    ) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        return list(trimmed_messages), dict(metrics)
+
+    monkeypatch.setattr(app_module, "trim_messages", _failing_trim)
     monkeypatch.setattr(app_module.METRICS_REGISTRY, "observe_trim", lambda **_: None)
     monkeypatch.setattr(app_module, "get_chain_steps", lambda chain_id: ["final"])
 

@@ -1,4 +1,4 @@
-.PHONY: dev run fmt lint type test docker help check
+.PHONY: dev run fmt lint type test docker help check ci
 
 dev:
 	pip install -r requirements.txt
@@ -19,6 +19,16 @@ test:
 	pytest -q
 
 check: lint type test
+
+ci:
+	python -m pip install --upgrade pip
+	python -m pip install -r requirements.txt ruff mypy pytest
+	ruff check .
+	mypy --strict
+	pytest -q
+	pnpm --dir upstream/chainlit install --frozen-lockfile
+	pnpm --dir upstream/chainlit lint
+	pnpm --dir upstream/chainlit test
 
 help:
 	@printf '%s\n' 'Available targets:'

@@ -1,5 +1,8 @@
 name: CI
 
+env:
+  CACHE_VERSION: v1
+
 on:
   push:
     branches:
@@ -7,8 +10,19 @@ on:
   pull_request:
 
 jobs:
+  bootstrap:
+    name: Bootstrap CI metrics
+    runs-on: ubuntu-latest
+    outputs:
+      started-at: ${{ steps.start.outputs.started_at }}
+    steps:
+      - name: Capture workflow start
+        id: start
+        run: echo "started_at=$(date +%s)" >> "$GITHUB_OUTPUT"
+
   python:
     name: Python 3.11 checks
+    needs: bootstrap
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -16,10 +30,36 @@ jobs:
       matrix:
         check: [ruff, mypy, pytest]
     steps:
+      - name: Capture job start
+        run: echo "PY_JOB_START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Compute dependency hashes
+        id: lock-hash
+        run: >-
+          python scripts/cache/hash_lockfiles.py --python requirements.txt --node upstream/chainlit/pnpm-lock.yaml --node upstream/chainlit/frontend/pnpm-lock.yaml
+      - name: Cache pip dependencies
+        id: cache-python
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: >-
+            python-${{ env.CACHE_VERSION }}-${{ runner.os }}-py311-${{ matrix.check }}-${{ steps.lock-hash.outputs.python-hash }}
+          restore-keys: |
+            python-${{ env.CACHE_VERSION }}-${{ runner.os }}-py311-${{ matrix.check }}-
+            python-${{ env.CACHE_VERSION }}-${{ runner.os }}-
+      - name: Cache pnpm store (optional)
+        if: steps.lock-hash.outputs.node-hash != ''
+        id: cache-node
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: >-
+            node-${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ steps.lock-hash.outputs.node-hash }}
+          restore-keys: |
+            node-${{ env.CACHE_VERSION }}-${{ runner.os }}-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -36,6 +76,21 @@ jobs:
             mypy) mypy --strict ;;
             pytest) pytest -q ;;
           esac
+      - name: Summarize python job metrics
+        if: always()
+        run: |
+          end_ts=$(date +%s)
+          duration=$((end_ts - PY_JOB_START))
+          hit_python="${{ steps.cache-python.outputs.cache-hit }}"
+          hit_node="${{ steps.cache-node.outputs.cache-hit || 'false' }}"
+          {
+            echo "### Python ${{ matrix.check }} job metrics"
+            echo ""
+            echo "- Cache version: ${CACHE_VERSION}"
+            echo "- Pip cache hit: ${hit_python:-false}"
+            echo "- pnpm cache hit: ${hit_node}"
+            echo "- Duration (s): ${duration}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   node:
     name: Node 20 checks
@@ -76,10 +131,35 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GOOGLE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
+      - name: Capture job start
+        run: echo "PROVIDER_JOB_START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Compute dependency hashes
+        id: provider-lock-hash
+        run: >-
+          python scripts/cache/hash_lockfiles.py --python requirements.txt --node upstream/chainlit/pnpm-lock.yaml --node upstream/chainlit/frontend/pnpm-lock.yaml
+      - name: Cache pip dependencies
+        id: provider-cache-python
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: >-
+            provider-${{ env.CACHE_VERSION }}-${{ runner.os }}-py311-${{ steps.provider-lock-hash.outputs.python-hash }}
+          restore-keys: |
+            provider-${{ env.CACHE_VERSION }}-${{ runner.os }}-
+      - name: Cache pnpm store (optional)
+        if: steps.provider-lock-hash.outputs.node-hash != ''
+        id: provider-cache-node
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: >-
+            provider-node-${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ steps.provider-lock-hash.outputs.node-hash }}
+          restore-keys: |
+            provider-node-${{ env.CACHE_VERSION }}-${{ runner.os }}-
       - name: Install provider dependencies
         run: |
           python -m pip install --upgrade pip
@@ -121,3 +201,46 @@ jobs:
           if "ok" not in text:
               raise SystemExit("Unexpected Gemini response")
           PY
+      - name: Summarize provider job metrics
+        if: always()
+        run: |
+          end_ts=$(date +%s)
+          duration=$((end_ts - PROVIDER_JOB_START))
+          hit_python="${{ steps.provider-cache-python.outputs.cache-hit }}"
+          hit_node="${{ steps.provider-cache-node.outputs.cache-hit || 'false' }}"
+          {
+            echo "### Provider smoke job metrics"
+            echo ""
+            echo "- Cache version: ${CACHE_VERSION}"
+            echo "- Pip cache hit: ${hit_python:-false}"
+            echo "- pnpm cache hit: ${hit_node}"
+            echo "- Duration (s): ${duration}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  ci-metrics:
+    name: CI workflow metrics
+    runs-on: ubuntu-latest
+    needs:
+      - bootstrap
+      - python
+      - provider-integration
+    if: ${{ always() }}
+    steps:
+      - name: Summarize workflow duration
+        run: |
+          start_ts="${{ needs.bootstrap.outputs.started-at }}"
+          end_ts=$(date +%s)
+          duration=$((end_ts - start_ts))
+          start_iso=$(date -u -d "@${start_ts}" '+%Y-%m-%dT%H:%M:%SZ')
+          end_iso=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          echo "Workflow duration: ${duration}s"
+          {
+            echo "### CI workflow summary"
+            echo ""
+            echo "- Cache version: ${CACHE_VERSION}"
+            echo "- Started (UTC): ${start_iso}"
+            echo "- Finished (UTC): ${end_iso}"
+            echo "- Duration (s): ${duration}"
+            echo "- Python job status: ${{ needs.python.result }}"
+            echo "- Provider job status: ${{ needs.provider-integration.result }}"
+          } >> "$GITHUB_STEP_SUMMARY"

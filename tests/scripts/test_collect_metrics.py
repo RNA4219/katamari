@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import json, subprocess, sys, threading
+import json
+import subprocess
+import sys
+import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from collections.abc import Callable
-
-import pytest
-
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")

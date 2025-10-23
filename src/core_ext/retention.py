@@ -115,6 +115,13 @@ def get_embedder(provider: str) -> Optional[Embedder]:
     else:
         return None
 
+    signature = _provider_signature(key)
+    cached = _EMBEDDER_CACHE.get(key)
+    if cached is not None:
+        cached_signature, cached_embedder = cached
+        if cached_signature == signature:
+            return cached_embedder
+
     embedder = builder()
     if embedder is None:
         return None

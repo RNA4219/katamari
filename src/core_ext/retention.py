@@ -82,14 +82,25 @@ def _build_gemini_embedder() -> Optional[Embedder]:
 
 def get_embedder(provider: str) -> Optional[Embedder]:
     key = provider.lower()
-    if key not in _EMBEDDER_CACHE:
-        if key == "openai":
-            _EMBEDDER_CACHE[key] = _build_openai_embedder()
-        elif key == "gemini":
-            _EMBEDDER_CACHE[key] = _build_gemini_embedder()
-        else:
-            _EMBEDDER_CACHE[key] = None
-    return _EMBEDDER_CACHE[key]
+    cached = _EMBEDDER_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    builder: Optional[Callable[[], Optional[Embedder]]]
+    if key == "openai":
+        builder = _build_openai_embedder
+    elif key == "gemini":
+        builder = _build_gemini_embedder
+    else:
+        _EMBEDDER_CACHE[key] = None
+        return None
+
+    embedder = builder()
+    if embedder is None:
+        _EMBEDDER_CACHE.pop(key, None)
+        return None
+    _EMBEDDER_CACHE[key] = embedder
+    return embedder
 
 
 def compute_semantic_retention(

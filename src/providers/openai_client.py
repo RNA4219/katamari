@@ -1,23 +1,51 @@
 
+from __future__ import annotations
+
 import os
-from typing import AsyncIterator, Dict, List
+from typing import Any, AsyncIterator, Iterable, Mapping, Sequence, cast
+
 from openai import AsyncOpenAI
 
+MessageParam = Mapping[str, object]
+
+
 class OpenAIProvider:
-    def __init__(self):
+    def __init__(self) -> None:
         self.client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    async def stream(self, model: str, messages: List[Dict], **opts) -> AsyncIterator[str]:
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[MessageParam],
+        **opts: Any,
+    ) -> AsyncIterator[str]:
         stream = await self.client.chat.completions.create(
-            model=model, messages=messages, stream=True, **opts
+            model=model,
+            messages=cast(Any, messages),
+            stream=True,
+            **opts,
         )
-        async for part in stream:
-            delta = part.choices[0].delta.content or ""
-            if delta:
-                yield delta
+        stream_iter = cast(AsyncIterator[Any], stream)
+        async for part in stream_iter:
+            choice = getattr(part, "choices", [None])[0]
+            delta = getattr(choice, "delta", None)
+            content = getattr(delta, "content", "") if delta is not None else ""
+            if content:
+                yield str(content)
 
-    async def complete(self, model: str, messages: List[Dict], **opts) -> str:
-        resp = await self.client.chat.completions.create(
-            model=model, messages=messages, stream=False, **opts
+    async def complete(
+        self,
+        model: str,
+        messages: Sequence[MessageParam],
+        **opts: Any,
+    ) -> str:
+        response = await self.client.chat.completions.create(
+            model=model,
+            messages=cast(Any, messages),
+            stream=False,
+            **opts,
         )
-        return resp.choices[0].message.content or ""
+        completion = cast(Any, response)
+        choice = completion.choices[0]
+        content = getattr(choice.message, "content", "")
+        return str(content or "")

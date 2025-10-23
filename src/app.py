@@ -1,16 +1,17 @@
-
 # Katamari (Chainlit Fork) - app.py (skeleton)
 # Run (dev):
 #   pip install -r requirements.txt
 #   export OPENAI_API_KEY=sk-...
 #   chainlit run src/app.py --host 0.0.0.0 --port 8787
 
+from __future__ import annotations
+
 import asyncio
 import math
 import os
 from threading import Lock
 from time import perf_counter
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Mapping, Sequence, Tuple, cast, Literal
 
 import chainlit as cl
 from fastapi import APIRouter
@@ -20,7 +21,7 @@ from chainlit.server import app as chainlit_app, router as chainlit_router
 
 from core_ext.logging import InferenceLogRecord, StepLatency, StructuredLogger
 from core_ext.persona_compiler import compile_persona_yaml
-from core_ext.context_trimmer import trim_messages
+from core_ext.context_trimmer import ChatMessage as TrimMessage, trim_messages
 from core_ext.retention import compute_semantic_retention
 from core_ext.prethought import analyze_intent
 from core_ext.multistep import get_chain_steps, system_hint_for_step
@@ -31,10 +32,33 @@ DEFAULT_MODEL = "gpt-5-main"
 DEFAULT_CHAIN = "single"
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Katamari."
 
-_REASONING_DEFAULT = {"effort": "medium", "parallel": True}
+_REASONING_DEFAULT: Dict[str, Any] = {"effort": "medium", "parallel": True}
+
+ChatMessage = TrimMessage
+ChatHistory = List[ChatMessage]
+MetricsPayload = Dict[str, Any]
+
+_USER_SESSION = cast(Any, cl.user_session)
 
 
-def _prepare_provider_options(model_id: str, base: Dict[str, Any]) -> Dict[str, Any]:
+def _session_get(key: str, default: Any | None = None) -> Any:
+    return _USER_SESSION.get(key, default)
+
+
+def _session_set(key: str, value: Any) -> None:
+    _USER_SESSION.set(key, value)
+
+
+async def _send_message(**kwargs: Any) -> None:
+    message = cl.Message(**kwargs)
+    await cast(Any, message).send()
+
+
+def _chat_message(role: str, content: Any) -> ChatMessage:
+    return {"role": role, "content": content}
+
+
+def _prepare_provider_options(model_id: str, base: Mapping[str, Any]) -> Dict[str, Any]:
     opts = dict(base)
     if "thinking" in model_id.lower() and "reasoning" not in opts:
         opts["reasoning"] = dict(_REASONING_DEFAULT)
@@ -90,14 +114,14 @@ METRICS_REGISTRY = MetricsRegistry()
 REQUEST_LOGGER = StructuredLogger()
 
 
-def _to_int(value: object) -> int:
+def _to_int(value: Any) -> int:
     try:
         return int(value) if value is not None else 0
     except (TypeError, ValueError):
         return 0
 
 
-def _to_float(value: object, default: float = 0.0) -> float:
+def _to_float(value: Any, default: float = 0.0) -> float:
     try:
         return float(value) if value is not None else default
     except (TypeError, ValueError):
@@ -112,9 +136,9 @@ def _resolve_retryable(exc: BaseException) -> bool | None:
 
 
 async def _ensure_semantic_retention(
-    before: List[Dict[str, Any]],
-    after: List[Dict[str, Any]],
-    metrics: Dict[str, Any],
+    before: Sequence[ChatMessage],
+    after: Sequence[ChatMessage],
+    metrics: MetricsPayload,
 ) -> float | None:
     existing = metrics.get("semantic_retention")
     if existing is not None:
@@ -169,14 +193,14 @@ def get_provider(model_id: str) -> OpenAIProvider | GoogleGeminiProvider:
     return OpenAIProvider()
 
 @cl.on_chat_start
-async def on_start():
-    cl.user_session.set("model", os.getenv("DEFAULT_MODEL", DEFAULT_MODEL))
-    cl.user_session.set("chain", os.getenv("DEFAULT_CHAIN", DEFAULT_CHAIN))
-    cl.user_session.set("trim_tokens", 4096)
-    cl.user_session.set("min_turns", 0)
-    cl.user_session.set("system", "You are a helpful assistant named Katamari.")
+async def on_start() -> None:
+    _session_set("model", os.getenv("DEFAULT_MODEL", DEFAULT_MODEL))
+    _session_set("chain", os.getenv("DEFAULT_CHAIN", DEFAULT_CHAIN))
+    _session_set("trim_tokens", 4096)
+    _session_set("min_turns", 0)
+    _session_set("system", "You are a helpful assistant named Katamari.")
 
-    settings = await cl.ChatSettings(
+    chat_settings = cl.ChatSettings(
         inputs=[
             Select(id="model", label="Model",
                    values=["gpt-5-main","gpt-5-main-mini","gpt-5-thinking",
@@ -189,20 +213,22 @@ async def on_start():
             TextInput(id="persona_yaml", label="Persona YAML", initial="", description="name/style/forbid/notes"),
             Switch(id="show_debug", label="Show debug metrics", initial=False)
         ]
-    ).send()
+    )
+    settings_payload = await cast(Any, chat_settings).send()
 
-    await apply_settings(settings)
+    await apply_settings(cast(Mapping[str, Any], settings_payload))
 
 @cl.on_settings_update
-async def on_settings_update(settings: Dict):
+async def on_settings_update(settings: Mapping[str, Any]) -> None:
     await apply_settings(settings)
 
-async def apply_settings(settings: Dict):
+
+async def apply_settings(settings: Mapping[str, Any]) -> None:
     def _sync_history_system(system_prompt: str) -> None:
-        history = cl.user_session.get("history")
-        system_entry = {"role": "system", "content": system_prompt}
+        history = _session_get("history")
+        system_entry = _chat_message("system", system_prompt)
         if not isinstance(history, list) or not history:
-            cl.user_session.set("history", [system_entry])
+            _session_set("history", [system_entry])
             return
 
         first_entry = history[0]
@@ -213,58 +239,69 @@ async def apply_settings(settings: Dict):
         else:
             new_history = [system_entry] + list(history)
 
-        cl.user_session.set("history", new_history)
+        _session_set("history", new_history)
 
-    for k in ("model","chain","trim_tokens","min_turns","show_debug"):
-        if k in settings:
-            cl.user_session.set(k, settings[k])
+    for key in ("model", "chain", "trim_tokens", "min_turns", "show_debug"):
+        if key in settings:
+            _session_set(key, settings.get(key))
 
     if "persona_yaml" in settings:
         yaml_raw = settings.get("persona_yaml", "")
         yaml_str = yaml_raw if isinstance(yaml_raw, str) else ""
         if yaml_str.strip() == "":
-            previous = cl.user_session.get("system") or DEFAULT_SYSTEM_PROMPT
-            cl.user_session.set("system", DEFAULT_SYSTEM_PROMPT)
+            previous = _session_get("system") or DEFAULT_SYSTEM_PROMPT
+            _session_set("system", DEFAULT_SYSTEM_PROMPT)
             _sync_history_system(DEFAULT_SYSTEM_PROMPT)
             if previous != DEFAULT_SYSTEM_PROMPT:
-                await cl.Message(
+                await _send_message(
                     content="[persona issues]\nPersona prompt reset to default."
-                ).send()
+                )
             return
 
         if yaml_str:
             system, issues = compile_persona_yaml(yaml_str)
-            cl.user_session.set("system", system)
+            _session_set("system", system)
             _sync_history_system(system)
             if issues:
-                await cl.Message(content="\n".join(["[persona issues]"]+issues)).send()
+                await _send_message(content="\n".join(["[persona issues]"] + issues))
 
 @cl.on_message
-async def on_message(message: cl.Message):
-    model: str = cl.user_session.get("model") or DEFAULT_MODEL
-    chain_id: str = cl.user_session.get("chain") or DEFAULT_CHAIN
-    target_tokens: int = int(cl.user_session.get("trim_tokens") or 4096)
-    min_turns: int = _to_int(cl.user_session.get("min_turns"))
-    show_debug: bool = bool(cl.user_session.get("show_debug"))
+async def on_message(message: cl.Message) -> None:
+    model = str(_session_get("model") or DEFAULT_MODEL)
+    chain_id = str(_session_get("chain") or DEFAULT_CHAIN)
+    target_tokens = _to_int(_session_get("trim_tokens"))
+    if target_tokens <= 0:
+        target_tokens = 4096
+    min_turns = _to_int(_session_get("min_turns"))
+    show_debug = bool(_session_get("show_debug"))
 
     # 1) Prethought (optional display as a step)
     intent = analyze_intent(message.content)
     if show_debug and intent:
-        await cl.Message(content=f"[prethought]\n{intent}").send()
+        await _send_message(content=f"[prethought]\n{intent}")
 
     # 2) Build/trim history
-    hist: List[Dict] = cl.user_session.get("history") or []
-    system = cl.user_session.get("system") or DEFAULT_SYSTEM_PROMPT
+    hist_data = _session_get("history") or []
+    hist: ChatHistory = []
+    if isinstance(hist_data, list):
+        hist = [
+            cast(ChatMessage, dict(cast(Mapping[str, Any], entry)))
+            for entry in hist_data
+            if isinstance(entry, dict)
+        ]
+    system = str(_session_get("system") or DEFAULT_SYSTEM_PROMPT)
     if not hist or hist[0].get("role") != "system":
-        hist = [{"role":"system","content":system}] + hist
-    hist.append({"role":"user","content":message.content})
+        hist.insert(0, _chat_message("system", system))
+    hist.append(_chat_message("user", message.content))
 
-    trimmed, metrics = trim_messages(
+    trimmed_raw, metrics_raw = trim_messages(
         hist,
         target_tokens,
         model,
         min_turns=min_turns,
     )
+    trimmed = cast(ChatHistory, list(trimmed_raw))
+    metrics: MetricsPayload = dict(metrics_raw)
     semantic_retention_raw = await _ensure_semantic_retention(hist, trimmed, metrics)
     token_in = _to_int(metrics.get("input_tokens"))
     token_out = _to_int(metrics.get("output_tokens"))
@@ -279,20 +316,20 @@ async def on_message(message: cl.Message):
         compress_ratio=compress_ratio,
         semantic_retention=semantic_retention,
     )
-    cl.user_session.set("history", trimmed)
-    cl.user_session.set("trim_metrics", metrics)
+    _session_set("history", trimmed)
+    _session_set("trim_metrics", metrics)
     if show_debug:
         base = f"[trim] tokens: {token_out}/{token_in} (ratio {compress_ratio})"
         if semantic_retention is not None:
             base += f", retention {semantic_retention}"
-        await cl.Message(content=base).send()
+        await _send_message(content=base)
 
     # 3) Run chain
     provider = get_provider(model)
     steps = get_chain_steps(chain_id)
     step_timings: List[StepLatency] = []
     overall_start = perf_counter()
-    status: str = "success"
+    status: Literal["success", "failure"] = "success"
     error_message: str | None = None
     retryable: bool | None = None
     try:
@@ -306,25 +343,28 @@ async def on_message(message: cl.Message):
                     show_input=True,
                 ) as step:
                     step.input = message.content
-                    msgs = list(trimmed)
+                    msgs: List[ChatMessage] = list(trimmed)
                     if step_name != "final":
                         msgs.append(
-                            {"role": "system", "content": system_hint_for_step(step_name)}
+                            _chat_message(
+                                "system", system_hint_for_step(step_name)
+                            )
                         )
                     accum: List[str] = []
                     stream_opts = _prepare_provider_options(
                         model, {"temperature": 0.7}
                     )
+                    provider_messages = cast(Sequence[Dict[str, Any]], msgs)
                     async for delta in provider.stream(
-                        model=model, messages=msgs, **stream_opts
+                        model=model, messages=provider_messages, **stream_opts
                     ):
                         if delta:
                             accum.append(delta)
                             await step.stream_token(delta)
                     output = "".join(accum)
                     step.output = output
-                    trimmed.append({"role": "assistant", "content": output})
-                    cl.user_session.set("history", trimmed)
+                    trimmed.append(_chat_message("assistant", output))
+                    _session_set("history", trimmed)
             finally:
                 elapsed_ms = (perf_counter() - step_start) * 1000.0
                 step_timings.append({"step": step_label, "latency_ms": elapsed_ms})
@@ -353,4 +393,4 @@ async def on_message(message: cl.Message):
 
     # Mirror last output as normal message
     if trimmed and trimmed[-1]["role"] == "assistant":
-        await cl.Message(content=trimmed[-1]["content"]).send()
+        await _send_message(content=str(trimmed[-1]["content"]))

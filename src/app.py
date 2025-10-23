@@ -209,15 +209,6 @@ def get_provider(model_id: str) -> OpenAIProvider | GoogleGeminiProvider:
 
 @cl.on_chat_start
 async def on_start() -> None:
-    default_model = os.getenv("DEFAULT_MODEL", DEFAULT_MODEL)
-    default_chain = os.getenv("DEFAULT_CHAIN", DEFAULT_CHAIN)
-    _session_set("model", default_model)
-    _session_set("chain", default_chain)
-    _session_set("trim_tokens", 4096)
-    _session_set("min_turns", 0)
-    _session_set("system", DEFAULT_SYSTEM_PROMPT)
-    _session_set("show_debug", False)
-
     model_choices = [
         "gpt-5-main",
         "gpt-5-main-mini",
@@ -230,11 +221,34 @@ async def on_start() -> None:
     ]
     chain_choices = ["single", "reflect"]
 
-    def _resolve_initial_index(values: Sequence[str], key: str) -> int:
+    default_model = os.getenv("DEFAULT_MODEL", DEFAULT_MODEL)
+    default_chain = os.getenv("DEFAULT_CHAIN", DEFAULT_CHAIN)
+
+    def _resolve_choice(
+        key: str, default_value: str, values: Sequence[str]
+    ) -> str:
         current = _session_get(key)
         if isinstance(current, str) and current in values:
-            return values.index(current)
-        return 0
+            return current
+        if default_value in values:
+            return default_value
+        return values[0]
+
+    selected_model = _resolve_choice("model", default_model, model_choices)
+    selected_chain = _resolve_choice("chain", default_chain, chain_choices)
+
+    _session_set("model", selected_model)
+    _session_set("chain", selected_chain)
+    _session_set("trim_tokens", 4096)
+    _session_set("min_turns", 0)
+    _session_set("system", DEFAULT_SYSTEM_PROMPT)
+    _session_set("show_debug", False)
+
+    def _resolve_initial_index(values: Sequence[str], selected: str) -> int:
+        try:
+            return values.index(selected)
+        except ValueError:
+            return 0
 
     trim_tokens = _to_int(_session_get("trim_tokens")) or 4096
     min_turns = _to_int(_session_get("min_turns"))
@@ -246,13 +260,13 @@ async def on_start() -> None:
                 id="model",
                 label="Model",
                 values=model_choices,
-                initial_index=_resolve_initial_index(model_choices, "model"),
+                initial_index=_resolve_initial_index(model_choices, selected_model),
             ),
             Select(
                 id="chain",
                 label="Multi-step Chain",
                 values=chain_choices,
-                initial_index=_resolve_initial_index(chain_choices, "chain"),
+                initial_index=_resolve_initial_index(chain_choices, selected_chain),
             ),
             Slider(
                 id="trim_tokens",

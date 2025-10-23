@@ -1,4 +1,6 @@
 import ast
+import sys
+import types
 from pathlib import Path
 from textwrap import dedent
 
@@ -24,15 +26,39 @@ _DEFAULT_SYSTEM_PROMPT = _get_default_system_prompt()
 
 
 def test_persona_default():
-    sys, issues = compile_persona_yaml("")
-    assert sys == _DEFAULT_SYSTEM_PROMPT
+    system_prompt, issues = compile_persona_yaml("")
+    assert system_prompt == _DEFAULT_SYSTEM_PROMPT
     assert issues == []
 
 
 def test_persona_parse_error_falls_back_to_default():
-    sys, issues = compile_persona_yaml("name: [1, 2")
+    system_prompt, issues = compile_persona_yaml("name: [1, 2")
 
-    assert sys == _DEFAULT_SYSTEM_PROMPT
+    assert system_prompt == _DEFAULT_SYSTEM_PROMPT
+    assert issues and issues[0].startswith("YAML parse error:")
+
+
+def test_persona_default_reflects_app_default(monkeypatch):
+    sentinel = "Test sentinel prompt for empty persona."
+    stub = types.ModuleType("src.app")
+    stub.DEFAULT_SYSTEM_PROMPT = sentinel
+    monkeypatch.setitem(sys.modules, "src.app", stub)
+
+    system_prompt, issues = compile_persona_yaml("")
+
+    assert system_prompt == sentinel
+    assert issues == []
+
+
+def test_persona_parse_error_reflects_app_default(monkeypatch):
+    sentinel = "Test sentinel prompt for parse error."
+    stub = types.ModuleType("src.app")
+    stub.DEFAULT_SYSTEM_PROMPT = sentinel
+    monkeypatch.setitem(sys.modules, "src.app", stub)
+
+    system_prompt, issues = compile_persona_yaml("name: [1, 2")
+
+    assert system_prompt == sentinel
     assert issues and issues[0].startswith("YAML parse error:")
 
 

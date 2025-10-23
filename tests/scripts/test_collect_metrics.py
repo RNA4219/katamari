@@ -238,6 +238,30 @@ def test_latest_null_semantic_retention_triggers_fallback(tmp_path: Path) -> Non
     assert data["semantic_retention"] == SEMANTIC_RETENTION_FALLBACK
 
 
+def test_missing_compress_ratio_in_latest_log_causes_failure(tmp_path: Path) -> None:
+    log_path = tmp_path / "latest_missing.log"
+    log_path.write_text(
+        (
+            'INFO metrics={"compress_ratio": 0.58, "semantic_retention": 0.9}\n'
+            'INFO metrics={"semantic_retention": 0.91}'
+        ),
+        encoding="utf-8",
+    )
+    output_path = tmp_path / "latest_missing.json"
+
+    completed = _run_cli(
+        "--log-path",
+        str(log_path),
+        "--output",
+        str(output_path),
+        check=False,
+    )
+
+    assert completed.returncode != 0
+    assert not output_path.exists()
+    assert "compress_ratio" in completed.stderr
+
+
 def test_exit_code_is_non_zero_on_missing_metrics(tmp_path: Path) -> None:
     empty_log = tmp_path / "empty.log"
     empty_log.write_text("INFO nothing", encoding="utf-8")

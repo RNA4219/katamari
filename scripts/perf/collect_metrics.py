@@ -76,14 +76,15 @@ def _parse_chainlit_log(path: Path) -> dict[str, float]:
             payload = payload["metrics"]
         if not isinstance(payload, dict):
             continue
+        current: dict[str, float] = {}
         for key in METRIC_KEYS:
-            if key in payload:
-                value = payload[key]
-                try:
-                    metrics[key] = float(value)
-                except (TypeError, ValueError):
-                    metrics[key] = math.nan
-                    continue
+            if key not in payload:
+                continue
+            try:
+                current[key] = float(payload[key])
+            except (TypeError, ValueError):
+                continue
+        metrics = current
     return metrics
 
 

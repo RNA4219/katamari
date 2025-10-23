@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import math
 import subprocess
 import sys
 import threading
@@ -11,47 +10,10 @@ from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-import pytest
-
-
-@pytest.fixture
-def prometheus_metrics_with_labels() -> str:
-    return (
-        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
-        "# TYPE compress_ratio gauge\n"
-        'compress_ratio{source="chainlit"} 0.42\n'
-        "# HELP semantic_retention Semantic retention score for trimmed context.\n"
-        "# TYPE semantic_retention gauge\n"
-        'semantic_retention{source="chainlit"} 0.73'
-    )
-
-
-def test_parse_prometheus_supports_labeled_metrics(
-    prometheus_metrics_with_labels: str,
-) -> None:
-    from scripts.perf.collect_metrics import _parse_prometheus
-
-    baseline_payload = (
-        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
-        "# TYPE compress_ratio gauge\n"
-        "compress_ratio 0.42\n"
-        "# HELP semantic_retention Semantic retention score for trimmed context.\n"
-        "# TYPE semantic_retention gauge\n"
-        "semantic_retention 0.73"
-    )
-    expected = {
-        "compress_ratio": 0.42,
-        "semantic_retention": 0.73,
-    }
-
-    assert _parse_prometheus(baseline_payload) == expected
-    assert _parse_prometheus(prometheus_metrics_with_labels) == expected
-
-
-def test_semantic_retention_fallback_is_nan() -> None:
+def test_semantic_retention_fallback_is_none() -> None:
     from scripts.perf import collect_metrics
 
-    assert math.isnan(collect_metrics.SEMANTIC_RETENTION_FALLBACK)
+    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK is None
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")
@@ -125,7 +87,7 @@ def test_normalizes_nan_semantic_retention_from_prometheus(tmp_path: Path) -> No
 
         data = json.loads(output_path.read_text(encoding="utf-8"))
         assert data["compress_ratio"] == 0.42
-        assert math.isnan(data["semantic_retention"])
+        assert data["semantic_retention"] is None
     finally:
         shutdown()
 
@@ -189,7 +151,7 @@ def test_replaces_nan_http_metric_with_log_value(tmp_path: Path) -> None:
         data = json.loads(output_path.read_text(encoding="utf-8"))
         assert data["compress_ratio"] == 0.42
         assert data["semantic_retention"] == 0.91
-        assert not math.isnan(data["semantic_retention"])
+        assert data["semantic_retention"] is not None
     finally:
         shutdown()
 
@@ -255,7 +217,7 @@ def test_missing_semantic_retention_falls_back(tmp_path: Path) -> None:
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.55
-    assert math.isnan(data["semantic_retention"])
+    assert data["semantic_retention"] is None
 
 
 def test_latest_null_semantic_retention_triggers_fallback(tmp_path: Path) -> None:

@@ -29,6 +29,7 @@ class GoogleGeminiProvider:
             api_key
             or os.getenv("GOOGLE_GEMINI_API_KEY")
             or os.getenv("GEMINI_API_KEY")
+            or os.getenv("GOOGLE_API_KEY")
         )
         if api_key_value:
             self._genai.configure(api_key=api_key_value)

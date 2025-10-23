@@ -104,7 +104,7 @@ def get_embedder(provider: str) -> Optional[Embedder]:
     cached = _EMBEDDER_CACHE.get(key)
     if cached is not None:
         cached_signature, cached_embedder = cached
-        if cached_signature == signature:
+        if cached_signature == current_signature:
             return cached_embedder
 
     builder: Optional[Callable[[], Optional[Embedder]]]
@@ -119,7 +119,7 @@ def get_embedder(provider: str) -> Optional[Embedder]:
     if embedder is None:
         _EMBEDDER_CACHE.pop(key, None)
         return None
-    _EMBEDDER_CACHE[key] = (signature, embedder)
+    _EMBEDDER_CACHE[key] = (current_signature, embedder)
     return embedder
 
 

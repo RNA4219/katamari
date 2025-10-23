@@ -44,6 +44,8 @@ export const runChainlit = async (
       '--project',
       CHAILIT_DIR,
       'run',
+      '--extra',
+      'tests',
       'chainlit',
       'run',
       entryPointPath,
@@ -66,9 +68,18 @@ export const runChainlit = async (
         : backendDir;
 
       if (!fallbackDependenciesInstalled) {
+        const editableTarget = `${backendDir}[tests]`;
         const installResult = spawnSync(
           command,
-          ['-m', 'pip', 'install', '--quiet', '--disable-pip-version-check', '-e', backendDir],
+          [
+            '-m',
+            'pip',
+            'install',
+            '--quiet',
+            '--disable-pip-version-check',
+            '-e',
+            editableTarget
+          ],
           {
             env,
             stdio: 'inherit'

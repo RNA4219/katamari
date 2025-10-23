@@ -10,10 +10,10 @@ from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-def test_semantic_retention_fallback_is_one() -> None:
+def test_semantic_retention_fallback_is_none() -> None:
     from scripts.perf import collect_metrics
 
-    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK == 1.0
+    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK is None
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")
@@ -86,10 +86,8 @@ def test_normalizes_nan_semantic_retention_from_prometheus(tmp_path: Path) -> No
         _run_cli("--metrics-url", url, "--output", str(output_path))
 
         data = json.loads(output_path.read_text(encoding="utf-8"))
-        from scripts.perf import collect_metrics
-
         assert data["compress_ratio"] == 0.42
-        assert data["semantic_retention"] is collect_metrics.SEMANTIC_RETENTION_FALLBACK
+        assert data["semantic_retention"] is None
     finally:
         shutdown()
 
@@ -207,7 +205,7 @@ def test_collects_metrics_from_chainlit_log(tmp_path: Path) -> None:
     }
 
 
-def test_missing_semantic_retention_records_none(tmp_path: Path) -> None:
+def test_missing_semantic_retention_falls_back_to_none(tmp_path: Path) -> None:
     log_path = tmp_path / "fallback.log"
     log_path.write_text(
         "INFO metrics={\"compress_ratio\": 0.55}\nINFO done",
@@ -218,16 +216,11 @@ def test_missing_semantic_retention_records_none(tmp_path: Path) -> None:
     _run_cli("--log-path", str(log_path), "--output", str(output_path))
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
-    from scripts.perf import collect_metrics
-
     assert data["compress_ratio"] == 0.55
-    assert (
-        data["semantic_retention"]
-        is collect_metrics.SEMANTIC_RETENTION_FALLBACK
-    )
+    assert data["semantic_retention"] is None
 
 
-def test_latest_log_entry_with_null_semantic_retention_falls_back_to_one(
+def test_latest_log_entry_with_null_semantic_retention_falls_back_to_none(
     tmp_path: Path,
 ) -> None:
     log_path = tmp_path / "chainlit_null.log"

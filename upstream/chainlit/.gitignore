@@ -1,5 +1,7 @@
 build
 dist
+!libs/react-client/dist/
+!libs/react-client/dist/index.d.ts
 
 *.egg-info
 
@@ -43,6 +45,8 @@ node_modules
 .pnpm-store
 dist
 dist-ssr
+!libs/react-client/dist/
+!libs/react-client/dist/index.d.ts
 *.local
 
 # Editor directories and files

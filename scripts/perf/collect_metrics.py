@@ -12,7 +12,7 @@ from urllib.request import urlopen
 
 COMPRESS_RATIO_KEY = "compress_ratio"
 SEMANTIC_RETENTION_KEY = "semantic_retention"
-SEMANTIC_RETENTION_FALLBACK = math.nan
+SEMANTIC_RETENTION_FALLBACK: float = math.nan
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
 

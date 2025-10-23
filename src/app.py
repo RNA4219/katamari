@@ -209,24 +209,78 @@ def get_provider(model_id: str) -> OpenAIProvider | GoogleGeminiProvider:
 
 @cl.on_chat_start
 async def on_start() -> None:
-    _session_set("model", os.getenv("DEFAULT_MODEL", DEFAULT_MODEL))
-    _session_set("chain", os.getenv("DEFAULT_CHAIN", DEFAULT_CHAIN))
+    default_model = os.getenv("DEFAULT_MODEL", DEFAULT_MODEL)
+    default_chain = os.getenv("DEFAULT_CHAIN", DEFAULT_CHAIN)
+    _session_set("model", default_model)
+    _session_set("chain", default_chain)
     _session_set("trim_tokens", 4096)
     _session_set("min_turns", 0)
-    _session_set("system", "You are a helpful assistant named Katamari.")
+    _session_set("system", DEFAULT_SYSTEM_PROMPT)
+    _session_set("show_debug", False)
+
+    model_choices = [
+        "gpt-5-main",
+        "gpt-5-main-mini",
+        "gpt-5-thinking",
+        "gpt-5-thinking-mini",
+        "gpt-5-thinking-nano",
+        "gpt-5-thinking-pro",
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+    ]
+    chain_choices = ["single", "reflect"]
+
+    def _resolve_initial_index(values: Sequence[str], key: str) -> int:
+        current = _session_get(key)
+        if isinstance(current, str) and current in values:
+            return values.index(current)
+        return 0
+
+    trim_tokens = _to_int(_session_get("trim_tokens")) or 4096
+    min_turns = _to_int(_session_get("min_turns"))
+    show_debug = bool(_session_get("show_debug"))
 
     chat_settings = cl.ChatSettings(
         inputs=[
-            Select(id="model", label="Model",
-                   values=["gpt-5-main","gpt-5-main-mini","gpt-5-thinking",
-                           "gpt-5-thinking-mini","gpt-5-thinking-nano","gpt-5-thinking-pro",
-                           "gemini-2.5-pro","gemini-2.5-flash"],
-                   initial_index=0),
-            Select(id="chain", label="Multi-step Chain", values=["single","reflect"], initial_index=0),
-            Slider(id="trim_tokens", label="Trim target tokens", initial=4096, min=1024, max=8192, step=256),
-            Slider(id="min_turns", label="Minimum turns to keep", initial=0, min=0, max=10, step=1),
-            TextInput(id="persona_yaml", label="Persona YAML", initial="", description="name/style/forbid/notes"),
-            Switch(id="show_debug", label="Show debug metrics", initial=False)
+            Select(
+                id="model",
+                label="Model",
+                values=model_choices,
+                initial_index=_resolve_initial_index(model_choices, "model"),
+            ),
+            Select(
+                id="chain",
+                label="Multi-step Chain",
+                values=chain_choices,
+                initial_index=_resolve_initial_index(chain_choices, "chain"),
+            ),
+            Slider(
+                id="trim_tokens",
+                label="Trim target tokens",
+                initial=trim_tokens,
+                min=1024,
+                max=8192,
+                step=256,
+            ),
+            Slider(
+                id="min_turns",
+                label="Minimum turns to keep",
+                initial=min_turns,
+                min=0,
+                max=10,
+                step=1,
+            ),
+            TextInput(
+                id="persona_yaml",
+                label="Persona YAML",
+                initial="",
+                description="name/style/forbid/notes",
+            ),
+            Switch(
+                id="show_debug",
+                label="Show debug metrics",
+                initial=show_debug,
+            ),
         ]
     )
     settings_payload = await cast(Any, chat_settings).send()

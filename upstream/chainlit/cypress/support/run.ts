@@ -7,10 +7,14 @@ import {
 import { access } from 'fs/promises';
 import { dirname, join, delimiter } from 'path';
 
+let fallbackDependenciesInstalled = false;
+
 export const runChainlit = async (
   spec: Cypress.Spec | null = null
 ): Promise<ChildProcessWithoutNullStreams> => {
   const CHAILIT_DIR = join(process.cwd(), 'backend', 'chainlit');
+
+  const backendDir = join(process.cwd(), 'backend');
 
   return new Promise((resolve, reject) => {
     const testDir = spec ? dirname(spec.absolute) : CHAILIT_DIR;
@@ -30,7 +34,6 @@ export const runChainlit = async (
       );
     }
 
-    const backendDir = join(process.cwd(), 'backend');
     const env: NodeJS.ProcessEnv = {
       ...process.env,
       CHAINLIT_APP_ROOT: testDir
@@ -61,6 +64,25 @@ export const runChainlit = async (
       env.PYTHONPATH = env.PYTHONPATH
         ? `${backendDir}${delimiter}${env.PYTHONPATH}`
         : backendDir;
+
+      if (!fallbackDependenciesInstalled) {
+        const installResult = spawnSync(
+          command,
+          ['-m', 'pip', 'install', '--quiet', '--disable-pip-version-check', '-e', backendDir],
+          {
+            env,
+            stdio: 'inherit'
+          }
+        );
+
+        if (installResult.status !== 0) {
+          return reject(
+            `Failed to install Chainlit backend dependencies with ${command}.`
+          );
+        }
+
+        fallbackDependenciesInstalled = true;
+      }
     }
 
     const options: SpawnOptionsWithoutStdio = {

@@ -118,6 +118,40 @@ def test_prefers_chainlit_log_over_nan_http_metric(tmp_path: Path) -> None:
         shutdown()
 
 
+def test_replaces_nan_http_metric_with_log_value(tmp_path: Path) -> None:
+    payload = (
+        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
+        "# TYPE compress_ratio gauge\n"
+        "compress_ratio 0.42\n"
+        "# HELP semantic_retention Semantic retention score for trimmed context.\n"
+        "# TYPE semantic_retention gauge\n"
+        "semantic_retention nan"
+    )
+    url, shutdown = _serve_metrics(payload)
+    log_path = tmp_path / "chainlit_nan_override.log"
+    log_path.write_text(
+        "INFO metrics={\"compress_ratio\": 0.51, \"semantic_retention\": 0.91}",
+        encoding="utf-8",
+    )
+    try:
+        output_path = tmp_path / "metrics_http_nan.json"
+        _run_cli(
+            "--metrics-url",
+            url,
+            "--log-path",
+            str(log_path),
+            "--output",
+            str(output_path),
+        )
+
+        data = json.loads(output_path.read_text(encoding="utf-8"))
+        assert data["compress_ratio"] == 0.42
+        assert data["semantic_retention"] == 0.91
+        assert not isnan(data["semantic_retention"])
+    finally:
+        shutdown()
+
+
 def test_collects_metrics_from_chainlit_log(tmp_path: Path) -> None:
     log_path = tmp_path / "chainlit.log"
     log_path.write_text(

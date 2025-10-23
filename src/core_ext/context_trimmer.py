@@ -70,16 +70,23 @@ class _TokenCounter:
         return info
 
 
-def trim_messages(messages: List[Dict], target_tokens: int, model: str) -> Tuple[List[Dict], Dict]:
+def trim_messages(
+    messages: List[Dict],
+    target_tokens: int,
+    model: str,
+    *,
+    min_turns: int = 0,
+) -> Tuple[List[Dict], Dict]:
     counter = _TokenCounter(model)
     system_messages = [m for m in messages if m.get("role") == "system"]
     conversation = [m for m in messages if m.get("role") != "system"]
     budget = max(256, target_tokens)
     kept: List[Dict] = []
     total = 0
+    required_turns = max(0, min_turns)
     for message in reversed(conversation):
         tokens = counter.count(message.get("content", ""))
-        if total + tokens > budget:
+        if total + tokens > budget and len(kept) >= required_turns:
             break
         kept.append(message)
         total += tokens

@@ -1,6 +1,8 @@
 
 #!/usr/bin/env python3
-import sys, shutil, pathlib, json
+import pathlib
+import shutil
+import sys
 
 root = pathlib.Path(__file__).resolve().parents[1]
 themes = root / "themes"

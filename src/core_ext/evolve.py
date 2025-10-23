@@ -1,6 +1,6 @@
 
 # M2 placeholder for prompt evolution module
-from typing import List, Dict
+from typing import Dict
 
 def evolve_prompts(seed_prompt: str, objective: str, pop: int = 6, gen: int = 5, evaluator: str = "bertscore") -> Dict:
     # Placeholder; wire evaluators in M2

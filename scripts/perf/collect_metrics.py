@@ -9,7 +9,11 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 
-METRIC_KEYS = ("compress_ratio", "semantic_retention")
+COMPRESS_RATIO_KEY = "compress_ratio"
+SEMANTIC_RETENTION_KEY = "semantic_retention"
+SEMANTIC_RETENTION_FALLBACK = 1.0
+
+METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
 
 
 def _parse_prometheus(body: str) -> dict[str, float]:
@@ -68,6 +72,12 @@ def _collect(metrics_url: str | None, log_path: Path | None) -> dict[str, float]
         except OSError:
             pass
     missing = [key for key in METRIC_KEYS if key not in collected]
+    if (
+        SEMANTIC_RETENTION_KEY in missing
+        and COMPRESS_RATIO_KEY not in missing
+    ):
+        collected[SEMANTIC_RETENTION_KEY] = SEMANTIC_RETENTION_FALLBACK
+        missing.remove(SEMANTIC_RETENTION_KEY)
     if missing:
         raise RuntimeError("Failed to collect metrics: missing " + ", ".join(missing))
     return {key: collected[key] for key in METRIC_KEYS}

@@ -28,6 +28,16 @@ from providers.openai_client import OpenAIProvider
 
 DEFAULT_MODEL = "gpt-5-main"
 DEFAULT_CHAIN = "single"
+DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Katamari."
+
+_REASONING_DEFAULT = {"effort": "medium", "parallel": True}
+
+
+def _prepare_provider_options(model_id: str, base: Dict[str, Any]) -> Dict[str, Any]:
+    opts = dict(base)
+    if "thinking" in model_id.lower() and "reasoning" not in opts:
+        opts["reasoning"] = dict(_REASONING_DEFAULT)
+    return opts
 
 _DISABLED_RETENTION_VALUES = {"", "none", "off", "0", "false"}
 
@@ -157,6 +167,7 @@ async def on_start():
     cl.user_session.set("model", os.getenv("DEFAULT_MODEL", DEFAULT_MODEL))
     cl.user_session.set("chain", os.getenv("DEFAULT_CHAIN", DEFAULT_CHAIN))
     cl.user_session.set("trim_tokens", 4096)
+    cl.user_session.set("min_turns", 0)
     cl.user_session.set("system", "You are a helpful assistant named Katamari.")
 
     settings = await cl.ChatSettings(
@@ -168,6 +179,7 @@ async def on_start():
                    initial_index=0),
             Select(id="chain", label="Multi-step Chain", values=["single","reflect"], initial_index=0),
             Slider(id="trim_tokens", label="Trim target tokens", initial=4096, min=1024, max=8192, step=256),
+            Slider(id="min_turns", label="Minimum turns to keep", initial=0, min=0, max=10, step=1),
             TextInput(id="persona_yaml", label="Persona YAML", initial="", description="name/style/forbid/notes"),
             Switch(id="show_debug", label="Show debug metrics", initial=False)
         ]
@@ -180,22 +192,34 @@ async def on_settings_update(settings: Dict):
     await apply_settings(settings)
 
 async def apply_settings(settings: Dict):
-    for k in ("model","chain","trim_tokens","show_debug"):
+    for k in ("model","chain","trim_tokens","min_turns","show_debug"):
         if k in settings:
             cl.user_session.set(k, settings[k])
 
-    yaml_str = settings.get("persona_yaml","")
-    if yaml_str:
-        system, issues = compile_persona_yaml(yaml_str)
-        cl.user_session.set("system", system)
-        if issues:
-            await cl.Message(content="\n".join(["[persona issues]"]+issues)).send()
+    if "persona_yaml" in settings:
+        yaml_raw = settings.get("persona_yaml", "")
+        yaml_str = yaml_raw if isinstance(yaml_raw, str) else ""
+        if yaml_str.strip() == "":
+            previous = cl.user_session.get("system") or DEFAULT_SYSTEM_PROMPT
+            cl.user_session.set("system", DEFAULT_SYSTEM_PROMPT)
+            if previous != DEFAULT_SYSTEM_PROMPT:
+                await cl.Message(
+                    content="[persona issues]\nPersona prompt reset to default."
+                ).send()
+            return
+
+        if yaml_str:
+            system, issues = compile_persona_yaml(yaml_str)
+            cl.user_session.set("system", system)
+            if issues:
+                await cl.Message(content="\n".join(["[persona issues]"]+issues)).send()
 
 @cl.on_message
 async def on_message(message: cl.Message):
     model: str = cl.user_session.get("model") or DEFAULT_MODEL
     chain_id: str = cl.user_session.get("chain") or DEFAULT_CHAIN
     target_tokens: int = int(cl.user_session.get("trim_tokens") or 4096)
+    min_turns = _to_int(cl.user_session.get("min_turns"))
     show_debug: bool = bool(cl.user_session.get("show_debug"))
 
     # 1) Prethought (optional display as a step)
@@ -205,7 +229,7 @@ async def on_message(message: cl.Message):
 
     # 2) Build/trim history
     hist: List[Dict] = cl.user_session.get("history") or []
-    system = cl.user_session.get("system") or "You are a helpful assistant named Katamari."
+    system = cl.user_session.get("system") or DEFAULT_SYSTEM_PROMPT
     if not hist or hist[0].get("role") != "system":
         hist = [{"role":"system","content":system}] + hist
     hist.append({"role":"user","content":message.content})
@@ -258,8 +282,11 @@ async def on_message(message: cl.Message):
                             {"role": "system", "content": system_hint_for_step(step_name)}
                         )
                     accum: List[str] = []
+                    stream_opts = _prepare_provider_options(
+                        model, {"temperature": 0.7}
+                    )
                     async for delta in provider.stream(
-                        model=model, messages=msgs, temperature=0.7
+                        model=model, messages=msgs, **stream_opts
                     ):
                         if delta:
                             accum.append(delta)

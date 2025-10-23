@@ -1,0 +1,59 @@
+{
+  "scenario": "OpenAI chat completion streaming response for reflect chain over SSE.",
+  "messages": [
+    {"role": "system", "content": "You are Reflector, summarizing thoughts before answers."},
+    {"role": "user", "content": "Reflect on how to respond to the prompt 'Explain 2+2'."}
+  ],
+  "stream_events": [
+    {
+      "choices": [
+        {
+          "delta": {"content": "Thought:"},
+          "message": {"content": null}
+        }
+      ]
+    },
+    {
+      "choices": [
+        {
+          "delta": {"content": " considering core facts."},
+          "message": {"content": null}
+        }
+      ]
+    },
+    {
+      "choices": [
+        {
+          "delta": {"content": ""},
+          "message": {"content": null}
+        }
+      ]
+    },
+    {
+      "choices": [
+        {
+          "delta": {"content": "Conclusion:"},
+          "message": {"content": null}
+        }
+      ]
+    },
+    {
+      "choices": [
+        {
+          "delta": {"content": " respond clearly with 4."},
+          "message": {"content": null}
+        }
+      ]
+    }
+  ],
+  "completion": {
+    "choices": [
+      {
+        "delta": {"content": ""},
+        "message": {
+          "content": "Final answer: 2+2 equals 4 after reflecting on the arithmetic steps."
+        }
+      }
+    ]
+  }
+}

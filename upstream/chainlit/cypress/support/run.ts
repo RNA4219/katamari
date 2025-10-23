@@ -1,15 +1,20 @@
 import {
   ChildProcessWithoutNullStreams,
   SpawnOptionsWithoutStdio,
-  spawn
+  spawn,
+  spawnSync
 } from 'child_process';
 import { access } from 'fs/promises';
-import { dirname, join } from 'path';
+import { dirname, join, delimiter } from 'path';
+
+let fallbackDependenciesInstalled = false;
 
 export const runChainlit = async (
   spec: Cypress.Spec | null = null
 ): Promise<ChildProcessWithoutNullStreams> => {
   const CHAILIT_DIR = join(process.cwd(), 'backend', 'chainlit');
+
+  const backendDir = join(process.cwd(), 'backend');
 
   return new Promise((resolve, reject) => {
     const testDir = spec ? dirname(spec.absolute) : CHAILIT_DIR;
@@ -29,9 +34,13 @@ export const runChainlit = async (
       );
     }
 
-    const command = 'uv';
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      CHAINLIT_APP_ROOT: testDir
+    };
 
-    const args = [
+    let command = 'uv';
+    let args: string[] = [
       '--project',
       CHAILIT_DIR,
       'run',
@@ -42,11 +51,42 @@ export const runChainlit = async (
       '--ci'
     ];
 
-    const options: SpawnOptionsWithoutStdio = {
-      env: {
-        ...process.env,
-        CHAINLIT_APP_ROOT: testDir
+    const uvCheck = spawnSync(command, ['--version'], { stdio: 'ignore' });
+    const uvUnavailable = Boolean(uvCheck.error) || uvCheck.status !== 0;
+
+    if (uvUnavailable) {
+      command = process.env.CHAINLIT_PYTHON_BIN
+        ? process.env.CHAINLIT_PYTHON_BIN
+        : process.platform === 'win32'
+        ? 'python'
+        : 'python3';
+      args = ['-m', 'chainlit.cli', 'run', entryPointPath, '-h', '--ci'];
+      env.PYTHONPATH = env.PYTHONPATH
+        ? `${backendDir}${delimiter}${env.PYTHONPATH}`
+        : backendDir;
+
+      if (!fallbackDependenciesInstalled) {
+        const installResult = spawnSync(
+          command,
+          ['-m', 'pip', 'install', '--quiet', '--disable-pip-version-check', '-e', backendDir],
+          {
+            env,
+            stdio: 'inherit'
+          }
+        );
+
+        if (installResult.status !== 0) {
+          return reject(
+            `Failed to install Chainlit backend dependencies with ${command}.`
+          );
+        }
+
+        fallbackDependenciesInstalled = true;
       }
+    }
+
+    const options: SpawnOptionsWithoutStdio = {
+      env
     };
 
     const chainlit = spawn(command, args, options);

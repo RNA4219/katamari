@@ -1,6 +1,6 @@
 
 import os
-from typing import AsyncIterator, List, Dict, Optional
+from typing import AsyncIterator, Dict, List
 from openai import AsyncOpenAI
 
 class OpenAIProvider:

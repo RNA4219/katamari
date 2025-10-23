@@ -43,3 +43,36 @@ def test_trim_messages_preserves_compress_ratio() -> None:
     assert metrics["token_counter"]["mode"] == "heuristic"
     ratio = metrics["output_tokens"] / max(1, metrics["input_tokens"])
     assert metrics["compress_ratio"] == round(ratio, 3)
+
+
+def test_trim_messages_respects_min_turns() -> None:
+    messages: List[Dict[str, str]] = [
+        {"role": "system", "content": "System"},
+        {"role": "user", "content": "first" * 400},
+        {"role": "assistant", "content": "reply"},
+        {"role": "user", "content": "second"},
+    ]
+
+    trimmed, _ = trim_messages(messages, target_tokens=128, model="legacy-model", min_turns=2)
+
+    assert trimmed == [
+        {"role": "system", "content": "System"},
+        {"role": "assistant", "content": "reply"},
+        {"role": "user", "content": "second"},
+    ]
+
+
+def test_trim_messages_defaults_preserve_behavior() -> None:
+    messages: List[Dict[str, str]] = [
+        {"role": "system", "content": "System"},
+        {"role": "user", "content": "a" * 100},
+        {"role": "assistant", "content": "b" * 100},
+    ]
+
+    trimmed, _ = trim_messages(messages, target_tokens=16, model="legacy-model")
+
+    assert trimmed == [
+        {"role": "system", "content": "System"},
+        {"role": "user", "content": "a" * 100},
+        {"role": "assistant", "content": "b" * 100},
+    ]

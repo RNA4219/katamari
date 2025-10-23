@@ -3,7 +3,7 @@ from typing import Dict, List
 
 import pytest
 
-from src.core_ext.context_trimmer import trim_messages
+from src.core_ext.context_trimmer import _TokenCounter, trim_messages
 
 
 tiktoken = pytest.importorskip("tiktoken")
@@ -102,4 +102,55 @@ def test_trim_messages_min_turns_keeps_pairs_even_over_budget() -> None:
         {"role": "assistant", "content": "dense" * 400},
         {"role": "user", "content": "final question"},
         {"role": "assistant", "content": "final reply"},
+    ]
+
+
+def test_trim_messages_counts_system_tokens_in_budget() -> None:
+    counter = _TokenCounter("gpt-4o")
+    system_content = "sys " * 400
+    system_tokens = counter.count(system_content)
+    target_tokens = system_tokens + 48
+
+    messages: List[Dict[str, str]] = [
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": "u" * 800},
+        {"role": "assistant", "content": "a" * 200},
+        {"role": "user", "content": "short question"},
+    ]
+
+    _, metrics = trim_messages(messages, target_tokens=target_tokens, model="gpt-4o")
+
+    assert metrics["output_tokens"] <= target_tokens
+
+
+def test_trim_messages_counts_system_tokens_in_budget_with_min_turns() -> None:
+    counter = _TokenCounter("gpt-4o")
+    system_content = "sys " * 400
+    system_tokens = counter.count(system_content)
+    target_tokens = system_tokens + 64
+
+    messages: List[Dict[str, str]] = [
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": "first" * 800},
+        {"role": "assistant", "content": "reply" * 200},
+        {"role": "user", "content": "second question"},
+        {"role": "assistant", "content": "short reply"},
+        {"role": "user", "content": "final question"},
+        {"role": "assistant", "content": "concise answer"},
+    ]
+
+    trimmed, metrics = trim_messages(
+        messages,
+        target_tokens=target_tokens,
+        model="gpt-4o",
+        min_turns=2,
+    )
+
+    assert metrics["output_tokens"] <= target_tokens
+    assert trimmed[0]["role"] == "system"
+    assert trimmed[-4:] == [
+        {"role": "user", "content": "second question"},
+        {"role": "assistant", "content": "short reply"},
+        {"role": "user", "content": "final question"},
+        {"role": "assistant", "content": "concise answer"},
     ]

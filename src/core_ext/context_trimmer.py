@@ -135,8 +135,13 @@ def trim_messages(
 ) -> Tuple[List[ChatMessage], TrimMetrics]:
     counter = _TokenCounter(model)
     system_messages = [m for m in messages if m.get("role") == "system"]
+    kept_system_messages = system_messages[:1]
     conversation = [m for m in messages if m.get("role") != "system"]
-    budget = max(256, target_tokens)
+    base_budget = max(256, target_tokens)
+    system_tokens = sum(
+        counter.count(str(message.get("content", ""))) for message in kept_system_messages
+    )
+    budget = max(0, base_budget - system_tokens)
     required_turns = max(0, min_turns)
 
     if required_turns > 0:
@@ -165,7 +170,7 @@ def trim_messages(
             total += tokens
         kept.reverse()
 
-    output_messages = (system_messages[:1] if system_messages else []) + kept
+    output_messages = kept_system_messages + kept
 
     original_tokens = sum(counter.count(str(m.get("content", ""))) for m in messages)
     trimmed_tokens = sum(

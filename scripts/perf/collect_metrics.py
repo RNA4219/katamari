@@ -12,7 +12,7 @@ from urllib.request import urlopen
 
 COMPRESS_RATIO_KEY = "compress_ratio"
 SEMANTIC_RETENTION_KEY = "semantic_retention"
-SEMANTIC_RETENTION_FALLBACK = 1.0
+SEMANTIC_RETENTION_FALLBACK = math.nan
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
 
@@ -81,10 +81,10 @@ def _collect(metrics_url: str | None, log_path: Path | None) -> dict[str, float]
         value = collected[key]
         if math.isnan(value):
             if key == SEMANTIC_RETENTION_KEY:
-                value = SEMANTIC_RETENTION_FALLBACK
+                sanitized[key] = SEMANTIC_RETENTION_FALLBACK
             else:
                 missing.append(key)
-                continue
+            continue
         sanitized[key] = value
     if (
         SEMANTIC_RETENTION_KEY in missing

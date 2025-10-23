@@ -240,6 +240,26 @@ def test_latest_log_entry_with_null_semantic_retention_falls_back_to_one(
     assert data["semantic_retention"] == 1.0
 
 
+def test_latest_log_entry_without_semantic_retention_falls_back_to_one(
+    tmp_path: Path,
+) -> None:
+    log_path = tmp_path / "chainlit_missing.log"
+    log_path.write_text(
+        (
+            "INFO metrics={\"compress_ratio\": 0.64, \"semantic_retention\": 0.88}\n"
+            "INFO metrics={\"compress_ratio\": 0.64}"
+        ),
+        encoding="utf-8",
+    )
+    output_path = tmp_path / "chainlit_missing_metrics.json"
+
+    _run_cli("--log-path", str(log_path), "--output", str(output_path))
+
+    data = json.loads(output_path.read_text(encoding="utf-8"))
+    assert data["compress_ratio"] == 0.64
+    assert data["semantic_retention"] == 1.0
+
+
 def test_exit_code_is_non_zero_on_missing_metrics(tmp_path: Path) -> None:
     empty_log = tmp_path / "empty.log"
     empty_log.write_text("INFO nothing", encoding="utf-8")

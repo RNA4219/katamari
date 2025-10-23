@@ -44,7 +44,12 @@ def _build_openai_embedder() -> Optional[Embedder]:
 
 
 def _build_gemini_embedder() -> Optional[Embedder]:
-    api_key = os.getenv("GOOGLE_API_KEY")
+    api_key = None
+    for env_var in ("GOOGLE_GEMINI_API_KEY", "GEMINI_API_KEY"):
+        value = os.getenv(env_var)
+        if value:
+            api_key = value
+            break
     if not api_key:
         return None
     try:

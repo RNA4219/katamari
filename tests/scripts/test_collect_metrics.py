@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
+import math
 import subprocess
 import sys
 import threading
+from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from collections.abc import Callable
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")
@@ -62,6 +63,27 @@ def test_collects_metrics_from_http_endpoint(tmp_path: Path) -> None:
             "compress_ratio": 0.42,
             "semantic_retention": 0.73,
         }
+    finally:
+        shutdown()
+
+
+def test_collects_nan_metrics_from_http_endpoint(tmp_path: Path) -> None:
+    payload = (
+        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
+        "# TYPE compress_ratio gauge\n"
+        "compress_ratio 0.42\n"
+        "# HELP semantic_retention Semantic retention score for trimmed context.\n"
+        "# TYPE semantic_retention gauge\n"
+        "semantic_retention nan"
+    )
+    url, shutdown = _serve_metrics(payload)
+    try:
+        output_path = tmp_path / "metrics_nan.json"
+        _run_cli("--metrics-url", url, "--output", str(output_path))
+
+        data = json.loads(output_path.read_text(encoding="utf-8"))
+        assert data["compress_ratio"] == 0.42
+        assert math.isnan(data["semantic_retention"])
     finally:
         shutdown()
 

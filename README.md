@@ -91,7 +91,6 @@ make run
 | 任意 | `SEMANTIC_RETENTION_PROVIDER` | 会話保持率メトリクス算出時の埋め込みプロバイダー（`openai` / `gemini`） | `SEMANTIC_RETENTION_PROVIDER=gemini` | 指定時は下記モデル設定も併用。保持率メトリクスは未実装（計画中） |
 | 任意 | `SEMANTIC_RETENTION_OPENAI_MODEL` | OpenAI 埋め込みモデル名 | `SEMANTIC_RETENTION_OPENAI_MODEL=text-embedding-3-large` | OpenAI プロバイダー指定時に利用。保持率メトリクスは未実装（計画中） |
 | 任意 | `SEMANTIC_RETENTION_GEMINI_MODEL` | Google Gemini 埋め込みモデル名 | `SEMANTIC_RETENTION_GEMINI_MODEL=text-embedding-004` | Gemini プロバイダー指定時に利用。保持率メトリクスは未実装（計画中） |
-| 任意 | `GOOGLE_API_KEY` | Gemini 埋め込み生成用 API キー（会話保持率用） | `GOOGLE_API_KEY=...` | `SEMANTIC_RETENTION_PROVIDER=gemini` 時に必要。保持率メトリクスは未実装（計画中） |
 
 > まず `.env` に必須項目を入力し、環境に合わせて任意項目を追加してください。Chainlit の詳細ログが必要な場合は一時的に `DEBUG=1` を追加するか、`chainlit run src/app.py --debug` で直接起動します。
 

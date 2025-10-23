@@ -6,10 +6,13 @@ import os
 import sys
 from importlib import import_module
 from pathlib import Path
+import math
 from typing import Iterator, List, Tuple
 
 import pytest
 from fastapi.testclient import TestClient
+
+from scripts.perf.collect_metrics import _parse_prometheus
 
 
 def _bootstrap_chainlit(tmp_path) -> Tuple[object, object, str | None, List[str]]:
@@ -78,7 +81,7 @@ def test_metrics_endpoint_exposes_trim_gauges(app_context) -> None:
     assert response.headers["content-type"].startswith("text/plain")
 
 
-def test_metrics_endpoint_reports_none_for_missing_retention(app_context) -> None:
+def test_metrics_endpoint_reports_nan_for_missing_retention(app_context) -> None:
     chainlit_app, app_module = app_context
     app_module.METRICS_REGISTRY.observe_trim(
         compress_ratio=0.5,
@@ -113,3 +116,15 @@ def test_metrics_endpoint_does_not_report_one_for_missing_retention(app_context)
     body = response.text
     assert "semantic_retention nan" in body
     assert "semantic_retention 1.0" not in body
+
+
+def test_export_prometheus_outputs_nan_for_missing_retention(app_context) -> None:
+    _, app_module = app_context
+    registry = app_module.METRICS_REGISTRY
+    registry.observe_trim(compress_ratio=0.8, semantic_retention=None)
+
+    payload = registry.export_prometheus()
+
+    assert "semantic_retention nan" in payload
+    parsed = _parse_prometheus(payload)
+    assert math.isnan(parsed["semantic_retention"])

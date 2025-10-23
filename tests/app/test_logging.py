@@ -141,11 +141,16 @@ async def test_on_message_computes_semantic_retention(
         {"role": "user", "content": "hello"},
     ]
 
-    monkeypatch.setattr(
-        app_module,
-        "trim_messages",
-        lambda history, target_tokens, model: (list(trimmed_messages), dict(metrics)),
-    )
+    def _fake_trim_messages(
+        history: List[Dict[str, Any]],
+        target_tokens: int,
+        model: str,
+        *,
+        min_turns: int = 0,
+    ) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        return list(trimmed_messages), dict(metrics)
+
+    monkeypatch.setattr(app_module, "trim_messages", _fake_trim_messages)
 
     observed: Dict[str, Any] = {}
 

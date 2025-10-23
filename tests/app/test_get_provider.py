@@ -100,6 +100,25 @@ def test_get_provider_returns_gemini_for_prefixed_models(app_module, stub_genai)
     assert isinstance(provider, stub_genai.GoogleGeminiProvider)
 
 
+@pytest.mark.parametrize(
+    ("model_id", "expected_parallel"),
+    [
+        ("gpt-5-thinking-mini", False),
+        ("gpt-5-thinking-nano", False),
+        ("gpt-5-thinking", True),
+        ("gpt-5-thinking-pro", True),
+    ],
+)
+def test_thinking_model_parallel_whitelist(app_module, model_id: str, expected_parallel: bool):
+    opts = app_module._prepare_provider_options(model_id, {"temperature": 0.5})
+    reasoning = opts.get("reasoning")
+    assert isinstance(reasoning, dict)
+    if expected_parallel:
+        assert reasoning.get("parallel") is True
+    else:
+        assert "parallel" not in reasoning or reasoning.get("parallel") is False
+
+
 @pytest.mark.anyio("asyncio")
 async def test_thinking_model_stream_passes_reasoning(app_module):
     calls = []

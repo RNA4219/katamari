@@ -8,8 +8,7 @@ def test_chainlit_cli_module_invocation() -> None:
     result = subprocess.run(
         [sys.executable, "-m", "chainlit.cli", "--help"],
         check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         text=True,
     )
 

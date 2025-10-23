@@ -73,15 +73,21 @@ class MetricsRegistry:
     def export_prometheus(self) -> str:
         metrics = self.snapshot()
         retention = metrics["semantic_retention"]
-        retention_repr = "nan" if retention is None else f"{retention}"
+
+        def _format(value: float | None) -> str:
+            if value is None:
+                return "nan"
+            if isinstance(value, float) and math.isnan(value):
+                return "nan"
+            return f"{value}"
 
         lines = [
             "# HELP compress_ratio Ratio of tokens kept after trimming.",
             "# TYPE compress_ratio gauge",
-            f"compress_ratio {metrics['compress_ratio']}",
+            f"compress_ratio {_format(metrics['compress_ratio'])}",
             "# HELP semantic_retention Semantic retention score for trimmed context.",
             "# TYPE semantic_retention gauge",
-            f"semantic_retention {retention_repr}",
+            f"semantic_retention {_format(retention)}",
         ]
         return "\n".join(lines) + "\n"
 
@@ -150,7 +156,10 @@ async def metrics() -> PlainTextResponse:
     """Expose runtime metrics in Prometheus text format."""
 
     payload = METRICS_REGISTRY.export_prometheus()
-    return PlainTextResponse(payload, media_type="text/plain; version=0.0.4")
+    return PlainTextResponse(
+        payload,
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
 
 chainlit_app.include_router(ops_router, prefix=chainlit_router.prefix)
 for _path in ("/metrics", "/healthz"):

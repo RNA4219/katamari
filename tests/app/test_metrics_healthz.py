@@ -98,7 +98,13 @@ def test_metrics_endpoint_reports_nan_for_missing_retention(app_context) -> None
     assert response.status_code == 200
     body = response.text
     assert "compress_ratio 0.6" in body
-    assert "semantic_retention nan" in body
+    parsed = _parse_prometheus(body)
+    assert "semantic_retention" in parsed
+    assert math.isnan(parsed["semantic_retention"])
+    assert any(
+        marker in body
+        for marker in ("semantic_retention nan", "semantic_retention NaN")
+    )
 
 
 def test_metrics_endpoint_does_not_report_one_for_missing_retention(app_context) -> None:
@@ -114,7 +120,13 @@ def test_metrics_endpoint_does_not_report_one_for_missing_retention(app_context)
 
     assert response.status_code == 200
     body = response.text
-    assert "semantic_retention nan" in body
+    parsed = _parse_prometheus(body)
+    assert "semantic_retention" in parsed
+    assert math.isnan(parsed["semantic_retention"])
+    assert any(
+        marker in body
+        for marker in ("semantic_retention nan", "semantic_retention NaN")
+    )
     assert "semantic_retention 1.0" not in body
 
 

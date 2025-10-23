@@ -236,7 +236,7 @@ async def on_message(message: cl.Message):
     model: str = cl.user_session.get("model") or DEFAULT_MODEL
     chain_id: str = cl.user_session.get("chain") or DEFAULT_CHAIN
     target_tokens: int = int(cl.user_session.get("trim_tokens") or 4096)
-    min_turns = _to_int(cl.user_session.get("min_turns"))
+    min_turns: int = _to_int(cl.user_session.get("min_turns"))
     show_debug: bool = bool(cl.user_session.get("show_debug"))
 
     # 1) Prethought (optional display as a step)

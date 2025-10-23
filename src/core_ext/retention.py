@@ -100,7 +100,7 @@ def _provider_signature(provider: str) -> _Signature:
 
 def get_embedder(provider: str) -> Optional[Embedder]:
     key = provider.lower()
-    signature = _provider_signature(key)
+    current_signature = _provider_signature(key)
     cached = _EMBEDDER_CACHE.get(key)
     if cached is not None:
         cached_signature, cached_embedder = cached

@@ -12,7 +12,7 @@ from urllib.request import urlopen
 
 COMPRESS_RATIO_KEY = "compress_ratio"
 SEMANTIC_RETENTION_KEY = "semantic_retention"
-SEMANTIC_RETENTION_FALLBACK: None = None
+SEMANTIC_RETENTION_FALLBACK: float | None = None
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
 METRIC_RANGES: dict[str, tuple[float, float]] = {
@@ -60,8 +60,8 @@ def _parse_prometheus(body: str) -> dict[str, float]:
     return metrics
 
 
-def _parse_chainlit_log(path: Path) -> dict[str, float]:
-    metrics: dict[str, float] = {}
+def _parse_chainlit_log(path: Path) -> dict[str, float | None]:
+    metrics: dict[str, float | None] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         if "compress_ratio" not in line and "semantic_retention" not in line:
             continue
@@ -113,11 +113,13 @@ def _collect(
         except (URLError, OSError):
             pass
 
-    log_metrics: dict[str, float] = {}
+    log_metrics: dict[str, float | None] = {}
     if log_path:
         try:
             for key, value in _parse_chainlit_log(log_path).items():
-                if _is_valid_metric(key, value):
+                if value is None:
+                    log_metrics[key] = None
+                elif _is_valid_metric(key, value):
                     log_metrics[key] = value
         except OSError:
             pass
@@ -137,10 +139,17 @@ def _collect(
             elif _is_valid_metric(key, http_value):
                 http_candidate = http_value
 
-        log_value = log_metrics.get(key)
+        log_value_present = key in log_metrics
+        log_is_null = log_value_present and log_metrics[key] is None
         log_candidate: float | None = None
-        if log_value is not None and _is_valid_metric(key, log_value):
-            log_candidate = log_value
+        if log_value_present and not log_is_null:
+            log_value = log_metrics[key]
+            if log_value is not None and _is_valid_metric(key, log_value):
+                log_candidate = log_value
+
+        if log_is_null:
+            sanitized[key] = None
+            continue
 
         if http_candidate is not None:
             candidate = http_candidate

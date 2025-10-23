@@ -17,6 +17,13 @@ SEMANTIC_RETENTION_FALLBACK = 1.0
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
 
 
+def _is_finite(value: float) -> bool:
+    try:
+        return math.isfinite(value)
+    except (TypeError, ValueError):
+        return False
+
+
 def _parse_prometheus(body: str) -> dict[str, float]:
     metrics: dict[str, float] = {}
     for line in body.splitlines():
@@ -69,7 +76,11 @@ def _collect(metrics_url: str | None, log_path: Path | None) -> dict[str, float]
     if log_path:
         try:
             for key, value in _parse_chainlit_log(log_path).items():
-                collected.setdefault(key, value)
+                if not _is_finite(value):
+                    continue
+                existing = collected.get(key)
+                if existing is None or not _is_finite(existing):
+                    collected[key] = value
         except OSError:
             pass
     sanitized: dict[str, float] = {}
@@ -79,7 +90,7 @@ def _collect(metrics_url: str | None, log_path: Path | None) -> dict[str, float]
             missing.append(key)
             continue
         value = collected[key]
-        if math.isnan(value):
+        if not _is_finite(value):
             if key == SEMANTIC_RETENTION_KEY:
                 value = SEMANTIC_RETENTION_FALLBACK
             else:

@@ -100,9 +100,10 @@ def _collect(metrics_url: str | None, log_path: Path | None) -> dict[str, float]
 
         http_value = http_metrics.get(key)
         http_candidate: float | None = None
+        http_is_nan = False
         if http_value is not None:
             if _is_nan(http_value):
-                http_candidate = None
+                http_is_nan = key == SEMANTIC_RETENTION_KEY
             elif _is_finite(http_value):
                 http_candidate = http_value
 
@@ -117,6 +118,9 @@ def _collect(metrics_url: str | None, log_path: Path | None) -> dict[str, float]
             candidate = log_candidate
 
         if candidate is None:
+            if http_is_nan:
+                sanitized[key] = SEMANTIC_RETENTION_FALLBACK
+                continue
             if (
                 key == SEMANTIC_RETENTION_KEY
                 and COMPRESS_RATIO_KEY in sanitized

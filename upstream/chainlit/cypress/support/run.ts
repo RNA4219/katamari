@@ -1,10 +1,11 @@
 import {
   ChildProcessWithoutNullStreams,
   SpawnOptionsWithoutStdio,
-  spawn
+  spawn,
+  spawnSync
 } from 'child_process';
 import { access } from 'fs/promises';
-import { dirname, join } from 'path';
+import { dirname, join, delimiter } from 'path';
 
 export const runChainlit = async (
   spec: Cypress.Spec | null = null
@@ -29,9 +30,14 @@ export const runChainlit = async (
       );
     }
 
-    const command = 'uv';
+    const backendDir = join(process.cwd(), 'backend');
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      CHAINLIT_APP_ROOT: testDir
+    };
 
-    const args = [
+    let command = 'uv';
+    let args: string[] = [
       '--project',
       CHAILIT_DIR,
       'run',
@@ -42,11 +48,23 @@ export const runChainlit = async (
       '--ci'
     ];
 
+    const uvCheck = spawnSync(command, ['--version'], { stdio: 'ignore' });
+    const uvUnavailable = Boolean(uvCheck.error) || uvCheck.status !== 0;
+
+    if (uvUnavailable) {
+      command = process.env.CHAINLIT_PYTHON_BIN
+        ? process.env.CHAINLIT_PYTHON_BIN
+        : process.platform === 'win32'
+        ? 'python'
+        : 'python3';
+      args = ['-m', 'chainlit.cli', 'run', entryPointPath, '-h', '--ci'];
+      env.PYTHONPATH = env.PYTHONPATH
+        ? `${backendDir}${delimiter}${env.PYTHONPATH}`
+        : backendDir;
+    }
+
     const options: SpawnOptionsWithoutStdio = {
-      env: {
-        ...process.env,
-        CHAINLIT_APP_ROOT: testDir
-      }
+      env
     };
 
     const chainlit = spawn(command, args, options);

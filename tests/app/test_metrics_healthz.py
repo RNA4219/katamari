@@ -95,7 +95,7 @@ def test_metrics_endpoint_reports_none_for_missing_retention(app_context) -> Non
     assert response.status_code == 200
     body = response.text
     assert "compress_ratio 0.6" in body
-    assert "semantic_retention None" in body
+    assert "semantic_retention nan" in body
 
 
 def test_metrics_endpoint_does_not_report_one_for_missing_retention(app_context) -> None:
@@ -111,5 +111,5 @@ def test_metrics_endpoint_does_not_report_one_for_missing_retention(app_context)
 
     assert response.status_code == 200
     body = response.text
-    assert "semantic_retention None" in body
+    assert "semantic_retention nan" in body
     assert "semantic_retention 1.0" not in body

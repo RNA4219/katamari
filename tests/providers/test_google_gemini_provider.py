@@ -90,9 +90,21 @@ async def test_complete_returns_text_response() -> None:
 
 def test_init_configures_with_gemini_api_key_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("GOOGLE_GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
     monkeypatch.setenv("GEMINI_API_KEY", "fallback-key")
     module = StubGenerativeAIModule(stream_chunks=[], response_text="unused")
 
     GoogleGeminiProvider(genai_module=module)
 
     assert module.configure_kwargs == [{"api_key": "fallback-key"}]
+
+
+def test_init_configures_with_google_api_key_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GOOGLE_GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setenv("GOOGLE_API_KEY", "final-fallback")
+    module = StubGenerativeAIModule(stream_chunks=[], response_text="unused")
+
+    GoogleGeminiProvider(genai_module=module)
+
+    assert module.configure_kwargs == [{"api_key": "final-fallback"}]

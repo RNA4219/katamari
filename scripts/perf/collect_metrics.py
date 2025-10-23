@@ -12,7 +12,24 @@ from urllib.request import urlopen
 
 COMPRESS_RATIO_KEY = "compress_ratio"
 SEMANTIC_RETENTION_KEY = "semantic_retention"
-SEMANTIC_RETENTION_FALLBACK: float = math.nan
+
+
+class _SemanticRetentionFallback(float):
+    """NaN センチネル同士を比較可能にする float サブクラス。"""
+
+    def __new__(cls) -> "_SemanticRetentionFallback":
+        return super().__new__(cls, math.nan)
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, float) and math.isnan(other):
+            return True
+        return super().__eq__(other)
+
+    def __hash__(self) -> int:
+        return hash(float("nan"))
+
+
+SEMANTIC_RETENTION_FALLBACK: float = _SemanticRetentionFallback()
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
 METRIC_RANGES: dict[str, tuple[float, float]] = {

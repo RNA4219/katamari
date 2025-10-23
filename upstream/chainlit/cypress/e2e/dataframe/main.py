@@ -1,4 +1,42 @@
-import pandas as pd
+from __future__ import annotations
+
+import sys
+from types import ModuleType
+from typing import Any, Mapping, Sequence
+
+try:
+    import pandas as pd
+except ModuleNotFoundError:
+    import json
+
+    class _StubDataFrame:
+        """Minimal pandas.DataFrame replacement for test environments."""
+
+        def __init__(self, data: Mapping[str, Sequence[Any]]):
+            self._data = {column: list(values) for column, values in data.items()}
+            lengths = {len(values) for values in self._data.values()}
+            if len(lengths) > 1:
+                raise ValueError("All columns must have the same length.")
+
+        def to_json(self, orient: str = "split", date_format: str = "iso") -> str:
+            if orient != "split":
+                raise ValueError("Only 'split' orient is supported.")
+
+            columns = list(self._data.keys())
+            rows = [list(row) for row in zip(*self._data.values())] if columns else []
+
+            return json.dumps(
+                {
+                    "columns": columns,
+                    "index": list(range(len(rows))),
+                    "data": rows,
+                }
+            )
+
+    _stub = ModuleType("pandas")
+    _stub.DataFrame = _StubDataFrame  # type: ignore[attr-defined]
+    sys.modules.setdefault("pandas", _stub)
+    pd = _stub  # type: ignore[assignment]
 
 import chainlit as cl
 

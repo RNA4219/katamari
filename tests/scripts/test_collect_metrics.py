@@ -11,6 +11,11 @@ from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
+def test_semantic_retention_fallback_is_nan() -> None:
+    from scripts.perf import collect_metrics
+
+    assert math.isnan(collect_metrics.SEMANTIC_RETENTION_FALLBACK)
+
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")
     return subprocess.run(

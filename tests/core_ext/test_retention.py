@@ -69,3 +69,17 @@ def test_gemini_embedder_falls_back_to_legacy_key(monkeypatch: pytest.MonkeyPatc
 
     assert score == pytest.approx(1.0)
     assert dummy.configured_keys == ["fallback-key"]
+
+
+def test_gemini_embedder_falls_back_to_google_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    dummy = _DummyGenAI()
+    _install_dummy_genai(monkeypatch, dummy)
+    monkeypatch.setenv("SEMANTIC_RETENTION_PROVIDER", "gemini")
+    monkeypatch.delenv("GOOGLE_GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setenv("GOOGLE_API_KEY", "google-api-key")
+
+    score = _compute_with_provider()
+
+    assert score == pytest.approx(1.0)
+    assert dummy.configured_keys == ["google-api-key"]

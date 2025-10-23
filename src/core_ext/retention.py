@@ -53,6 +53,8 @@ def _build_gemini_embedder() -> Optional[Embedder]:
             api_key = value
             break
     if not api_key:
+        api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
         return None
     try:
         import google.generativeai as genai

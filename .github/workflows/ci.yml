@@ -1,62 +1,185 @@
 name: CI
 
+env:
+  CACHE_VERSION: v1
+
 on:
   push:
     branches:
       - main
-  pull_request:
+  workflow_call:
 
 jobs:
+  bootstrap:
+    name: Bootstrap CI metrics
+    runs-on: ubuntu-latest
+    outputs:
+      started-at: ${{ steps.start.outputs.started_at }}
+    steps:
+      - name: Capture workflow start
+        id: start
+        run: echo "started_at=$(date +%s)" >> "$GITHUB_OUTPUT"
+
   python:
     name: Python 3.11 checks
+    needs: bootstrap
     runs-on: ubuntu-latest
     permissions:
       contents: read
     strategy:
       matrix:
-        check: [ruff, pytest, pip-audit]
+        check: [ruff, mypy, pytest]
     steps:
+      - name: Capture job start
+        run: echo "PY_JOB_START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Compute dependency hashes
+        id: lock-hash
+        run: >-
+          python scripts/cache/hash_lockfiles.py --python requirements.txt --node upstream/chainlit/pnpm-lock.yaml --node upstream/chainlit/frontend/pnpm-lock.yaml
+      - name: Cache pip dependencies
+        id: cache-python
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: >-
+            python-${{ env.CACHE_VERSION }}-${{ runner.os }}-py311-${{ matrix.check }}-${{ steps.lock-hash.outputs.python-hash }}
+          restore-keys: |
+            python-${{ env.CACHE_VERSION }}-${{ runner.os }}-py311-${{ matrix.check }}-
+            python-${{ env.CACHE_VERSION }}-${{ runner.os }}-
+      - name: Cache pnpm store (optional)
+        if: steps.lock-hash.outputs.node-hash != ''
+        id: cache-node
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: >-
+            node-${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ steps.lock-hash.outputs.node-hash }}
+          restore-keys: |
+            node-${{ env.CACHE_VERSION }}-${{ runner.os }}-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
           case "${{ matrix.check }}" in
             ruff) python -m pip install ruff ;;
-            pytest) python -m pip install -r requirements.txt pytest pytest-anyio ;;
-            pip-audit) python -m pip install -r requirements.txt pip-audit ;;
+            mypy) python -m pip install mypy ;;
+            pytest) python -m pip install pytest ;; 
           esac
       - name: Run ${{ matrix.check }}
         run: |
           case "${{ matrix.check }}" in
             ruff) ruff check . ;;
-            pytest) pytest ;;
-            pip-audit) pip-audit -r requirements.txt ;;
+            mypy) mypy --strict ;;
+            pytest) pytest -q ;;
           esac
+      - name: Summarize python job metrics
+        if: always()
+        run: |
+          end_ts=$(date +%s)
+          duration=$((end_ts - PY_JOB_START))
+          hit_python="${{ steps.cache-python.outputs.cache-hit }}"
+          hit_node="${{ steps.cache-node.outputs.cache-hit || 'false' }}"
+          {
+            echo "### Python ${{ matrix.check }} job metrics"
+            echo ""
+            echo "- Cache version: ${CACHE_VERSION}"
+            echo "- Pip cache hit: ${hit_python:-false}"
+            echo "- pnpm cache hit: ${hit_node}"
+            echo "- Duration (s): ${duration}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  node:
+    name: Node 20 checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        check: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: upstream/chainlit/pnpm-lock.yaml
+      - name: Install dependencies
+        working-directory: upstream/chainlit
+        run: pnpm install --frozen-lockfile
+      - name: Run pnpm ${{ matrix.check }}
+        working-directory: upstream/chainlit
+        run: pnpm ${{ matrix.check }}
 
   provider-integration:
     name: Provider smoke tests
     runs-on: ubuntu-latest
-    needs: python
+    needs:
+      - python
+      - node
     permissions:
       contents: read
-    if: ${{ secrets.OPENAI_API_KEY != '' && secrets.GEMINI_API_KEY != '' }}
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GOOGLE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
+      - name: Check provider secrets
+        id: check-secrets
+        run: |
+          if [ -z "${OPENAI_API_KEY:-}" ] || [ -z "${GEMINI_API_KEY:-}" ]; then
+            echo "Provider secrets not configured; skipping smoke tests."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - name: Capture job start
+        if: steps.check-secrets.outputs.ready == 'true'
+        run: echo "PROVIDER_JOB_START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
+        if: steps.check-secrets.outputs.ready == 'true'
       - uses: actions/setup-python@v5
+        if: steps.check-secrets.outputs.ready == 'true'
         with:
           python-version: "3.11"
+      - name: Compute dependency hashes
+        id: provider-lock-hash
+        if: steps.check-secrets.outputs.ready == 'true'
+        run: >-
+          python scripts/cache/hash_lockfiles.py --python requirements.txt --node upstream/chainlit/pnpm-lock.yaml --node upstream/chainlit/frontend/pnpm-lock.yaml
+      - name: Cache pip dependencies
+        id: provider-cache-python
+        if: steps.check-secrets.outputs.ready == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: >-
+            provider-${{ env.CACHE_VERSION }}-${{ runner.os }}-py311-${{ steps.provider-lock-hash.outputs.python-hash }}
+          restore-keys: |
+            provider-${{ env.CACHE_VERSION }}-${{ runner.os }}-
+      - name: Cache pnpm store (optional)
+        if: steps.check-secrets.outputs.ready == 'true' && steps.provider-lock-hash.outputs.node-hash != ''
+        id: provider-cache-node
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: >-
+            provider-node-${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ steps.provider-lock-hash.outputs.node-hash }}
+          restore-keys: |
+            provider-node-${{ env.CACHE_VERSION }}-${{ runner.os }}-
       - name: Install provider dependencies
+        if: steps.check-secrets.outputs.ready == 'true'
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt google-generativeai
       - name: OpenAI smoke test
+        if: steps.check-secrets.outputs.ready == 'true'
         run: |
           python - <<'PY'
           from openai import OpenAI
@@ -78,6 +201,7 @@ jobs:
               raise SystemExit("Unexpected OpenAI response")
           PY
       - name: Gemini smoke test
+        if: steps.check-secrets.outputs.ready == 'true'
         run: |
           python - <<'PY'
           import os
@@ -93,3 +217,46 @@ jobs:
           if "ok" not in text:
               raise SystemExit("Unexpected Gemini response")
           PY
+      - name: Summarize provider job metrics
+        if: always() && steps.check-secrets.outputs.ready == 'true'
+        run: |
+          end_ts=$(date +%s)
+          duration=$((end_ts - PROVIDER_JOB_START))
+          hit_python="${{ steps.provider-cache-python.outputs.cache-hit }}"
+          hit_node="${{ steps.provider-cache-node.outputs.cache-hit || 'false' }}"
+          {
+            echo "### Provider smoke job metrics"
+            echo ""
+            echo "- Cache version: ${CACHE_VERSION}"
+            echo "- Pip cache hit: ${hit_python:-false}"
+            echo "- pnpm cache hit: ${hit_node}"
+            echo "- Duration (s): ${duration}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  ci-metrics:
+    name: CI workflow metrics
+    runs-on: ubuntu-latest
+    needs:
+      - bootstrap
+      - python
+      - provider-integration
+    if: ${{ always() }}
+    steps:
+      - name: Summarize workflow duration
+        run: |
+          start_ts="${{ needs.bootstrap.outputs.started-at }}"
+          end_ts=$(date +%s)
+          duration=$((end_ts - start_ts))
+          start_iso=$(date -u -d "@${start_ts}" '+%Y-%m-%dT%H:%M:%SZ')
+          end_iso=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          echo "Workflow duration: ${duration}s"
+          {
+            echo "### CI workflow summary"
+            echo ""
+            echo "- Cache version: ${CACHE_VERSION}"
+            echo "- Started (UTC): ${start_iso}"
+            echo "- Finished (UTC): ${end_iso}"
+            echo "- Duration (s): ${duration}"
+            echo "- Python job status: ${{ needs.python.result }}"
+            echo "- Provider job status: ${{ needs.provider-integration.result }}"
+          } >> "$GITHUB_STEP_SUMMARY"

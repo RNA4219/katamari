@@ -8,7 +8,7 @@
 import os
 from threading import Lock
 from time import perf_counter
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import chainlit as cl
 from fastapi import APIRouter
@@ -26,6 +26,16 @@ from providers.openai_client import OpenAIProvider
 
 DEFAULT_MODEL = "gpt-5-main"
 DEFAULT_CHAIN = "single"
+DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Katamari."
+
+_REASONING_DEFAULT = {"effort": "medium", "parallel": True}
+
+
+def _prepare_provider_options(model_id: str, base: Dict[str, Any]) -> Dict[str, Any]:
+    opts = dict(base)
+    if "thinking" in model_id.lower() and "reasoning" not in opts:
+        opts["reasoning"] = dict(_REASONING_DEFAULT)
+    return opts
 
 
 class MetricsRegistry:
@@ -157,12 +167,23 @@ async def apply_settings(settings: Dict):
         if k in settings:
             cl.user_session.set(k, settings[k])
 
-    yaml_str = settings.get("persona_yaml","")
-    if yaml_str:
-        system, issues = compile_persona_yaml(yaml_str)
-        cl.user_session.set("system", system)
-        if issues:
-            await cl.Message(content="\n".join(["[persona issues]"]+issues)).send()
+    if "persona_yaml" in settings:
+        yaml_raw = settings.get("persona_yaml", "")
+        yaml_str = yaml_raw if isinstance(yaml_raw, str) else ""
+        if yaml_str.strip() == "":
+            previous = cl.user_session.get("system") or DEFAULT_SYSTEM_PROMPT
+            cl.user_session.set("system", DEFAULT_SYSTEM_PROMPT)
+            if previous != DEFAULT_SYSTEM_PROMPT:
+                await cl.Message(
+                    content="[persona issues]\nPersona prompt reset to default."
+                ).send()
+            return
+
+        if yaml_str:
+            system, issues = compile_persona_yaml(yaml_str)
+            cl.user_session.set("system", system)
+            if issues:
+                await cl.Message(content="\n".join(["[persona issues]"]+issues)).send()
 
 @cl.on_message
 async def on_message(message: cl.Message):
@@ -179,7 +200,7 @@ async def on_message(message: cl.Message):
 
     # 2) Build/trim history
     hist: List[Dict] = cl.user_session.get("history") or []
-    system = cl.user_session.get("system") or "You are a helpful assistant named Katamari."
+    system = cl.user_session.get("system") or DEFAULT_SYSTEM_PROMPT
     if not hist or hist[0].get("role") != "system":
         hist = [{"role":"system","content":system}] + hist
     hist.append({"role":"user","content":message.content})
@@ -231,8 +252,11 @@ async def on_message(message: cl.Message):
                             {"role": "system", "content": system_hint_for_step(step_name)}
                         )
                     accum: List[str] = []
+                    stream_opts = _prepare_provider_options(
+                        model, {"temperature": 0.7}
+                    )
                     async for delta in provider.stream(
-                        model=model, messages=msgs, temperature=0.7
+                        model=model, messages=msgs, **stream_opts
                     ):
                         if delta:
                             accum.append(delta)

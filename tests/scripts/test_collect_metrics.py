@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import json, subprocess, sys, threading
+import json
+import subprocess
+import sys
+import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from collections.abc import Callable
-
-import pytest
-
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")
@@ -79,6 +79,22 @@ def test_collects_metrics_from_chainlit_log(tmp_path: Path) -> None:
     assert json.loads(output_path.read_text(encoding="utf-8")) == {
         "compress_ratio": 0.64,
         "semantic_retention": 0.88,
+    }
+
+
+def test_missing_semantic_retention_falls_back(tmp_path: Path) -> None:
+    log_path = tmp_path / "fallback.log"
+    log_path.write_text(
+        "INFO metrics={\"compress_ratio\": 0.55}\nINFO done",
+        encoding="utf-8",
+    )
+    output_path = tmp_path / "fallback.json"
+
+    _run_cli("--log-path", str(log_path), "--output", str(output_path))
+
+    assert json.loads(output_path.read_text(encoding="utf-8")) == {
+        "compress_ratio": 0.55,
+        "semantic_retention": 1.0,
     }
 
 

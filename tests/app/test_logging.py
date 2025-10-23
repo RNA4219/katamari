@@ -127,6 +127,28 @@ def anyio_backend() -> str:
 
 
 @pytest.mark.anyio
+async def test_apply_settings_resets_persona_on_empty_yaml(monkeypatch, app_module, stub_chainlit):
+    session = stub_chainlit
+    session.set("system", app_module.DEFAULT_SYSTEM_PROMPT)
+    _StubOutboundMessage.sent.clear()
+
+    monkeypatch.setattr(
+        app_module,
+        "compile_persona_yaml",
+        lambda yaml_str: ("persona system", []),
+    )
+
+    await app_module.apply_settings({"persona_yaml": "name: test"})
+    assert session.get("system") == "persona system"
+
+    _StubOutboundMessage.sent.clear()
+
+    await app_module.apply_settings({"persona_yaml": ""})
+    assert session.get("system") == app_module.DEFAULT_SYSTEM_PROMPT
+    assert _StubOutboundMessage.sent[-1] == "[persona issues]\nPersona prompt reset to default."
+
+
+@pytest.mark.anyio
 async def test_on_message_emits_structured_log(monkeypatch, caplog, app_module, stub_chainlit):
     metrics = {
         "input_tokens": 120,

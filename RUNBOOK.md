@@ -47,6 +47,7 @@ Guardrails の「準備→実行→検証」順で進める。
 1. `pytest` / `pnpm run test`（必要に応じて `cd upstream/chainlit`）/ `ruff` / `mypy --strict` を実行し、失敗時は Guardrails の最小差分方針で修正する。Cypress ベースの Node テストは `pnpm run test` で網羅的に実施し、単独検証でもログを保管する。
 2. SSE 遅延が閾値を超えた場合、`docs/addenda/J_Runbook.md` のトラブルシュート手順を参照する。
 3. 重大障害は `CHANGELOG.md` と Task Seed に記録し、必要なら `RUNBOOK.md` を更新する。記録は自分宛の TODO でもよいが日時と判断根拠を残す。
+4. CI キャッシュが未ヒットまたは破損した場合は、GitHub Actions の `Python … job metrics` / `Provider smoke job metrics` / `CI workflow summary` でヒット状況と計測値を確認し、`CACHE_VERSION`（`.github/workflows/ci.yml` 冒頭）をインクリメントしたうえで再実行する。ローカルで `python scripts/cache/hash_lockfiles.py --python requirements.txt --node upstream/chainlit/pnpm-lock.yaml --node upstream/chainlit/frontend/pnpm-lock.yaml` を走らせ、ハッシュが想定どおり変化していることを確認してから PR に含める。
 
 ## 最小フロー
 1. `docs/ROADMAP_AND_SPECS.md` で対象フェーズと関連タスクを特定する。

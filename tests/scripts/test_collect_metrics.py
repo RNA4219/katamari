@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import subprocess
 import sys
 import threading
@@ -86,8 +87,11 @@ def test_normalizes_nan_semantic_retention_from_prometheus(tmp_path: Path) -> No
         _run_cli("--metrics-url", url, "--output", str(output_path))
 
         data = json.loads(output_path.read_text(encoding="utf-8"))
+        from scripts.perf import collect_metrics
+
         assert data["compress_ratio"] == 0.42
-        assert data["semantic_retention"] == 1.0
+        assert math.isfinite(data["semantic_retention"])
+        assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
     finally:
         shutdown()
 
@@ -216,8 +220,11 @@ def test_missing_semantic_retention_falls_back(tmp_path: Path) -> None:
     _run_cli("--log-path", str(log_path), "--output", str(output_path))
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
+    from scripts.perf import collect_metrics
+
     assert data["compress_ratio"] == 0.55
-    assert data["semantic_retention"] == 1.0
+    assert math.isfinite(data["semantic_retention"])
+    assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
 
 
 def test_latest_log_entry_with_null_semantic_retention_falls_back_to_one(

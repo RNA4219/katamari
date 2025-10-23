@@ -154,6 +154,10 @@ def _collect(
 
         sanitized[key] = candidate
 
+    semantic_value = sanitized.get(SEMANTIC_RETENTION_KEY)
+    if semantic_value is not None and not _is_finite(semantic_value):
+        sanitized[SEMANTIC_RETENTION_KEY] = SEMANTIC_RETENTION_FALLBACK
+
     if missing:
         raise RuntimeError("Failed to collect metrics: missing " + ", ".join(missing))
 
@@ -175,7 +179,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
-        json.dumps(metrics, indent=2) + "\n",
+        json.dumps(metrics, indent=2, allow_nan=False) + "\n",
         encoding="utf-8",
     )
     return 0

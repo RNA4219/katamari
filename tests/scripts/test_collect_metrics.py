@@ -10,10 +10,10 @@ from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-def test_semantic_retention_fallback_is_none() -> None:
+def test_semantic_retention_fallback_is_one() -> None:
     from scripts.perf import collect_metrics
 
-    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK is None
+    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK == 1.0
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")
@@ -207,7 +207,7 @@ def test_collects_metrics_from_chainlit_log(tmp_path: Path) -> None:
     }
 
 
-def test_missing_semantic_retention_falls_back(tmp_path: Path) -> None:
+def test_missing_semantic_retention_records_none(tmp_path: Path) -> None:
     log_path = tmp_path / "fallback.log"
     log_path.write_text(
         "INFO metrics={\"compress_ratio\": 0.55}\nINFO done",
@@ -244,7 +244,7 @@ def test_latest_log_entry_with_null_semantic_retention_falls_back_to_one(
     assert data["semantic_retention"] is None
 
 
-def test_latest_log_entry_without_semantic_retention_falls_back_to_one(
+def test_latest_log_entry_without_semantic_retention_falls_back_to_none(
     tmp_path: Path,
 ) -> None:
     log_path = tmp_path / "chainlit_missing.log"

@@ -118,3 +118,25 @@ def test_gemini_embedder_falls_back_to_google_api_key(monkeypatch: pytest.Monkey
 
     assert score == pytest.approx(1.0)
     assert dummy.configured_keys == ["google-api-key"]
+
+
+def test_embedder_rebuilds_after_env_update(monkeypatch: pytest.MonkeyPatch) -> None:
+    dummy = _DummyGenAI()
+    _install_dummy_genai(monkeypatch, dummy)
+    monkeypatch.setenv("SEMANTIC_RETENTION_PROVIDER", "gemini")
+    monkeypatch.delenv("GOOGLE_GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+
+    embedder = retention.get_embedder("gemini")
+
+    assert embedder is None
+    assert "gemini" not in retention._EMBEDDER_CACHE
+
+    monkeypatch.setenv("GOOGLE_GEMINI_API_KEY", "after-key")
+
+    rebuilt = retention.get_embedder("gemini")
+
+    assert rebuilt is not None
+    assert retention._EMBEDDER_CACHE.get("gemini") is rebuilt
+    assert rebuilt("sample text") == [1.0, 0.0]

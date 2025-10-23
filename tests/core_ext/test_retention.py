@@ -17,16 +17,19 @@ def _clear_embedder_cache():
 class _DummyGenAI(types.SimpleNamespace):
     configured_keys: List[str]
     embeddings: Dict[str, List[float]]
+    requested_models: List[str]
 
     def __init__(self) -> None:
         super().__init__()
         self.configured_keys = []
         self.embeddings = {}
+        self.requested_models = []
 
     def configure(self, api_key: str) -> None:  # type: ignore[override]
         self.configured_keys.append(api_key)
 
     def embed_content(self, *, model: str, content: str):  # type: ignore[override]
+        self.requested_models.append(model)
         return {"embedding": self.embeddings.get(content, [1.0, 0.0])}
 
 
@@ -188,6 +191,36 @@ def test_embedder_rebuilds_after_env_update(monkeypatch: pytest.MonkeyPatch) -> 
     _, cached_embedder = cache_entry
     assert cached_embedder is rebuilt
     assert rebuilt("sample text") == [1.0, 0.0]
+
+
+def test_gemini_embedder_rebuilds_when_env_changes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dummy = _DummyGenAI()
+    _install_dummy_genai(monkeypatch, dummy)
+    monkeypatch.setenv("SEMANTIC_RETENTION_PROVIDER", "gemini")
+    monkeypatch.setenv("GOOGLE_GEMINI_API_KEY", "first-key")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.setenv("SEMANTIC_RETENTION_GEMINI_MODEL", "model-a")
+
+    first = retention.get_embedder("gemini")
+
+    assert first is not None
+    first("payload")
+    assert dummy.configured_keys == ["first-key"]
+    assert dummy.requested_models == ["model-a"]
+
+    monkeypatch.setenv("GOOGLE_GEMINI_API_KEY", "second-key")
+    monkeypatch.setenv("SEMANTIC_RETENTION_GEMINI_MODEL", "model-b")
+
+    second = retention.get_embedder("gemini")
+
+    assert second is not None
+    assert second is not first
+    second("payload")
+    assert dummy.configured_keys == ["first-key", "second-key"]
+    assert dummy.requested_models == ["model-a", "model-b"]
 
 
 def test_openai_embedder_rebuilds_when_env_changes(

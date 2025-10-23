@@ -15,6 +15,10 @@ SEMANTIC_RETENTION_KEY = "semantic_retention"
 SEMANTIC_RETENTION_FALLBACK: float = math.nan
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
+METRIC_RANGES: dict[str, tuple[float, float]] = {
+    COMPRESS_RATIO_KEY: (0.0, 1.0),
+    SEMANTIC_RETENTION_KEY: (0.0, 1.0),
+}
 
 
 def _is_finite(value: float) -> bool:
@@ -29,6 +33,15 @@ def _is_nan(value: float | None) -> bool:
         return math.isnan(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return False
+
+
+def _is_in_range(key: str, value: float) -> bool:
+    lower, upper = METRIC_RANGES.get(key, (float("-inf"), float("inf")))
+    return lower <= value <= upper
+
+
+def _is_valid_metric(key: str, value: float) -> bool:
+    return _is_finite(value) and _is_in_range(key, value)
 
 
 def _parse_prometheus(body: str) -> dict[str, float]:
@@ -87,7 +100,7 @@ def _collect(metrics_url: str | None, log_path: Path | None) -> dict[str, float]
     if log_path:
         try:
             for key, value in _parse_chainlit_log(log_path).items():
-                if _is_finite(value):
+                if _is_valid_metric(key, value):
                     log_metrics[key] = value
         except OSError:
             pass
@@ -104,12 +117,12 @@ def _collect(metrics_url: str | None, log_path: Path | None) -> dict[str, float]
         if http_value is not None:
             if _is_nan(http_value):
                 http_is_nan = key == SEMANTIC_RETENTION_KEY
-            elif _is_finite(http_value):
+            elif _is_valid_metric(key, http_value):
                 http_candidate = http_value
 
         log_value = log_metrics.get(key)
         log_candidate: float | None = None
-        if log_value is not None and _is_finite(log_value):
+        if log_value is not None and _is_valid_metric(key, log_value):
             log_candidate = log_value
 
         if http_candidate is not None:

@@ -254,7 +254,10 @@ async def on_message(message: cl.Message):
     hist.append({"role":"user","content":message.content})
 
     trimmed, metrics = trim_messages(
-        hist, target_tokens, model, min_turns=min_turns
+        hist,
+        target_tokens,
+        model,
+        min_turns=min_turns,
     )
     semantic_retention_raw = await _ensure_semantic_retention(hist, trimmed, metrics)
     token_in = _to_int(metrics.get("input_tokens"))

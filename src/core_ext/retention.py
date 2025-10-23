@@ -9,7 +9,7 @@ Embedder = Callable[[str], Sequence[float]]
 _Signature = Tuple[Tuple[str, str], ...]
 _CacheEntry = Tuple[_Signature, Embedder]
 
-_EMBEDDER_CACHE: Dict[str, Optional[_CacheEntry]] = {}
+_EMBEDDER_CACHE: Dict[str, _CacheEntry] = {}
 
 
 def _norm(vec: Sequence[float]) -> float:
@@ -100,15 +100,12 @@ def _provider_signature(provider: str) -> _Signature:
 
 def get_embedder(provider: str) -> Optional[Embedder]:
     key = provider.lower()
-    current_signature = _provider_signature(key)
-    if key in _EMBEDDER_CACHE:
-        cached = _EMBEDDER_CACHE[key]
-        if cached is None:
-            return None
+    signature = _provider_signature(key)
+    cached = _EMBEDDER_CACHE.get(key)
+    if cached is not None:
         cached_signature, cached_embedder = cached
-        if cached_signature == current_signature:
+        if cached_signature == signature:
             return cached_embedder
-        _EMBEDDER_CACHE.pop(key, None)
 
     builder: Optional[Callable[[], Optional[Embedder]]]
     if key == "openai":
@@ -118,17 +115,11 @@ def get_embedder(provider: str) -> Optional[Embedder]:
     else:
         return None
 
-    signature = _provider_signature(key)
-    cached = _EMBEDDER_CACHE.get(key)
-    if cached is not None:
-        cached_signature, cached_embedder = cached
-        if cached_signature == signature:
-            return cached_embedder
-
     embedder = builder()
     if embedder is None:
+        _EMBEDDER_CACHE.pop(key, None)
         return None
-    _EMBEDDER_CACHE[key] = (current_signature, embedder)
+    _EMBEDDER_CACHE[key] = (signature, embedder)
     return embedder
 
 

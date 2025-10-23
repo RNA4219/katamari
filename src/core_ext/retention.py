@@ -116,15 +116,24 @@ def get_embedder(provider: str) -> Optional[Embedder]:
     elif key == "gemini":
         builder = _build_gemini_embedder
     else:
-        _EMBEDDER_CACHE[key] = None
         return None
+
+    signature = _provider_signature(key)
+    cached = _EMBEDDER_CACHE.get(key)
+    if cached is not None:
+        cached_signature, cached_embedder = cached
+        if cached_signature == signature:
+            return cached_embedder
 
     embedder = builder()
     if embedder is None:
-        _EMBEDDER_CACHE.pop(key, None)
         return None
     _EMBEDDER_CACHE[key] = (current_signature, embedder)
     return embedder
+
+
+def reset_embedder_cache() -> None:
+    _EMBEDDER_CACHE.clear()
 
 
 def compute_semantic_retention(

@@ -1,42 +1,43 @@
 from __future__ import annotations
 
+import json
 import sys
+from collections.abc import Mapping, Sequence
 from types import ModuleType
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 try:
     import pandas as pd
 except ModuleNotFoundError:
-    import json
+    class _FallbackDataFrame:
+        """Minimal pandas.DataFrame replacement for test usage."""
 
-    class _StubDataFrame:
-        """Minimal pandas.DataFrame replacement for test environments."""
+        def __init__(self, data: Mapping[str, Sequence[Any]]) -> None:
+            if not isinstance(data, Mapping):
+                raise TypeError("data must be a mapping of column names to sequences")
 
-        def __init__(self, data: Mapping[str, Sequence[Any]]):
-            self._data = {column: list(values) for column, values in data.items()}
-            lengths = {len(values) for values in self._data.values()}
-            if len(lengths) > 1:
-                raise ValueError("All columns must have the same length.")
+            values = [list(column) for column in data.values()]
+            if values and len({len(column) for column in values}) != 1:
+                raise ValueError("all columns must have the same length")
+
+            self._columns = list(data.keys())
+            self._data = list(map(list, zip(*values))) if values else []
+            self._index = list(range(len(self._data)))
 
         def to_json(self, orient: str = "split", date_format: str = "iso") -> str:
             if orient != "split":
-                raise ValueError("Only 'split' orient is supported.")
+                raise ValueError("only orient='split' is supported")
 
-            columns = list(self._data.keys())
-            rows = [list(row) for row in zip(*self._data.values())] if columns else []
+            payload = {
+                "columns": self._columns,
+                "index": self._index,
+                "data": self._data,
+            }
+            return json.dumps(payload)
 
-            return json.dumps(
-                {
-                    "columns": columns,
-                    "index": list(range(len(rows))),
-                    "data": rows,
-                }
-            )
-
-    _stub = ModuleType("pandas")
-    _stub.DataFrame = _StubDataFrame  # type: ignore[attr-defined]
-    sys.modules.setdefault("pandas", _stub)
-    pd = _stub  # type: ignore[assignment]
+    pd = ModuleType("pandas")
+    setattr(pd, "DataFrame", _FallbackDataFrame)
+    sys.modules["pandas"] = pd
 
 import chainlit as cl
 

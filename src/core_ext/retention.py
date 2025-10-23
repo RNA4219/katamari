@@ -7,8 +7,9 @@ from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Sequence, T
 Message = Mapping[str, Any]
 Embedder = Callable[[str], Sequence[float]]
 _Signature = Tuple[Tuple[str, str], ...]
+_CacheEntry = Tuple[_Signature, Embedder]
 
-_EMBEDDER_CACHE: Dict[str, Tuple[_Signature, Embedder]] = {}
+_EMBEDDER_CACHE: Dict[str, Optional[_CacheEntry]] = {}
 
 
 def _norm(vec: Sequence[float]) -> float:
@@ -82,6 +83,7 @@ def _build_gemini_embedder() -> Optional[Embedder]:
 
 
 def _provider_signature(provider: str) -> _Signature:
+    env_vars: Tuple[str, ...]
     if provider == "openai":
         env_vars = ("OPENAI_API_KEY", "SEMANTIC_RETENTION_OPENAI_MODEL")
     elif provider == "gemini":
@@ -98,9 +100,15 @@ def _provider_signature(provider: str) -> _Signature:
 
 def get_embedder(provider: str) -> Optional[Embedder]:
     key = provider.lower()
-    cached = _EMBEDDER_CACHE.get(key)
-    if cached is not None:
-        return cached
+    current_signature = _provider_signature(key)
+    if key in _EMBEDDER_CACHE:
+        cached = _EMBEDDER_CACHE[key]
+        if cached is None:
+            return None
+        cached_signature, cached_embedder = cached
+        if cached_signature == current_signature:
+            return cached_embedder
+        _EMBEDDER_CACHE.pop(key, None)
 
     builder: Optional[Callable[[], Optional[Embedder]]]
     if key == "openai":
@@ -115,7 +123,7 @@ def get_embedder(provider: str) -> Optional[Embedder]:
     if embedder is None:
         _EMBEDDER_CACHE.pop(key, None)
         return None
-    _EMBEDDER_CACHE[key] = embedder
+    _EMBEDDER_CACHE[key] = (current_signature, embedder)
     return embedder
 
 

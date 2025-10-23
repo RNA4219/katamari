@@ -7,8 +7,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 import os
+from pathlib import Path
 from threading import Lock
 from time import perf_counter
 from typing import Any, Dict, List, Mapping, Sequence, cast, Literal
@@ -33,9 +35,32 @@ DEFAULT_CHAIN = "single"
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Katamari."
 
 _REASONING_DEFAULT: Dict[str, Any] = {"effort": "medium", "parallel": True}
-_THINKING_PARALLEL_MODELS: frozenset[str] = frozenset(
+_DEFAULT_PARALLEL_MODELS: frozenset[str] = frozenset(
     {"gpt-5-thinking", "gpt-5-thinking-pro"}
 )
+
+
+def _load_parallel_reasoning_models() -> frozenset[str]:
+    registry_path = Path(__file__).resolve().parents[1] / "config" / "model_registry.json"
+    try:
+        raw_registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return _DEFAULT_PARALLEL_MODELS
+
+    model_ids: set[str] = set()
+    if isinstance(raw_registry, list):
+        for entry in raw_registry:
+            if not isinstance(entry, Mapping):
+                continue
+            if entry.get("parallel") is True:
+                model_id = entry.get("id")
+                if isinstance(model_id, str):
+                    model_ids.add(model_id.lower())
+
+    return frozenset(model_ids) or _DEFAULT_PARALLEL_MODELS
+
+
+_THINKING_PARALLEL_MODELS: frozenset[str] = _load_parallel_reasoning_models()
 
 ChatMessage = TrimMessage
 ChatHistory = List[ChatMessage]

@@ -221,6 +221,24 @@ def test_missing_semantic_retention_falls_back(tmp_path: Path) -> None:
     assert math.isnan(data["semantic_retention"])
 
 
+def test_latest_null_semantic_retention_triggers_fallback(tmp_path: Path) -> None:
+    log_path = tmp_path / "null_latest.log"
+    log_path.write_text(
+        (
+            "INFO metrics={\"compress_ratio\": 0.63, \"semantic_retention\": 0.89}\n"
+            "INFO metrics={\"compress_ratio\": 0.63, \"semantic_retention\": null}"
+        ),
+        encoding="utf-8",
+    )
+    output_path = tmp_path / "null_latest.json"
+
+    _run_cli("--log-path", str(log_path), "--output", str(output_path))
+
+    data = json.loads(output_path.read_text(encoding="utf-8"))
+    assert data["compress_ratio"] == 0.63
+    assert data["semantic_retention"] == SEMANTIC_RETENTION_FALLBACK
+
+
 def test_exit_code_is_non_zero_on_missing_metrics(tmp_path: Path) -> None:
     empty_log = tmp_path / "empty.log"
     empty_log.write_text("INFO nothing", encoding="utf-8")

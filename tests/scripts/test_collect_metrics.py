@@ -11,8 +11,6 @@ from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-from scripts.perf.collect_metrics import SEMANTIC_RETENTION_FALLBACK
-
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")
     return subprocess.run(

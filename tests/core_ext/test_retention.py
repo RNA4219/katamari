@@ -9,9 +9,9 @@ from src.core_ext import retention
 
 @pytest.fixture(autouse=True)
 def _clear_embedder_cache():
-    retention._EMBEDDER_CACHE.clear()
+    retention.reset_embedder_cache()
     yield
-    retention._EMBEDDER_CACHE.clear()
+    retention.reset_embedder_cache()
 
 
 class _DummyGenAI(types.SimpleNamespace):
@@ -80,6 +80,52 @@ def test_compute_semantic_retention_recovers_after_setting_api_key(
     assert created_keys == ["dummy-key"]
 
 
+def test_compute_semantic_retention_rebuilds_after_api_key_change(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SEMANTIC_RETENTION_PROVIDER", "openai")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    module = types.ModuleType("openai")
+    created_keys: List[str] = []
+    embeddings_for_key = {
+        "first-key": [1.0, 0.0],
+        "second-key": [0.0, 1.0],
+    }
+
+    class _DummyOpenAI:
+        def __init__(self, api_key: str) -> None:
+            created_keys.append(api_key)
+            self.api_key = api_key
+            self.embeddings = types.SimpleNamespace(create=self._create)
+
+        def _create(self, *, model: str, input: str):
+            vector = embeddings_for_key[self.api_key]
+            return types.SimpleNamespace(
+                data=[types.SimpleNamespace(embedding=vector)]
+            )
+
+    setattr(module, "OpenAI", _DummyOpenAI)
+    monkeypatch.setitem(sys.modules, "openai", module)
+
+    before = [{"content": "hello"}]
+    after = [{"content": "hello"}]
+
+    assert retention.compute_semantic_retention(before, after) is None
+
+    monkeypatch.setenv("OPENAI_API_KEY", "first-key")
+    first_score = retention.compute_semantic_retention(before, after)
+
+    assert first_score == pytest.approx(1.0)
+    assert created_keys == ["first-key"]
+
+    monkeypatch.setenv("OPENAI_API_KEY", "second-key")
+    second_score = retention.compute_semantic_retention(before, after)
+
+    assert second_score == pytest.approx(1.0)
+    assert created_keys == ["first-key", "second-key"]
+
+
 def test_gemini_embedder_prefers_google_key(monkeypatch: pytest.MonkeyPatch) -> None:
     dummy = _DummyGenAI()
     _install_dummy_genai(monkeypatch, dummy)
@@ -131,16 +177,13 @@ def test_embedder_rebuilds_after_env_update(monkeypatch: pytest.MonkeyPatch) -> 
     embedder = retention.get_embedder("gemini")
 
     assert embedder is None
-    assert "gemini" not in retention._EMBEDDER_CACHE
 
     monkeypatch.setenv("GOOGLE_GEMINI_API_KEY", "after-key")
 
     rebuilt = retention.get_embedder("gemini")
 
     assert rebuilt is not None
-    cached_signature, cached_embedder = retention._EMBEDDER_CACHE["gemini"]
-    assert cached_embedder is rebuilt
-    assert ("GOOGLE_GEMINI_API_KEY", "after-key") in cached_signature
+    assert retention.get_embedder("gemini") is rebuilt
     assert rebuilt("sample text") == [1.0, 0.0]
 
 

@@ -48,22 +48,22 @@ class MetricsRegistry:
 
     def __init__(self) -> None:
         self._lock = Lock()
-        self._compress_ratio = 1.0
-        self._semantic_retention = math.nan
+        self._compress_ratio: float = 1.0
+        self._semantic_retention: float | None = math.nan
 
     def observe_trim(
         self, *, compress_ratio: float, semantic_retention: float | None = None
     ) -> None:
         """Record the latest trimming metrics."""
 
-        retention = (
-            math.nan if semantic_retention is None else float(semantic_retention)
-        )
+        retention: float | None = semantic_retention
+        if retention is not None:
+            retention = float(retention)
         with self._lock:
             self._compress_ratio = float(compress_ratio)
             self._semantic_retention = retention
 
-    def snapshot(self) -> Dict[str, float]:
+    def snapshot(self) -> Dict[str, float | None]:
         with self._lock:
             return {
                 "compress_ratio": self._compress_ratio,
@@ -72,13 +72,16 @@ class MetricsRegistry:
 
     def export_prometheus(self) -> str:
         metrics = self.snapshot()
+        retention = metrics["semantic_retention"]
+        retention_repr = "None" if retention is None else f"{retention}"
+
         lines = [
             "# HELP compress_ratio Ratio of tokens kept after trimming.",
             "# TYPE compress_ratio gauge",
             f"compress_ratio {metrics['compress_ratio']}",
             "# HELP semantic_retention Semantic retention score for trimmed context.",
             "# TYPE semantic_retention gauge",
-            f"semantic_retention {metrics['semantic_retention']}",
+            f"semantic_retention {retention_repr}",
         ]
         return "\n".join(lines) + "\n"
 

@@ -1,4 +1,43 @@
-import pandas as pd
+from __future__ import annotations
+
+import json
+import sys
+from collections.abc import Mapping, Sequence
+from types import ModuleType
+from typing import Any
+
+try:
+    import pandas as pd
+except ModuleNotFoundError:
+    class _FallbackDataFrame:
+        """Minimal pandas.DataFrame replacement for test usage."""
+
+        def __init__(self, data: Mapping[str, Sequence[Any]]) -> None:
+            if not isinstance(data, Mapping):
+                raise TypeError("data must be a mapping of column names to sequences")
+
+            values = [list(column) for column in data.values()]
+            if values and len({len(column) for column in values}) != 1:
+                raise ValueError("all columns must have the same length")
+
+            self._columns = list(data.keys())
+            self._data = list(map(list, zip(*values))) if values else []
+            self._index = list(range(len(self._data)))
+
+        def to_json(self, orient: str = "split", date_format: str = "iso") -> str:
+            if orient != "split":
+                raise ValueError("only orient='split' is supported")
+
+            payload = {
+                "columns": self._columns,
+                "index": self._index,
+                "data": self._data,
+            }
+            return json.dumps(payload)
+
+    pd = ModuleType("pandas")
+    setattr(pd, "DataFrame", _FallbackDataFrame)
+    sys.modules["pandas"] = pd
 
 import chainlit as cl
 

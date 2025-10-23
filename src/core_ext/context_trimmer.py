@@ -26,9 +26,33 @@ def _register_ascii_encoding(name: str) -> Optional[_Encoding]:
     if encoding is not None:
         return encoding
     mergeable_ranks = {bytes([i]): i for i in range(256)}
-    encoding = _Encoding(name=name, pat_str=r"(?s:.)", mergeable_ranks=mergeable_ranks, special_tokens={"<|endoftext|>": len(mergeable_ranks)})
+    encoding = _Encoding(
+        name=name,
+        pat_str=r"(?s:.)",
+        mergeable_ranks=mergeable_ranks,
+        special_tokens={"<|endoftext|>": len(mergeable_ranks)},
+    )
     _registry.ENCODINGS[name] = encoding
     return encoding
+
+
+def _group_conversation_turns(conversation: List[Dict]) -> List[List[Dict]]:
+    turns: List[List[Dict]] = []
+    current: List[Dict] = []
+    for message in conversation:
+        role = message.get("role")
+        if role == "user":
+            if current:
+                turns.append(current)
+            current = [message]
+        else:
+            if not current:
+                current = [message]
+            else:
+                current.append(message)
+    if current:
+        turns.append(current)
+    return turns
 
 
 class _TokenCounter:
@@ -81,16 +105,32 @@ def trim_messages(
     system_messages = [m for m in messages if m.get("role") == "system"]
     conversation = [m for m in messages if m.get("role") != "system"]
     budget = max(256, target_tokens)
-    kept: List[Dict] = []
-    total = 0
     required_turns = max(0, min_turns)
-    for message in reversed(conversation):
-        tokens = counter.count(message.get("content", ""))
-        if total + tokens > budget and len(kept) >= required_turns:
-            break
-        kept.append(message)
-        total += tokens
-    kept.reverse()
+
+    if required_turns > 0:
+        turns = _group_conversation_turns(conversation)
+        kept_turns: List[List[Dict]] = []
+        total = 0
+        turns_kept = 0
+        for turn in reversed(turns):
+            turn_tokens = sum(counter.count(message.get("content", "")) for message in turn)
+            if total + turn_tokens > budget and turns_kept >= required_turns:
+                break
+            kept_turns.append(turn)
+            total += turn_tokens
+            turns_kept += 1
+        kept = [message for turn in reversed(kept_turns) for message in turn]
+    else:
+        kept = []
+        total = 0
+        for message in reversed(conversation):
+            tokens = counter.count(message.get("content", ""))
+            if total + tokens > budget:
+                break
+            kept.append(message)
+            total += tokens
+        kept.reverse()
+
     output_messages = (system_messages[:1] if system_messages else []) + kept
 
     original_tokens = sum(counter.count(m.get("content", "")) for m in messages)

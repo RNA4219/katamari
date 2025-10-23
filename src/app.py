@@ -5,6 +5,7 @@
 #   export OPENAI_API_KEY=sk-...
 #   chainlit run src/app.py --host 0.0.0.0 --port 8787
 
+import asyncio
 import os
 from threading import Lock
 from time import perf_counter
@@ -19,6 +20,7 @@ from chainlit.server import app as chainlit_app, router as chainlit_router
 from core_ext.logging import InferenceLogRecord, StepLatency, StructuredLogger
 from core_ext.persona_compiler import compile_persona_yaml
 from core_ext.context_trimmer import trim_messages
+from core_ext.retention import compute_semantic_retention
 from core_ext.prethought import analyze_intent
 from core_ext.multistep import get_chain_steps, system_hint_for_step
 from providers.google_gemini_client import GoogleGeminiProvider
@@ -36,6 +38,8 @@ def _prepare_provider_options(model_id: str, base: Dict[str, Any]) -> Dict[str, 
     if "thinking" in model_id.lower() and "reasoning" not in opts:
         opts["reasoning"] = dict(_REASONING_DEFAULT)
     return opts
+
+_DISABLED_RETENTION_VALUES = {"", "none", "off", "0", "false"}
 
 
 class MetricsRegistry:
@@ -99,6 +103,31 @@ def _resolve_retryable(exc: BaseException) -> bool | None:
     if isinstance(flag, bool):
         return flag
     return None
+
+
+async def _ensure_semantic_retention(
+    before: List[Dict[str, Any]],
+    after: List[Dict[str, Any]],
+    metrics: Dict[str, Any],
+) -> float | None:
+    existing = metrics.get("semantic_retention")
+    if existing is not None:
+        value = _to_float(existing)
+        metrics["semantic_retention"] = value
+        return value
+
+    provider = os.getenv("SEMANTIC_RETENTION_PROVIDER", "").strip().lower()
+    if provider in _DISABLED_RETENTION_VALUES:
+        metrics["semantic_retention"] = None
+        return None
+
+    result = await asyncio.to_thread(
+        compute_semantic_retention,
+        before,
+        after,
+    )
+    metrics["semantic_retention"] = result
+    return result
 
 ops_router = APIRouter()
 
@@ -205,16 +234,17 @@ async def on_message(message: cl.Message):
         hist = [{"role":"system","content":system}] + hist
     hist.append({"role":"user","content":message.content})
 
-    trimmed, metrics = trim_messages(hist, target_tokens, model, min_turns=min_turns)
+    trimmed, metrics = trim_messages(hist, target_tokens, model)
+    semantic_retention_raw = await _ensure_semantic_retention(hist, trimmed, metrics)
     token_in = _to_int(metrics.get("input_tokens"))
     token_out = _to_int(metrics.get("output_tokens"))
     compress_ratio = _to_float(metrics.get("compress_ratio"))
-    semantic_retention_raw = metrics.get("semantic_retention")
     semantic_retention = (
         _to_float(semantic_retention_raw)
         if semantic_retention_raw is not None
         else None
     )
+    metrics["semantic_retention"] = semantic_retention
     METRICS_REGISTRY.observe_trim(
         compress_ratio=compress_ratio,
         semantic_retention=semantic_retention,

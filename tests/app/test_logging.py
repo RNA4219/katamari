@@ -141,16 +141,10 @@ async def test_on_message_computes_semantic_retention(
         {"role": "user", "content": "hello"},
     ]
 
-    def _fake_trim_messages(
-        history: List[Dict[str, Any]],
-        target_tokens: int,
-        model: str,
-        *,
-        min_turns: int = 0,
-    ) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
         return list(trimmed_messages), dict(metrics)
 
-    monkeypatch.setattr(app_module, "trim_messages", _fake_trim_messages)
+    monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
 
     observed: Dict[str, Any] = {}
 
@@ -289,6 +283,43 @@ async def test_apply_settings_persists_min_turns(app_module, stub_chainlit):
     await app_module.apply_settings({"min_turns": 3})
 
     assert app_module.cl.user_session.get("min_turns") == 3
+
+
+@pytest.mark.anyio
+async def test_apply_settings_updates_history_system(
+    monkeypatch, app_module, stub_chainlit
+):
+    session = app_module.cl.user_session
+    session.set(
+        "history",
+        [
+            {"role": "system", "content": "legacy persona"},
+            {"role": "user", "content": "hello"},
+        ],
+    )
+
+    updated_prompt = "You are Persona 2."
+    monkeypatch.setattr(
+        app_module,
+        "compile_persona_yaml",
+        lambda yaml_text: (updated_prompt, []),
+    )
+
+    await app_module.apply_settings({"persona_yaml": "name: persona"})
+
+    history = session.get("history")
+    assert history[0] == {"role": "system", "content": updated_prompt}
+    assert history[1] == {"role": "user", "content": "hello"}
+    assert session.get("system") == updated_prompt
+
+    await app_module.apply_settings({"persona_yaml": ""})
+
+    history = session.get("history")
+    assert history[0] == {
+        "role": "system",
+        "content": app_module.DEFAULT_SYSTEM_PROMPT,
+    }
+    assert session.get("system") == app_module.DEFAULT_SYSTEM_PROMPT
 
 
 @pytest.mark.anyio

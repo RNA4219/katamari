@@ -192,6 +192,21 @@ async def on_settings_update(settings: Dict):
     await apply_settings(settings)
 
 async def apply_settings(settings: Dict):
+    def _sync_history_system(system_prompt: str) -> None:
+        history = cl.user_session.get("history")
+        if not isinstance(history, list) or not history:
+            return
+
+        first_entry = history[0]
+        if isinstance(first_entry, dict) and first_entry.get("role") == "system":
+            new_first = dict(first_entry)
+            new_first["content"] = system_prompt
+            new_history = [new_first] + list(history[1:])
+        else:
+            new_history = [{"role": "system", "content": system_prompt}] + list(history)
+
+        cl.user_session.set("history", new_history)
+
     for k in ("model","chain","trim_tokens","min_turns","show_debug"):
         if k in settings:
             cl.user_session.set(k, settings[k])
@@ -202,6 +217,7 @@ async def apply_settings(settings: Dict):
         if yaml_str.strip() == "":
             previous = cl.user_session.get("system") or DEFAULT_SYSTEM_PROMPT
             cl.user_session.set("system", DEFAULT_SYSTEM_PROMPT)
+            _sync_history_system(DEFAULT_SYSTEM_PROMPT)
             if previous != DEFAULT_SYSTEM_PROMPT:
                 await cl.Message(
                     content="[persona issues]\nPersona prompt reset to default."
@@ -211,6 +227,7 @@ async def apply_settings(settings: Dict):
         if yaml_str:
             system, issues = compile_persona_yaml(yaml_str)
             cl.user_session.set("system", system)
+            _sync_history_system(system)
             if issues:
                 await cl.Message(content="\n".join(["[persona issues]"]+issues)).send()
 
@@ -234,7 +251,9 @@ async def on_message(message: cl.Message):
         hist = [{"role":"system","content":system}] + hist
     hist.append({"role":"user","content":message.content})
 
-    trimmed, metrics = trim_messages(hist, target_tokens, model, min_turns=min_turns)
+    trimmed, metrics = trim_messages(
+        hist, target_tokens, model, min_turns=min_turns
+    )
     semantic_retention_raw = await _ensure_semantic_retention(hist, trimmed, metrics)
     token_in = _to_int(metrics.get("input_tokens"))
     token_out = _to_int(metrics.get("output_tokens"))

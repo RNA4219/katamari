@@ -12,7 +12,7 @@ from urllib.request import urlopen
 
 COMPRESS_RATIO_KEY = "compress_ratio"
 SEMANTIC_RETENTION_KEY = "semantic_retention"
-SEMANTIC_RETENTION_FALLBACK: float = 1.0
+SEMANTIC_RETENTION_FALLBACK: float = math.nan
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
 
@@ -153,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
-        json.dumps(metrics, indent=2, allow_nan=False) + "\n",
+        json.dumps(metrics, indent=2) + "\n",
         encoding="utf-8",
     )
     return 0

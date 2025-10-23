@@ -13,6 +13,10 @@ from pathlib import Path
 
 from scripts.perf.collect_metrics import SEMANTIC_RETENTION_FALLBACK
 
+
+def test_semantic_retention_fallback_is_nan() -> None:
+    assert math.isnan(SEMANTIC_RETENTION_FALLBACK)
+
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")
     return subprocess.run(
@@ -85,8 +89,7 @@ def test_normalizes_nan_semantic_retention_from_prometheus(tmp_path: Path) -> No
 
         data = json.loads(output_path.read_text(encoding="utf-8"))
         assert data["compress_ratio"] == 0.42
-        assert math.isfinite(data["semantic_retention"])
-        assert data["semantic_retention"] == 1.0
+        assert math.isnan(data["semantic_retention"])
     finally:
         shutdown()
 
@@ -183,8 +186,7 @@ def test_missing_semantic_retention_falls_back(tmp_path: Path) -> None:
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.55
-    assert math.isfinite(data["semantic_retention"])
-    assert data["semantic_retention"] == 1.0
+    assert math.isnan(data["semantic_retention"])
 
 
 def test_exit_code_is_non_zero_on_missing_metrics(tmp_path: Path) -> None:

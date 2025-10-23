@@ -12,7 +12,7 @@ from urllib.request import urlopen
 
 COMPRESS_RATIO_KEY = "compress_ratio"
 SEMANTIC_RETENTION_KEY = "semantic_retention"
-SEMANTIC_RETENTION_FALLBACK: float = math.nan
+SEMANTIC_RETENTION_FALLBACK: float | None = None
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
 METRIC_RANGES: dict[str, tuple[float, float]] = {
@@ -84,7 +84,9 @@ def _parse_chainlit_log(path: Path) -> dict[str, float]:
     return metrics
 
 
-def _collect(metrics_url: str | None, log_path: Path | None) -> dict[str, float]:
+def _collect(
+    metrics_url: str | None, log_path: Path | None
+) -> dict[str, float | None]:
     http_metrics: dict[str, float] = {}
     if metrics_url:
         try:
@@ -105,7 +107,7 @@ def _collect(metrics_url: str | None, log_path: Path | None) -> dict[str, float]
         except OSError:
             pass
 
-    sanitized: dict[str, float] = {}
+    sanitized: dict[str, float | None] = {}
     missing: list[str] = []
 
     for key in METRIC_KEYS:

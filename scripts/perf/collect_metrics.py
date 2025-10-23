@@ -68,7 +68,7 @@ def _parse_chainlit_log(path: Path) -> dict[str, float]:
                 try:
                     metrics[key] = float(value)
                 except (TypeError, ValueError):
-                    metrics.pop(key, None)
+                    metrics[key] = math.nan
                     continue
     return metrics
 

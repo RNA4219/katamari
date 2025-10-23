@@ -10,10 +10,10 @@ from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-def test_semantic_retention_fallback_is_one() -> None:
+def test_semantic_retention_fallback_is_none() -> None:
     from scripts.perf import collect_metrics
 
-    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK == 1.0
+    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK is None
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")
@@ -87,7 +87,7 @@ def test_normalizes_nan_semantic_retention_from_prometheus(tmp_path: Path) -> No
 
         data = json.loads(output_path.read_text(encoding="utf-8"))
         assert data["compress_ratio"] == 0.42
-        assert data["semantic_retention"] == 1.0
+        assert data["semantic_retention"] is None
     finally:
         shutdown()
 
@@ -217,7 +217,7 @@ def test_missing_semantic_retention_falls_back(tmp_path: Path) -> None:
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.55
-    assert data["semantic_retention"] == 1.0
+    assert data["semantic_retention"] is None
 
 
 def test_latest_log_entry_with_null_semantic_retention_falls_back_to_one(
@@ -237,7 +237,7 @@ def test_latest_log_entry_with_null_semantic_retention_falls_back_to_one(
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.64
-    assert data["semantic_retention"] == 1.0
+    assert data["semantic_retention"] is None
 
 
 def test_latest_log_entry_without_semantic_retention_falls_back_to_one(

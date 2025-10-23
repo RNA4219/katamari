@@ -50,12 +50,12 @@ def _collect_forbidden_terms(values: List[str]) -> List[str]:
 def compile_persona_yaml(yaml_str: str) -> Tuple[str, List[str]]:
     issues: List[str] = []
     if not yaml_str.strip():
-        return ("You are Katamari, a helpful, precise assistant.", issues)
+        return ("You are a helpful assistant named Katamari.", issues)
     try:
         data = yaml.safe_load(yaml_str) or {}
     except Exception as e:
         return (
-            "You are Katamari, a helpful, precise assistant.",
+            "You are a helpful assistant named Katamari.",
             [f"YAML parse error: {e}"],
         )
 

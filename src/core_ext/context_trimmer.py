@@ -1,15 +1,45 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
+from importlib import import_module
+from typing import Any, Dict, List, Optional, Sequence, Tuple, TypedDict, cast
+
+tiktoken: Any
+_registry: Any
+_Encoding: Any
+_tiktoken_mod: Any
+_registry_mod: Any
+_EncodingCls: Any
 
 try:
-    import tiktoken
-    from tiktoken import registry as _registry
-    from tiktoken.core import Encoding as _Encoding
+    _tiktoken_mod = import_module("tiktoken")
 except Exception:  # pragma: no cover - defensive import guard
-    tiktoken = None  # type: ignore[assignment]
-    _registry = None  # type: ignore[assignment]
-    _Encoding = None  # type: ignore[assignment]
+    _tiktoken_mod = None
+
+try:
+    _registry_mod = import_module("tiktoken.registry")
+except Exception:  # pragma: no cover - defensive import guard
+    _registry_mod = None
+
+try:
+    _EncodingCls = getattr(import_module("tiktoken.core"), "Encoding")
+except Exception:  # pragma: no cover - defensive import guard
+    _EncodingCls = None
+
+tiktoken = cast(Any, _tiktoken_mod)
+_registry = cast(Any, _registry_mod)
+_Encoding = cast(Any, _EncodingCls)
+
+
+class ChatMessage(TypedDict, total=False):
+    role: str
+    content: str
+
+
+TrimMetricValue = float | int | None | Dict[str, str]
+TrimMetrics = Dict[str, TrimMetricValue]
+
+_MessageSeq = Sequence[ChatMessage]
+_MessageList = List[ChatMessage]
 
 _MODEL_PREFIX_ENCODINGS: Tuple[Tuple[str, str], ...] = (
     ("gpt-5", "o200k_base"),
@@ -19,7 +49,7 @@ _MODEL_PREFIX_ENCODINGS: Tuple[Tuple[str, str], ...] = (
 )
 
 
-def _register_ascii_encoding(name: str) -> Optional[_Encoding]:
+def _register_ascii_encoding(name: str) -> Optional[Any]:
     if _registry is None or _Encoding is None:
         return None
     encoding = _registry.ENCODINGS.get(name)
@@ -36,9 +66,9 @@ def _register_ascii_encoding(name: str) -> Optional[_Encoding]:
     return encoding
 
 
-def _group_conversation_turns(conversation: List[Dict]) -> List[List[Dict]]:
-    turns: List[List[Dict]] = []
-    current: List[Dict] = []
+def _group_conversation_turns(conversation: _MessageSeq) -> List[_MessageList]:
+    turns: List[_MessageList] = []
+    current: _MessageList = []
     for message in conversation:
         role = message.get("role")
         if role == "user":
@@ -69,12 +99,12 @@ class _TokenCounter:
             if normalized.startswith(prefix):
                 return encoding
         try:
-            return tiktoken.encoding_for_model(model).name
+            return cast(str, tiktoken.encoding_for_model(model).name)
         except Exception:
             return None
 
     @staticmethod
-    def _load_encoding(name: Optional[str]) -> Optional[_Encoding]:
+    def _load_encoding(name: Optional[str]) -> Optional[Any]:
         if name is None or tiktoken is None:
             return None
         try:
@@ -88,19 +118,21 @@ class _TokenCounter:
         return max(1, len(text) // 4)
 
     def describe(self) -> Dict[str, str]:
-        info: Dict[str, str] = {"mode": "tiktoken" if self._encoding is not None else "heuristic"}
+        info: Dict[str, str] = {
+            "mode": "tiktoken" if self._encoding is not None else "heuristic"
+        }
         if self._encoding_name is not None:
             info["encoding"] = self._encoding_name
         return info
 
 
 def trim_messages(
-    messages: List[Dict],
+    messages: Sequence[ChatMessage],
     target_tokens: int,
     model: str,
     *,
     min_turns: int = 0,
-) -> Tuple[List[Dict], Dict]:
+) -> Tuple[List[ChatMessage], TrimMetrics]:
     counter = _TokenCounter(model)
     system_messages = [m for m in messages if m.get("role") == "system"]
     conversation = [m for m in messages if m.get("role") != "system"]
@@ -109,11 +141,13 @@ def trim_messages(
 
     if required_turns > 0:
         turns = _group_conversation_turns(conversation)
-        kept_turns: List[List[Dict]] = []
+        kept_turns: List[_MessageList] = []
         total = 0
         turns_kept = 0
         for turn in reversed(turns):
-            turn_tokens = sum(counter.count(message.get("content", "")) for message in turn)
+            turn_tokens = sum(
+                counter.count(str(message.get("content", ""))) for message in turn
+            )
             if total + turn_tokens > budget and turns_kept >= required_turns:
                 break
             kept_turns.append(turn)
@@ -124,7 +158,7 @@ def trim_messages(
         kept = []
         total = 0
         for message in reversed(conversation):
-            tokens = counter.count(message.get("content", ""))
+            tokens = counter.count(str(message.get("content", "")))
             if total + tokens > budget:
                 break
             kept.append(message)
@@ -133,10 +167,12 @@ def trim_messages(
 
     output_messages = (system_messages[:1] if system_messages else []) + kept
 
-    original_tokens = sum(counter.count(m.get("content", "")) for m in messages)
-    trimmed_tokens = sum(counter.count(m.get("content", "")) for m in output_messages)
+    original_tokens = sum(counter.count(str(m.get("content", ""))) for m in messages)
+    trimmed_tokens = sum(
+        counter.count(str(m.get("content", ""))) for m in output_messages
+    )
     ratio = trimmed_tokens / max(1, original_tokens)
-    metrics = {
+    metrics: TrimMetrics = {
         "input_tokens": original_tokens,
         "output_tokens": trimmed_tokens,
         "compress_ratio": round(ratio, 3),

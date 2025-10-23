@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import math
 import os
-from typing import Callable, Dict, Iterable, Optional, Sequence
+from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Sequence, cast
 
-Message = Dict[str, str]
+Message = Mapping[str, Any]
 Embedder = Callable[[str], Sequence[float]]
 
 _EMBEDDER_CACHE: Dict[str, Optional[Embedder]] = {}
@@ -30,7 +32,7 @@ def _build_openai_embedder() -> Optional[Embedder]:
     if not api_key:
         return None
     try:
-        from openai import OpenAI  # type: ignore
+        from openai import OpenAI
     except ImportError:
         return None
     model = os.getenv("SEMANTIC_RETENTION_OPENAI_MODEL", "text-embedding-3-large")
@@ -38,7 +40,7 @@ def _build_openai_embedder() -> Optional[Embedder]:
 
     def _embed(text: str) -> Sequence[float]:
         response = client.embeddings.create(model=model, input=text)
-        return response.data[0].embedding  # type: ignore[no-any-return]
+        return cast(Sequence[float], response.data[0].embedding)
 
     return _embed
 
@@ -53,18 +55,25 @@ def _build_gemini_embedder() -> Optional[Embedder]:
     if not api_key:
         return None
     try:
-        import google.generativeai as genai  # type: ignore
+        import google.generativeai as genai
     except ImportError:
         return None
     model = os.getenv("SEMANTIC_RETENTION_GEMINI_MODEL", "text-embedding-004")
-    genai.configure(api_key=api_key)
+    configure = getattr(genai, "configure", None)
+    if callable(configure):
+        configure(api_key=api_key)
+    else:  # pragma: no cover - defensive guard
+        return None
 
     def _embed(text: str) -> Sequence[float]:
-        response = genai.embed_content(model=model, content=text)
+        embed_content = getattr(genai, "embed_content", None)
+        if not callable(embed_content):
+            raise RuntimeError("Gemini embed_content API unavailable")
+        response = embed_content(model=model, content=text)
         embedding = response.get("embedding")
         if embedding is None:
             raise ValueError("Gemini embedding response missing 'embedding'")
-        return embedding
+        return cast(Sequence[float], embedding)
 
     return _embed
 

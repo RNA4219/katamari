@@ -1,12 +1,19 @@
+from __future__ import annotations
+
 import asyncio
 import os
 from types import SimpleNamespace
-from typing import Any, AsyncIterator, Callable, Dict, Iterable, List, Optional, Sequence
+from typing import Any, AsyncIterator, Callable, Dict, Iterable, List, Optional, Sequence, cast
+
+_genai: Optional[Any] = None
+_genai_module: Any
 
 try:
-    import google.generativeai as _genai  # type: ignore
+    import google.generativeai as _genai_module
 except ModuleNotFoundError:  # pragma: no cover - optional dependency
-    _genai = None
+    _genai_module = None
+
+_genai = cast(Optional[Any], _genai_module)
 
 
 class GoogleGeminiProvider:
@@ -23,7 +30,7 @@ class GoogleGeminiProvider:
                 "google-generativeai is required. Install the package or "
                 "inject a stub via genai_module."
             )
-        self._genai = module
+        self._genai: Any = module
         self._model_factory = model_factory or (lambda mod, name: mod.GenerativeModel(name))
         api_key_value = (
             api_key
@@ -38,19 +45,21 @@ class GoogleGeminiProvider:
         self, model: str, messages: Sequence[Dict[str, Any]], **opts: Any
     ) -> AsyncIterator[str]:
         client = self._model_factory(self._genai, model)
-        iterator = await asyncio.to_thread(
+        iterator_obj = await asyncio.to_thread(
             client.generate_content,
             contents=self._convert_messages(messages),
             stream=True,
             **self._clean_opts(opts),
         )
+        iterator = iter(cast(Iterable[Any], iterator_obj))
         sentinel = SimpleNamespace()
         while True:
             chunk = await asyncio.to_thread(next, iterator, sentinel)
             if chunk is sentinel:
                 break
-            for part in self._split_stream_text(self._text(chunk)):
-                yield part
+            text_chunk = self._text(chunk)
+            for part in self._split_stream_text(text_chunk):
+                yield str(part)
 
     async def complete(
         self, model: str, messages: Sequence[Dict[str, Any]], **opts: Any
@@ -76,7 +85,7 @@ class GoogleGeminiProvider:
         return text or ""
 
     @staticmethod
-    def _split_stream_text(text: str) -> Iterable[str]:
+    def _split_stream_text(text: str) -> List[str]:
         return [part for part in text.split("\n\n") if part]
 
     @staticmethod
@@ -99,7 +108,9 @@ class GoogleGeminiProvider:
             return content
         if isinstance(content, list):
             return "".join(
-                item.get("text") if isinstance(item, dict) and "text" in item else str(item)
+                str(item.get("text"))
+                if isinstance(item, dict) and "text" in item
+                else str(item)
                 for item in content
             )
         if content is None:

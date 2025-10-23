@@ -33,6 +33,9 @@ DEFAULT_CHAIN = "single"
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Katamari."
 
 _REASONING_DEFAULT: Dict[str, Any] = {"effort": "medium", "parallel": True}
+_THINKING_PARALLEL_MODELS: frozenset[str] = frozenset(
+    {"gpt-5-thinking", "gpt-5-thinking-pro"}
+)
 
 ChatMessage = TrimMessage
 ChatHistory = List[ChatMessage]
@@ -66,8 +69,25 @@ def _chat_message(role: str, content: Any) -> ChatMessage:
 
 def _prepare_provider_options(model_id: str, base: Mapping[str, Any]) -> Dict[str, Any]:
     opts = dict(base)
-    if "thinking" in model_id.lower() and "reasoning" not in opts:
-        opts["reasoning"] = dict(_REASONING_DEFAULT)
+    model_key = model_id.lower()
+    reasoning_value = opts.get("reasoning")
+    reasoning_opts: Dict[str, Any] | None = None
+    if isinstance(reasoning_value, Mapping):
+        reasoning_opts = dict(reasoning_value)
+
+    if "thinking" in model_key:
+        if reasoning_opts is None:
+            reasoning_opts = dict(_REASONING_DEFAULT)
+        if model_key in _THINKING_PARALLEL_MODELS:
+            reasoning_opts["parallel"] = True
+        else:
+            reasoning_opts.pop("parallel", None)
+        if reasoning_opts:
+            opts["reasoning"] = reasoning_opts
+        else:
+            opts.pop("reasoning", None)
+    elif reasoning_opts is not None:
+        opts["reasoning"] = reasoning_opts
     return opts
 
 _DISABLED_RETENTION_VALUES = {"", "none", "off", "0", "false"}

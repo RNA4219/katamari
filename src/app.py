@@ -216,11 +216,22 @@ async def _ensure_semantic_retention(
         before,
         after,
     )
-    if isinstance(result, float) and math.isnan(result):
+    if result is None:
         metrics["semantic_retention"] = None
         return None
-    metrics["semantic_retention"] = result
-    return result
+
+    try:
+        numeric = float(result)
+    except (TypeError, ValueError):
+        metrics["semantic_retention"] = None
+        return None
+
+    if math.isnan(numeric):
+        metrics["semantic_retention"] = None
+        return None
+
+    metrics["semantic_retention"] = numeric
+    return numeric
 
 ops_router = APIRouter()
 
@@ -445,6 +456,8 @@ async def on_message(message: cl.Message) -> None:
         if semantic_retention_raw is not None
         else None
     )
+    if isinstance(semantic_retention, float) and math.isnan(semantic_retention):
+        semantic_retention = None
     metrics["semantic_retention"] = semantic_retention
     METRICS_REGISTRY.observe_trim(
         compress_ratio=compress_ratio,

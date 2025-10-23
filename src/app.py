@@ -73,10 +73,7 @@ class MetricsRegistry:
     def export_prometheus(self) -> str:
         metrics = self.snapshot()
         retention = metrics["semantic_retention"]
-        if retention is None:
-            retention_repr = "nan"
-        else:
-            retention_repr = f"{retention}"
+        retention_repr = "nan" if retention is None else f"{retention}"
 
         lines = [
             "# HELP compress_ratio Ratio of tokens kept after trimming.",

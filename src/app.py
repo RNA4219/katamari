@@ -6,6 +6,7 @@
 #   chainlit run src/app.py --host 0.0.0.0 --port 8787
 
 import asyncio
+import math
 import os
 from threading import Lock
 from time import perf_counter
@@ -48,14 +49,16 @@ class MetricsRegistry:
     def __init__(self) -> None:
         self._lock = Lock()
         self._compress_ratio = 1.0
-        self._semantic_retention = 1.0
+        self._semantic_retention = math.nan
 
     def observe_trim(
         self, *, compress_ratio: float, semantic_retention: float | None = None
     ) -> None:
         """Record the latest trimming metrics."""
 
-        retention = 1.0 if semantic_retention is None else float(semantic_retention)
+        retention = (
+            math.nan if semantic_retention is None else float(semantic_retention)
+        )
         with self._lock:
             self._compress_ratio = float(compress_ratio)
             self._semantic_retention = retention

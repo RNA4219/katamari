@@ -76,3 +76,23 @@ def test_metrics_endpoint_exposes_trim_gauges(app_context) -> None:
     assert "compress_ratio 0.75" in body
     assert "semantic_retention 0.9" in body
     assert response.headers["content-type"].startswith("text/plain")
+
+
+def test_metrics_endpoint_reports_nan_for_missing_retention(app_context) -> None:
+    chainlit_app, app_module = app_context
+    app_module.METRICS_REGISTRY.observe_trim(
+        compress_ratio=0.5,
+        semantic_retention=0.8,
+    )
+    app_module.METRICS_REGISTRY.observe_trim(
+        compress_ratio=0.6,
+        semantic_retention=None,
+    )
+    client = TestClient(chainlit_app)
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    body = response.text
+    assert "compress_ratio 0.6" in body
+    assert "semantic_retention nan" in body

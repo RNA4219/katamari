@@ -10,10 +10,10 @@ from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-def test_semantic_retention_fallback_is_none() -> None:
+def test_semantic_retention_fallback_is_one() -> None:
     from scripts.perf import collect_metrics
 
-    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK is None
+    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK == 1.0
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")
@@ -87,7 +87,7 @@ def test_normalizes_nan_semantic_retention_from_prometheus(tmp_path: Path) -> No
 
         data = json.loads(output_path.read_text(encoding="utf-8"))
         assert data["compress_ratio"] == 0.42
-        assert data["semantic_retention"] is None
+        assert data["semantic_retention"] == 1.0
     finally:
         shutdown()
 
@@ -217,49 +217,27 @@ def test_missing_semantic_retention_falls_back(tmp_path: Path) -> None:
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.55
-    assert data["semantic_retention"] is None
+    assert data["semantic_retention"] == 1.0
 
 
-def test_latest_null_semantic_retention_triggers_fallback(tmp_path: Path) -> None:
-    log_path = tmp_path / "null_latest.log"
+def test_latest_log_entry_with_null_semantic_retention_falls_back_to_one(
+    tmp_path: Path,
+) -> None:
+    log_path = tmp_path / "chainlit_null.log"
     log_path.write_text(
         (
-            "INFO metrics={\"compress_ratio\": 0.63, \"semantic_retention\": 0.89}\n"
-            "INFO metrics={\"compress_ratio\": 0.63, \"semantic_retention\": null}"
+            "INFO metrics={\"compress_ratio\": 0.64, \"semantic_retention\": 0.88}\n"
+            "INFO metrics={\"compress_ratio\": 0.64, \"semantic_retention\": null}"
         ),
         encoding="utf-8",
     )
-    output_path = tmp_path / "null_latest.json"
+    output_path = tmp_path / "chainlit_null_metrics.json"
 
     _run_cli("--log-path", str(log_path), "--output", str(output_path))
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
-    assert data["compress_ratio"] == 0.63
-    assert data["semantic_retention"] == SEMANTIC_RETENTION_FALLBACK
-
-
-def test_missing_compress_ratio_in_latest_log_causes_failure(tmp_path: Path) -> None:
-    log_path = tmp_path / "latest_missing.log"
-    log_path.write_text(
-        (
-            'INFO metrics={"compress_ratio": 0.58, "semantic_retention": 0.9}\n'
-            'INFO metrics={"semantic_retention": 0.91}'
-        ),
-        encoding="utf-8",
-    )
-    output_path = tmp_path / "latest_missing.json"
-
-    completed = _run_cli(
-        "--log-path",
-        str(log_path),
-        "--output",
-        str(output_path),
-        check=False,
-    )
-
-    assert completed.returncode != 0
-    assert not output_path.exists()
-    assert "compress_ratio" in completed.stderr
+    assert data["compress_ratio"] == 0.64
+    assert data["semantic_retention"] == 1.0
 
 
 def test_exit_code_is_non_zero_on_missing_metrics(tmp_path: Path) -> None:

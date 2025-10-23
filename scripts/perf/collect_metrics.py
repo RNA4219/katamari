@@ -64,9 +64,11 @@ def _parse_chainlit_log(path: Path) -> dict[str, float]:
             continue
         for key in METRIC_KEYS:
             if key in payload:
+                value = payload[key]
                 try:
-                    metrics[key] = float(payload[key])
+                    metrics[key] = float(value)
                 except (TypeError, ValueError):
+                    metrics.pop(key, None)
                     continue
     return metrics
 

@@ -1,14 +1,17 @@
 import json
 import re
+from importlib import import_module
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Tuple
+from typing import Final, List, Tuple
 
 import yaml
 
 _FORBIDDEN_PATTERNS_PATH = (
     Path(__file__).resolve().parents[2] / "config" / "persona_forbidden_patterns.json"
 )
+
+_DEFAULT_SYSTEM_PROMPT_FALLBACK: Final[str] = "You are a helpful assistant named Katamari."
 
 
 @lru_cache(maxsize=1)
@@ -47,17 +50,26 @@ def _collect_forbidden_terms(values: List[str]) -> List[str]:
     return sorted(seen.values(), key=str.casefold)
 
 
+def _resolve_default_system_prompt() -> str:
+    try:
+        module = import_module("src.app")
+    except Exception:
+        return _DEFAULT_SYSTEM_PROMPT_FALLBACK
+
+    prompt = getattr(module, "DEFAULT_SYSTEM_PROMPT", None)
+    if isinstance(prompt, str) and prompt:
+        return prompt
+    return _DEFAULT_SYSTEM_PROMPT_FALLBACK
+
+
 def compile_persona_yaml(yaml_str: str) -> Tuple[str, List[str]]:
     issues: List[str] = []
     if not yaml_str.strip():
-        return ("You are a helpful assistant named Katamari.", issues)
+        return (_resolve_default_system_prompt(), issues)
     try:
         data = yaml.safe_load(yaml_str) or {}
     except Exception as e:
-        return (
-            "You are a helpful assistant named Katamari.",
-            [f"YAML parse error: {e}"],
-        )
+        return (_resolve_default_system_prompt(), [f"YAML parse error: {e}"])
 
     name = str(data.get("name", "Katamari"))
     style = str(data.get("style", "calm, concise"))

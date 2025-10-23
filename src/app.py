@@ -26,6 +26,7 @@ from providers.openai_client import OpenAIProvider
 
 DEFAULT_MODEL = "gpt-5-main"
 DEFAULT_CHAIN = "single"
+DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant named Katamari."
 
 
 class MetricsRegistry:
@@ -128,7 +129,7 @@ async def on_start():
     cl.user_session.set("model", os.getenv("DEFAULT_MODEL", DEFAULT_MODEL))
     cl.user_session.set("chain", os.getenv("DEFAULT_CHAIN", DEFAULT_CHAIN))
     cl.user_session.set("trim_tokens", 4096)
-    cl.user_session.set("system", "You are a helpful assistant named Katamari.")
+    cl.user_session.set("system", DEFAULT_SYSTEM_PROMPT)
 
     settings = await cl.ChatSettings(
         inputs=[
@@ -155,12 +156,23 @@ async def apply_settings(settings: Dict):
         if k in settings:
             cl.user_session.set(k, settings[k])
 
-    yaml_str = settings.get("persona_yaml","")
-    if yaml_str:
-        system, issues = compile_persona_yaml(yaml_str)
-        cl.user_session.set("system", system)
-        if issues:
-            await cl.Message(content="\n".join(["[persona issues]"]+issues)).send()
+    if "persona_yaml" in settings:
+        yaml_raw = settings.get("persona_yaml", "")
+        yaml_str = yaml_raw if isinstance(yaml_raw, str) else ""
+        if yaml_str.strip() == "":
+            previous = cl.user_session.get("system") or DEFAULT_SYSTEM_PROMPT
+            cl.user_session.set("system", DEFAULT_SYSTEM_PROMPT)
+            if previous != DEFAULT_SYSTEM_PROMPT:
+                await cl.Message(
+                    content="[persona issues]\nPersona prompt reset to default."
+                ).send()
+            return
+
+        if yaml_str:
+            system, issues = compile_persona_yaml(yaml_str)
+            cl.user_session.set("system", system)
+            if issues:
+                await cl.Message(content="\n".join(["[persona issues]"]+issues)).send()
 
 @cl.on_message
 async def on_message(message: cl.Message):
@@ -176,7 +188,7 @@ async def on_message(message: cl.Message):
 
     # 2) Build/trim history
     hist: List[Dict] = cl.user_session.get("history") or []
-    system = cl.user_session.get("system") or "You are a helpful assistant named Katamari."
+    system = cl.user_session.get("system") or DEFAULT_SYSTEM_PROMPT
     if not hist or hist[0].get("role") != "system":
         hist = [{"role":"system","content":system}] + hist
     hist.append({"role":"user","content":message.content})

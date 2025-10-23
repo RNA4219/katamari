@@ -98,24 +98,26 @@ def _provider_signature(provider: str) -> _Signature:
 
 def get_embedder(provider: str) -> Optional[Embedder]:
     key = provider.lower()
-    cached = _EMBEDDER_CACHE.get(key)
-    if cached is not None:
-        return cached
-
     builder: Optional[Callable[[], Optional[Embedder]]]
     if key == "openai":
         builder = _build_openai_embedder
     elif key == "gemini":
         builder = _build_gemini_embedder
     else:
-        _EMBEDDER_CACHE[key] = None
         return None
+
+    signature = _provider_signature(key)
+    cached = _EMBEDDER_CACHE.get(key)
+    if cached is not None:
+        cached_signature, cached_embedder = cached
+        if cached_signature == signature:
+            return cached_embedder
 
     embedder = builder()
     if embedder is None:
         _EMBEDDER_CACHE.pop(key, None)
         return None
-    _EMBEDDER_CACHE[key] = embedder
+    _EMBEDDER_CACHE[key] = (signature, embedder)
     return embedder
 
 

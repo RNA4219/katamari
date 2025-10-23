@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import math
 import subprocess
 import sys
 import threading
@@ -90,8 +89,7 @@ def test_normalizes_nan_semantic_retention_from_prometheus(tmp_path: Path) -> No
         from scripts.perf import collect_metrics
 
         assert data["compress_ratio"] == 0.42
-        assert math.isfinite(data["semantic_retention"])
-        assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
+        assert data["semantic_retention"] is collect_metrics.SEMANTIC_RETENTION_FALLBACK
     finally:
         shutdown()
 
@@ -209,7 +207,7 @@ def test_collects_metrics_from_chainlit_log(tmp_path: Path) -> None:
     }
 
 
-def test_missing_semantic_retention_falls_back(tmp_path: Path) -> None:
+def test_missing_semantic_retention_records_none(tmp_path: Path) -> None:
     log_path = tmp_path / "fallback.log"
     log_path.write_text(
         "INFO metrics={\"compress_ratio\": 0.55}\nINFO done",
@@ -223,8 +221,10 @@ def test_missing_semantic_retention_falls_back(tmp_path: Path) -> None:
     from scripts.perf import collect_metrics
 
     assert data["compress_ratio"] == 0.55
-    assert math.isfinite(data["semantic_retention"])
-    assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
+    assert (
+        data["semantic_retention"]
+        is collect_metrics.SEMANTIC_RETENTION_FALLBACK
+    )
 
 
 def test_latest_log_entry_with_null_semantic_retention_falls_back_to_one(
@@ -247,7 +247,7 @@ def test_latest_log_entry_with_null_semantic_retention_falls_back_to_one(
     assert data["semantic_retention"] is None
 
 
-def test_latest_log_entry_without_semantic_retention_falls_back_to_one(
+def test_latest_log_entry_without_semantic_retention_falls_back_to_none(
     tmp_path: Path,
 ) -> None:
     log_path = tmp_path / "chainlit_missing.log"
@@ -264,7 +264,7 @@ def test_latest_log_entry_without_semantic_retention_falls_back_to_one(
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.64
-    assert data["semantic_retention"] == 1.0
+    assert data["semantic_retention"] is None
 
 
 def test_exit_code_is_non_zero_on_missing_metrics(tmp_path: Path) -> None:

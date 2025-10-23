@@ -12,7 +12,7 @@ from urllib.request import urlopen
 
 COMPRESS_RATIO_KEY = "compress_ratio"
 SEMANTIC_RETENTION_KEY = "semantic_retention"
-SEMANTIC_RETENTION_FALLBACK: None = None
+SEMANTIC_RETENTION_FALLBACK: float | None = None
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
 METRIC_RANGES: dict[str, tuple[float, float]] = {
@@ -76,6 +76,7 @@ def _parse_chainlit_log(path: Path) -> dict[str, float]:
             payload = payload["metrics"]
         if not isinstance(payload, dict):
             continue
+        sanitized_values: dict[str, float] = {}
         for key in METRIC_KEYS:
             if key not in payload:
                 metrics.pop(key, None)

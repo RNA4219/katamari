@@ -76,18 +76,25 @@ def _parse_chainlit_log(path: Path) -> dict[str, float]:
             payload = payload["metrics"]
         if not isinstance(payload, dict):
             continue
+        sanitized_values: dict[str, float] = {}
+        missing_keys: list[str] = []
+        null_keys: list[str] = []
         for key in METRIC_KEYS:
             if key not in payload:
-                metrics.pop(key, None)
+                missing_keys.append(key)
                 continue
             value = payload[key]
             if value is None:
-                metrics.pop(key, None)
+                null_keys.append(key)
                 continue
             try:
                 sanitized_values[key] = float(value)
             except (TypeError, ValueError):
-                metrics.pop(key, None)
+                missing_keys.append(key)
+        for key in missing_keys:
+            metrics.pop(key, None)
+        for key in null_keys:
+            metrics[key] = None
         metrics.update(sanitized_values)
     return metrics
 

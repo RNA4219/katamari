@@ -24,6 +24,13 @@ def _is_finite(value: float) -> bool:
         return False
 
 
+def _is_nan(value: float | None) -> bool:
+    try:
+        return math.isnan(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return False
+
+
 def _parse_prometheus(body: str) -> dict[str, float]:
     metrics: dict[str, float] = {}
     for line in body.splitlines():
@@ -65,46 +72,65 @@ def _parse_chainlit_log(path: Path) -> dict[str, float]:
 
 
 def _collect(metrics_url: str | None, log_path: Path | None) -> dict[str, float]:
-    collected: dict[str, float] = {}
+    http_metrics: dict[str, float] = {}
     if metrics_url:
         try:
             with urlopen(metrics_url, timeout=5) as response:  # nosec B310
                 charset = response.headers.get_content_charset("utf-8")
-                collected.update(_parse_prometheus(response.read().decode(charset)))
+                http_metrics.update(
+                    _parse_prometheus(response.read().decode(charset))
+                )
         except (URLError, OSError):
             pass
+
+    log_metrics: dict[str, float] = {}
     if log_path:
         try:
             for key, value in _parse_chainlit_log(log_path).items():
-                if not _is_finite(value):
-                    continue
-                existing = collected.get(key)
-                if existing is None or not _is_finite(existing):
-                    collected[key] = value
+                if _is_finite(value):
+                    log_metrics[key] = value
         except OSError:
             pass
+
     sanitized: dict[str, float] = {}
     missing: list[str] = []
+
     for key in METRIC_KEYS:
-        if key not in collected:
+        candidate: float | None = None
+
+        http_value = http_metrics.get(key)
+        http_candidate: float | None = None
+        if http_value is not None:
+            if _is_nan(http_value):
+                http_candidate = None
+            elif _is_finite(http_value):
+                http_candidate = http_value
+
+        log_value = log_metrics.get(key)
+        log_candidate: float | None = None
+        if log_value is not None and _is_finite(log_value):
+            log_candidate = log_value
+
+        if http_candidate is not None:
+            candidate = http_candidate
+        elif log_candidate is not None:
+            candidate = log_candidate
+
+        if candidate is None:
+            if (
+                key == SEMANTIC_RETENTION_KEY
+                and COMPRESS_RATIO_KEY in sanitized
+            ):
+                sanitized[key] = SEMANTIC_RETENTION_FALLBACK
+                continue
             missing.append(key)
             continue
-        value = collected[key]
-        if not _is_finite(value):
-            if key == SEMANTIC_RETENTION_KEY:
-                sanitized[key] = SEMANTIC_RETENTION_FALLBACK
-            else:
-                missing.append(key)
-            continue
-        sanitized[key] = value
-    if (
-        SEMANTIC_RETENTION_KEY in missing
-        and COMPRESS_RATIO_KEY not in missing
-    ):
-        sanitized[SEMANTIC_RETENTION_KEY] = SEMANTIC_RETENTION_FALLBACK
-        missing.remove(SEMANTIC_RETENTION_KEY)
+
+        sanitized[key] = candidate
+
     if missing:
         raise RuntimeError("Failed to collect metrics: missing " + ", ".join(missing))
+
     return sanitized
 
 

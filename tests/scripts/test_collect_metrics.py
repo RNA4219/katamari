@@ -150,7 +150,7 @@ def test_replaces_nan_http_metric_with_log_value(tmp_path: Path) -> None:
         data = json.loads(output_path.read_text(encoding="utf-8"))
         assert data["compress_ratio"] == 0.42
         assert data["semantic_retention"] == 0.91
-        assert math.isfinite(data["semantic_retention"])
+        assert not math.isnan(data["semantic_retention"])
     finally:
         shutdown()
 

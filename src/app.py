@@ -11,7 +11,7 @@ import math
 import os
 from threading import Lock
 from time import perf_counter
-from typing import Any, Dict, List, Mapping, Sequence, Tuple, cast, Literal
+from typing import Any, Dict, List, Mapping, Sequence, cast, Literal
 
 import chainlit as cl
 from fastapi import APIRouter

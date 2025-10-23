@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from importlib import import_module
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, TypedDict, cast
+from typing import Any, Dict, List, Optional, Sequence, Tuple, TypedDict, cast
 
 tiktoken: Any
 _registry: Any

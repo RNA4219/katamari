@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, AsyncIterator, Iterable, Mapping, Sequence, cast
+from typing import Any, AsyncIterator, Mapping, Sequence, cast
 
 from openai import AsyncOpenAI
 

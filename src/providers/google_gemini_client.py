@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 from types import SimpleNamespace
-from typing import Any, AsyncIterator, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, cast
+from typing import Any, AsyncIterator, Callable, Dict, Iterable, List, Optional, Sequence, cast
 
 _genai: Optional[Any] = None
 _genai_module: Any

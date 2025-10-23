@@ -38,15 +38,21 @@ ChatMessage = TrimMessage
 ChatHistory = List[ChatMessage]
 MetricsPayload = Dict[str, Any]
 
-_USER_SESSION = cast(Any, cl.user_session)
+def _user_session() -> Any:
+    return cast(Any, cl.user_session)
 
 
 def _session_get(key: str, default: Any | None = None) -> Any:
-    return _USER_SESSION.get(key, default)
+    session = _user_session()
+    try:
+        return session.get(key, default)
+    except TypeError:
+        value = session.get(key)
+        return default if value is None else value
 
 
 def _session_set(key: str, value: Any) -> None:
-    _USER_SESSION.set(key, value)
+    _user_session().set(key, value)
 
 
 async def _send_message(**kwargs: Any) -> None:

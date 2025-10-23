@@ -10,8 +10,39 @@ on:
   workflow_call:
 
 jobs:
+  staleness-guard:
+    name: Guard latest main commit
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.stale-check.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          fetch-depth: 0
+      - name: Detect stale main push
+        id: stale-check
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" != "push" ] || [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch origin main --depth=1
+          latest="$(git rev-parse origin/main)"
+          current="$(git rev-parse HEAD)"
+
+          if [ "${latest}" != "${current}" ]; then
+            echo "Detected newer main commit ${latest}; skipping checks for ${current}."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
   bootstrap:
     name: Bootstrap CI metrics
+    needs: staleness-guard
+    if: needs.staleness-guard.outputs.skip != 'true'
     runs-on: ubuntu-latest
     outputs:
       started-at: ${{ steps.start.outputs.started_at }}
@@ -23,6 +54,7 @@ jobs:
   python:
     name: Python 3.11 checks
     needs: bootstrap
+    if: needs.bootstrap.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -94,6 +126,8 @@ jobs:
 
   node:
     name: Node 20 checks
+    needs: staleness-guard
+    if: needs.staleness-guard.outputs.skip != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -123,6 +157,7 @@ jobs:
     needs:
       - python
       - node
+    if: needs.python.result == 'success' && needs.node.result == 'success'
     permissions:
       contents: read
     env:
@@ -237,10 +272,11 @@ jobs:
     name: CI workflow metrics
     runs-on: ubuntu-latest
     needs:
+      - staleness-guard
       - bootstrap
       - python
       - provider-integration
-    if: ${{ always() }}
+    if: needs.staleness-guard.outputs.skip != 'true' && always()
     steps:
       - name: Summarize workflow duration
         run: |

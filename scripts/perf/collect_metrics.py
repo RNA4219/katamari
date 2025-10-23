@@ -76,7 +76,6 @@ def _parse_chainlit_log(path: Path) -> dict[str, float]:
             payload = payload["metrics"]
         if not isinstance(payload, dict):
             continue
-        sanitized_values: dict[str, float] = {}
         for key in METRIC_KEYS:
             if key not in payload:
                 metrics.pop(key, None)
@@ -155,6 +154,10 @@ def _collect(
             continue
 
         sanitized[key] = candidate
+
+    semantic_value = sanitized.get(SEMANTIC_RETENTION_KEY)
+    if semantic_value is not None and not _is_finite(semantic_value):
+        sanitized[SEMANTIC_RETENTION_KEY] = SEMANTIC_RETENTION_FALLBACK
 
     if missing:
         raise RuntimeError("Failed to collect metrics: missing " + ", ".join(missing))

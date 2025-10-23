@@ -219,7 +219,7 @@ async def on_message(message: cl.Message):
     model: str = cl.user_session.get("model") or DEFAULT_MODEL
     chain_id: str = cl.user_session.get("chain") or DEFAULT_CHAIN
     target_tokens: int = int(cl.user_session.get("trim_tokens") or 4096)
-    min_turns = _to_int(cl.user_session.get("min_turns"))
+    min_turns: int = _to_int(cl.user_session.get("min_turns"))
     show_debug: bool = bool(cl.user_session.get("show_debug"))
 
     # 1) Prethought (optional display as a step)
@@ -234,7 +234,12 @@ async def on_message(message: cl.Message):
         hist = [{"role":"system","content":system}] + hist
     hist.append({"role":"user","content":message.content})
 
-    trimmed, metrics = trim_messages(hist, target_tokens, model)
+    trimmed, metrics = trim_messages(
+        hist,
+        target_tokens,
+        model,
+        min_turns=min_turns,
+    )
     semantic_retention_raw = await _ensure_semantic_retention(hist, trimmed, metrics)
     token_in = _to_int(metrics.get("input_tokens"))
     token_out = _to_int(metrics.get("output_tokens"))

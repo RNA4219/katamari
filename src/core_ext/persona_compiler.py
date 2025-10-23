@@ -1,7 +1,7 @@
 
 from typing import List, Tuple
+
 import yaml
-import re
 
 def compile_persona_yaml(yaml_str: str) -> Tuple[str, List[str]]:
     issues: List[str] = []

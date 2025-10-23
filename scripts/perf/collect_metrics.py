@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 from typing import Any
@@ -71,16 +72,29 @@ def _collect(metrics_url: str | None, log_path: Path | None) -> dict[str, float]
                 collected.setdefault(key, value)
         except OSError:
             pass
-    missing = [key for key in METRIC_KEYS if key not in collected]
+    sanitized: dict[str, float] = {}
+    missing: list[str] = []
+    for key in METRIC_KEYS:
+        if key not in collected:
+            missing.append(key)
+            continue
+        value = collected[key]
+        if math.isnan(value):
+            if key == SEMANTIC_RETENTION_KEY:
+                value = SEMANTIC_RETENTION_FALLBACK
+            else:
+                missing.append(key)
+                continue
+        sanitized[key] = value
     if (
         SEMANTIC_RETENTION_KEY in missing
         and COMPRESS_RATIO_KEY not in missing
     ):
-        collected[SEMANTIC_RETENTION_KEY] = SEMANTIC_RETENTION_FALLBACK
+        sanitized[SEMANTIC_RETENTION_KEY] = SEMANTIC_RETENTION_FALLBACK
         missing.remove(SEMANTIC_RETENTION_KEY)
     if missing:
         raise RuntimeError("Failed to collect metrics: missing " + ", ".join(missing))
-    return {key: collected[key] for key in METRIC_KEYS}
+    return sanitized
 
 
 def main(argv: list[str] | None = None) -> int:

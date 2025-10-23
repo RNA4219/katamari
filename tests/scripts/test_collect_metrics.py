@@ -67,7 +67,7 @@ def test_collects_metrics_from_http_endpoint(tmp_path: Path) -> None:
         shutdown()
 
 
-def test_collects_nan_metrics_from_http_endpoint(tmp_path: Path) -> None:
+def test_normalizes_nan_semantic_retention_from_prometheus(tmp_path: Path) -> None:
     payload = (
         "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
         "# TYPE compress_ratio gauge\n"
@@ -83,7 +83,7 @@ def test_collects_nan_metrics_from_http_endpoint(tmp_path: Path) -> None:
 
         data = json.loads(output_path.read_text(encoding="utf-8"))
         assert data["compress_ratio"] == 0.42
-        assert math.isnan(data["semantic_retention"])
+        assert data["semantic_retention"] == 1.0
     finally:
         shutdown()
 

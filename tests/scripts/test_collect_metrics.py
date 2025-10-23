@@ -10,10 +10,10 @@ from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-def test_semantic_retention_fallback_is_one() -> None:
+def test_semantic_retention_fallback_is_none() -> None:
     from scripts.perf import collect_metrics
 
-    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK == 1.0
+    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK is None
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")
@@ -202,6 +202,23 @@ def test_collects_metrics_from_chainlit_log(tmp_path: Path) -> None:
     _run_cli("--log-path", str(log_path), "--output", str(output_path))
 
     assert json.loads(output_path.read_text(encoding="utf-8")) == {
+        "compress_ratio": 0.64,
+        "semantic_retention": 0.88,
+    }
+
+
+def test_parse_chainlit_log_extracts_metrics(tmp_path: Path) -> None:
+    log_path = tmp_path / "chainlit_raw.log"
+    log_path.write_text(
+        "INFO metrics={\"compress_ratio\": 0.64, \"semantic_retention\": 0.88}",
+        encoding="utf-8",
+    )
+
+    from scripts.perf.collect_metrics import _parse_chainlit_log
+
+    metrics = _parse_chainlit_log(log_path)
+
+    assert metrics == {
         "compress_ratio": 0.64,
         "semantic_retention": 0.88,
     }

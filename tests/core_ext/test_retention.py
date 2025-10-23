@@ -45,6 +45,41 @@ def _compute_with_provider() -> float:
     return result
 
 
+def test_compute_semantic_retention_recovers_after_setting_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SEMANTIC_RETENTION_PROVIDER", "openai")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    before = [{"content": "hello"}]
+    after = [{"content": "hello"}]
+
+    assert retention.compute_semantic_retention(before, after) is None
+
+    created_keys: List[str] = []
+
+    class _DummyOpenAI:
+        def __init__(self, api_key: str) -> None:
+            self.api_key = api_key
+            self.embeddings = types.SimpleNamespace(create=self._create)
+            created_keys.append(api_key)
+
+        def _create(self, *, model: str, input: str):
+            return types.SimpleNamespace(
+                data=[types.SimpleNamespace(embedding=[1.0, 0.0])]
+            )
+
+    module = types.ModuleType("openai")
+    setattr(module, "OpenAI", _DummyOpenAI)
+    monkeypatch.setitem(sys.modules, "openai", module)
+    monkeypatch.setenv("OPENAI_API_KEY", "dummy-key")
+
+    score = retention.compute_semantic_retention(before, after)
+
+    assert score == pytest.approx(1.0)
+    assert created_keys == ["dummy-key"]
+
+
 def test_gemini_embedder_prefers_google_key(monkeypatch: pytest.MonkeyPatch) -> None:
     dummy = _DummyGenAI()
     _install_dummy_genai(monkeypatch, dummy)

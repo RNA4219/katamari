@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import math
 import os
-from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Sequence, cast
+from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Sequence, Tuple, cast
 
 Message = Mapping[str, Any]
 Embedder = Callable[[str], Sequence[float]]
+_Signature = Tuple[Tuple[str, str], ...]
 
-_EMBEDDER_CACHE: Dict[str, Optional[Embedder]] = {}
+_EMBEDDER_CACHE: Dict[str, Tuple[_Signature, Embedder]] = {}
 
 
 def _norm(vec: Sequence[float]) -> float:
@@ -78,6 +79,21 @@ def _build_gemini_embedder() -> Optional[Embedder]:
         return cast(Sequence[float], embedding)
 
     return _embed
+
+
+def _provider_signature(provider: str) -> _Signature:
+    if provider == "openai":
+        env_vars = ("OPENAI_API_KEY", "SEMANTIC_RETENTION_OPENAI_MODEL")
+    elif provider == "gemini":
+        env_vars = (
+            "GOOGLE_GEMINI_API_KEY",
+            "GEMINI_API_KEY",
+            "GOOGLE_API_KEY",
+            "SEMANTIC_RETENTION_GEMINI_MODEL",
+        )
+    else:
+        env_vars = ()
+    return tuple((name, os.getenv(name, "") or "") for name in env_vars)
 
 
 def get_embedder(provider: str) -> Optional[Embedder]:

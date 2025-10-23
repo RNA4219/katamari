@@ -76,7 +76,6 @@ def _parse_chainlit_log(path: Path) -> dict[str, float]:
             payload = payload["metrics"]
         if not isinstance(payload, dict):
             continue
-        current: dict[str, float] = {}
         for key in METRIC_KEYS:
             if key not in payload:
                 continue

@@ -51,9 +51,10 @@ def _parse_prometheus(body: str) -> dict[str, float]:
         if not line or line.startswith("#"):
             continue
         name, *rest = line.split()
-        if name in METRIC_KEYS and rest:
+        base_name = name.split("{", 1)[0]
+        if base_name in METRIC_KEYS and rest:
             try:
-                metrics[name] = float(rest[0])
+                metrics[base_name] = float(rest[0])
             except ValueError:
                 continue
     return metrics
@@ -75,6 +76,7 @@ def _parse_chainlit_log(path: Path) -> dict[str, float]:
             payload = payload["metrics"]
         if not isinstance(payload, dict):
             continue
+        current: dict[str, float] = {}
         for key in METRIC_KEYS:
             if key not in payload:
                 continue
@@ -89,7 +91,9 @@ def _parse_chainlit_log(path: Path) -> dict[str, float]:
     return metrics
 
 
-def _collect(metrics_url: str | None, log_path: Path | None) -> dict[str, float]:
+def _collect(
+    metrics_url: str | None, log_path: Path | None
+) -> dict[str, float | None]:
     http_metrics: dict[str, float] = {}
     if metrics_url:
         try:
@@ -110,7 +114,7 @@ def _collect(metrics_url: str | None, log_path: Path | None) -> dict[str, float]
         except OSError:
             pass
 
-    sanitized: dict[str, float] = {}
+    sanitized: dict[str, float | None] = {}
     missing: list[str] = []
 
     for key in METRIC_KEYS:

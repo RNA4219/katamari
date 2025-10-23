@@ -76,6 +76,8 @@ def _parse_chainlit_log(path: Path) -> dict[str, float | None]:
             payload = payload["metrics"]
         if not isinstance(payload, dict):
             continue
+        missing_keys: list[str] = []
+        null_keys: list[str] = []
         sanitized_values: dict[str, float] = {}
         missing_keys: list[str] = []
         null_keys: list[str] = []

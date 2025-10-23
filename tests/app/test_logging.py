@@ -323,6 +323,35 @@ async def test_apply_settings_updates_history_system(
 
 
 @pytest.mark.anyio
+async def test_apply_settings_updates_history_system_when_history_empty(
+    monkeypatch, app_module, stub_chainlit
+):
+    session = app_module.cl.user_session
+    session.set("history", [])
+
+    updated_prompt = "You are Persona 3."
+    monkeypatch.setattr(
+        app_module,
+        "compile_persona_yaml",
+        lambda yaml_text: (updated_prompt, []),
+    )
+
+    await app_module.apply_settings({"persona_yaml": "name: persona"})
+
+    assert session.get("history") == [
+        {"role": "system", "content": updated_prompt},
+    ]
+    assert session.get("system") == updated_prompt
+
+    await app_module.apply_settings({"persona_yaml": ""})
+
+    assert session.get("history") == [
+        {"role": "system", "content": app_module.DEFAULT_SYSTEM_PROMPT},
+    ]
+    assert session.get("system") == app_module.DEFAULT_SYSTEM_PROMPT
+
+
+@pytest.mark.anyio
 async def test_on_message_logs_retryable_error(monkeypatch, caplog, app_module, stub_chainlit):
     metrics = {
         "input_tokens": 80,

@@ -194,7 +194,9 @@ async def on_settings_update(settings: Dict):
 async def apply_settings(settings: Dict):
     def _sync_history_system(system_prompt: str) -> None:
         history = cl.user_session.get("history")
+        system_entry = {"role": "system", "content": system_prompt}
         if not isinstance(history, list) or not history:
+            cl.user_session.set("history", [system_entry])
             return
 
         first_entry = history[0]
@@ -203,7 +205,7 @@ async def apply_settings(settings: Dict):
             new_first["content"] = system_prompt
             new_history = [new_first] + list(history[1:])
         else:
-            new_history = [{"role": "system", "content": system_prompt}] + list(history)
+            new_history = [system_entry] + list(history)
 
         cl.user_session.set("history", new_history)
 

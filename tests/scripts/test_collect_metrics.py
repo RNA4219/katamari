@@ -11,6 +11,43 @@ from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
+import pytest
+
+
+@pytest.fixture
+def prometheus_metrics_with_labels() -> str:
+    return (
+        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
+        "# TYPE compress_ratio gauge\n"
+        'compress_ratio{source="chainlit"} 0.42\n'
+        "# HELP semantic_retention Semantic retention score for trimmed context.\n"
+        "# TYPE semantic_retention gauge\n"
+        'semantic_retention{source="chainlit"} 0.73'
+    )
+
+
+def test_parse_prometheus_supports_labeled_metrics(
+    prometheus_metrics_with_labels: str,
+) -> None:
+    from scripts.perf.collect_metrics import _parse_prometheus
+
+    baseline_payload = (
+        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
+        "# TYPE compress_ratio gauge\n"
+        "compress_ratio 0.42\n"
+        "# HELP semantic_retention Semantic retention score for trimmed context.\n"
+        "# TYPE semantic_retention gauge\n"
+        "semantic_retention 0.73"
+    )
+    expected = {
+        "compress_ratio": 0.42,
+        "semantic_retention": 0.73,
+    }
+
+    assert _parse_prometheus(baseline_payload) == expected
+    assert _parse_prometheus(prometheus_metrics_with_labels) == expected
+
+
 def test_semantic_retention_fallback_is_nan() -> None:
     from scripts.perf import collect_metrics
 

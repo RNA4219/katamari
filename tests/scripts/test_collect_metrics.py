@@ -86,7 +86,7 @@ def test_normalizes_nan_semantic_retention_from_prometheus(tmp_path: Path) -> No
         data = json.loads(output_path.read_text(encoding="utf-8"))
         assert data["compress_ratio"] == 0.42
         assert math.isfinite(data["semantic_retention"])
-        assert data["semantic_retention"] == SEMANTIC_RETENTION_FALLBACK
+        assert data["semantic_retention"] == 1.0
     finally:
         shutdown()
 
@@ -184,7 +184,7 @@ def test_missing_semantic_retention_falls_back(tmp_path: Path) -> None:
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.55
     assert math.isfinite(data["semantic_retention"])
-    assert data["semantic_retention"] == SEMANTIC_RETENTION_FALLBACK
+    assert data["semantic_retention"] == 1.0
 
 
 def test_exit_code_is_non_zero_on_missing_metrics(tmp_path: Path) -> None:

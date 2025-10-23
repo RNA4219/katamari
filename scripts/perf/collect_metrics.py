@@ -51,9 +51,10 @@ def _parse_prometheus(body: str) -> dict[str, float]:
         if not line or line.startswith("#"):
             continue
         name, *rest = line.split()
-        if name in METRIC_KEYS and rest:
+        base_name = name.split("{", 1)[0]
+        if base_name in METRIC_KEYS and rest:
             try:
-                metrics[name] = float(rest[0])
+                metrics[base_name] = float(rest[0])
             except ValueError:
                 continue
     return metrics
@@ -77,9 +78,11 @@ def _parse_chainlit_log(path: Path) -> dict[str, float]:
             continue
         for key in METRIC_KEYS:
             if key in payload:
+                value = payload[key]
                 try:
-                    metrics[key] = float(payload[key])
+                    metrics[key] = float(value)
                 except (TypeError, ValueError):
+                    metrics[key] = math.nan
                     continue
     return metrics
 

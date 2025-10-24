@@ -413,9 +413,9 @@ def test_non_zero_exit_when_latest_log_missing_compress_ratio(tmp_path: Path) ->
     )
 
     assert completed.returncode != 0
-    assert (
-        "Failed to collect metrics: missing compress_ratio" in completed.stderr
-    )
+    assert completed.stdout == ""
+    assert "compress_ratio" in completed.stderr
+    assert not output_path.exists()
 
 
 def test_exit_code_is_non_zero_on_missing_metrics(tmp_path: Path) -> None:

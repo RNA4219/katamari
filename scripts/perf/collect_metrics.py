@@ -153,10 +153,7 @@ def _collect(
                 log_candidate = log_value
 
         if log_is_null and http_candidate is None:
-            if (
-                key == SEMANTIC_RETENTION_KEY
-                and COMPRESS_RATIO_KEY in sanitized
-            ):
+            if key == SEMANTIC_RETENTION_KEY:
                 sanitized[key] = SEMANTIC_RETENTION_FALLBACK
             else:
                 sanitized[key] = None

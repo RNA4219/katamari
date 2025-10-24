@@ -91,11 +91,14 @@ def _parse_chainlit_log(path: Path) -> dict[str, float | None]:
                 sanitized_values[key] = float(value)
             except (TypeError, ValueError):
                 missing_keys.append(key)
-        for key in missing_keys:
-            metrics.pop(key, None)
-        for key in null_keys:
-            metrics[key] = None
-        metrics.update(sanitized_values)
+        if missing_keys:
+            for key in missing_keys:
+                metrics.pop(key, None)
+        if null_keys:
+            for key in null_keys:
+                metrics[key] = None
+        if sanitized_values:
+            metrics.update(sanitized_values)
     return metrics
 
 

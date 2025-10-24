@@ -274,7 +274,7 @@ def test_collects_metrics_from_chainlit_log(tmp_path: Path) -> None:
     }
 
 
-def test_missing_semantic_retention_falls_back_to_none(tmp_path: Path) -> None:
+def test_missing_semantic_retention_uses_fallback_value(tmp_path: Path) -> None:
     log_path = tmp_path / "fallback.log"
     log_path.write_text(
         "INFO metrics={\"compress_ratio\": 0.55}\nINFO done",
@@ -292,7 +292,7 @@ def test_missing_semantic_retention_falls_back_to_none(tmp_path: Path) -> None:
     )
 
 
-def test_latest_log_entry_with_null_semantic_retention_falls_back_to_none(
+def test_latest_log_entry_with_null_semantic_retention_uses_fallback_value(
     tmp_path: Path,
 ) -> None:
     log_path = tmp_path / "chainlit_null.log"
@@ -309,8 +309,6 @@ def test_latest_log_entry_with_null_semantic_retention_falls_back_to_none(
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.64
-    from scripts.perf import collect_metrics
-
     assert (
         data["semantic_retention"]
         == collect_metrics.SEMANTIC_RETENTION_FALLBACK
@@ -334,11 +332,31 @@ def test_latest_log_entry_without_semantic_retention_uses_fallback(
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.64
-    from scripts.perf import collect_metrics
-
     assert (
         data["semantic_retention"]
         == collect_metrics.SEMANTIC_RETENTION_FALLBACK
+    )
+
+
+def test_cli_outputs_semantic_retention_fallback_when_log_reports_null(
+    tmp_path: Path,
+) -> None:
+    log_path = tmp_path / "chainlit_null_cli.log"
+    log_path.write_text(
+        "INFO metrics={\"compress_ratio\": 0.57, \"semantic_retention\": null}",
+        encoding="utf-8",
+    )
+    output_path = tmp_path / "chainlit_null_cli_metrics.json"
+
+    completed = _run_cli("--log-path", str(log_path), "--output", str(output_path))
+    assert completed.returncode == 0
+
+    data = json.loads(output_path.read_text(encoding="utf-8"))
+    assert data["compress_ratio"] == 0.57
+    assert (
+        data["semantic_retention"]
+        == collect_metrics.SEMANTIC_RETENTION_FALLBACK
+        == 1.0
     )
 
 

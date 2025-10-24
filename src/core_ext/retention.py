@@ -26,7 +26,13 @@ def _cosine_similarity(a: Sequence[float], b: Sequence[float]) -> Optional[float
 
 
 def _aggregate(messages: Iterable[Message]) -> str:
-    return "\n".join(m.get("content", "") for m in messages if m.get("content"))
+    parts = []
+    for message in messages:
+        content = message.get("content")
+        if not content:
+            continue
+        parts.append(str(content))
+    return "\n".join(parts)
 
 
 def _build_openai_embedder() -> Optional[Embedder]:

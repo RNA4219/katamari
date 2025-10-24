@@ -5,7 +5,7 @@ import json
 import math
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -76,6 +76,8 @@ def _parse_chainlit_log(path: Path) -> dict[str, float | None]:
             payload = payload["metrics"]
         if not isinstance(payload, dict):
             continue
+        missing_keys: list[str] = []
+        null_keys: list[str] = []
         sanitized_values: dict[str, float] = {}
         missing_keys: list[str] = []
         null_keys: list[str] = []
@@ -91,11 +93,14 @@ def _parse_chainlit_log(path: Path) -> dict[str, float | None]:
                 sanitized_values[key] = float(value)
             except (TypeError, ValueError):
                 missing_keys.append(key)
-        for key in missing_keys:
-            metrics.pop(key, None)
-        for key in null_keys:
-            metrics[key] = None
-        metrics.update(sanitized_values)
+        if missing_keys:
+            for key in missing_keys:
+                metrics.pop(key, None)
+        if null_keys:
+            for key in null_keys:
+                metrics[key] = None
+        if sanitized_values:
+            metrics.update(sanitized_values)
     return metrics
 
 

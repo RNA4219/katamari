@@ -10,10 +10,10 @@ from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-def test_semantic_retention_fallback_is_one() -> None:
+def test_semantic_retention_fallback_is_none() -> None:
     from scripts.perf import collect_metrics
 
-    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK == 1.0
+    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK is None
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")
@@ -86,8 +86,6 @@ def test_normalizes_nan_semantic_retention_from_prometheus(tmp_path: Path) -> No
         _run_cli("--metrics-url", url, "--output", str(output_path))
 
         data = json.loads(output_path.read_text(encoding="utf-8"))
-        from scripts.perf import collect_metrics
-
         assert data["compress_ratio"] == 0.42
         assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
     finally:
@@ -229,7 +227,7 @@ def test_collects_metrics_from_chainlit_log(tmp_path: Path) -> None:
     }
 
 
-def test_missing_semantic_retention_records_none(tmp_path: Path) -> None:
+def test_missing_semantic_retention_falls_back_to_none(tmp_path: Path) -> None:
     log_path = tmp_path / "fallback.log"
     log_path.write_text(
         "INFO metrics={\"compress_ratio\": 0.55}\nINFO done",
@@ -240,8 +238,6 @@ def test_missing_semantic_retention_records_none(tmp_path: Path) -> None:
     _run_cli("--log-path", str(log_path), "--output", str(output_path))
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
-    from scripts.perf import collect_metrics
-
     assert data["compress_ratio"] == 0.55
     assert (
         data["semantic_retention"]
@@ -249,7 +245,7 @@ def test_missing_semantic_retention_records_none(tmp_path: Path) -> None:
     )
 
 
-def test_latest_log_entry_with_null_semantic_retention_falls_back_to_one(
+def test_latest_log_entry_with_null_semantic_retention_falls_back_to_none(
     tmp_path: Path,
 ) -> None:
     log_path = tmp_path / "chainlit_null.log"
@@ -266,7 +262,12 @@ def test_latest_log_entry_with_null_semantic_retention_falls_back_to_one(
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.64
-    assert data["semantic_retention"] is None
+    from scripts.perf import collect_metrics
+
+    assert (
+        data["semantic_retention"]
+        == collect_metrics.SEMANTIC_RETENTION_FALLBACK
+    )
 
 
 def test_latest_log_entry_without_semantic_retention_uses_fallback(
@@ -305,17 +306,10 @@ def test_non_zero_exit_when_latest_log_missing_compress_ratio(tmp_path: Path) ->
     )
     output_path = tmp_path / "chainlit_missing_compress_metrics.json"
 
-    completed = _run_cli(
-        "--log-path",
-        str(log_path),
-        "--output",
-        str(output_path),
-        check=False,
+    assert (
+        data["semantic_retention"]
+        == collect_metrics.SEMANTIC_RETENTION_FALLBACK
     )
-
-    assert completed.returncode != 0
-    assert not output_path.exists()
-    assert "compress_ratio" in completed.stderr
 
 
 def test_exit_code_is_non_zero_on_missing_metrics(tmp_path: Path) -> None:

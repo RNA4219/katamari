@@ -12,7 +12,7 @@ from urllib.request import urlopen
 
 COMPRESS_RATIO_KEY = "compress_ratio"
 SEMANTIC_RETENTION_KEY = "semantic_retention"
-SEMANTIC_RETENTION_FALLBACK: float | None = 1.0
+SEMANTIC_RETENTION_FALLBACK: Final[float | None] = None
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
 METRIC_RANGES: dict[str, tuple[float, float]] = {
@@ -137,11 +137,8 @@ def _collect(
 
         http_value = http_metrics.get(key)
         http_candidate: float | None = None
-        http_is_nan = False
-        if http_value is not None:
-            if _is_nan(http_value):
-                http_is_nan = key == SEMANTIC_RETENTION_KEY
-            elif _is_valid_metric(key, http_value):
+        if http_value is not None and not _is_nan(http_value):
+            if _is_valid_metric(key, http_value):
                 http_candidate = http_value
 
         log_value_present = key in log_metrics
@@ -153,13 +150,7 @@ def _collect(
                 log_candidate = log_value
 
         if log_is_null and http_candidate is None:
-            if (
-                key == SEMANTIC_RETENTION_KEY
-                and COMPRESS_RATIO_KEY in sanitized
-            ):
-                sanitized[key] = SEMANTIC_RETENTION_FALLBACK
-            else:
-                sanitized[key] = None
+            sanitized[key] = None
             continue
 
         if http_candidate is not None:
@@ -168,13 +159,7 @@ def _collect(
             candidate = log_candidate
 
         if candidate is None:
-            if http_is_nan:
-                sanitized[key] = SEMANTIC_RETENTION_FALLBACK
-                continue
-            if (
-                key == SEMANTIC_RETENTION_KEY
-                and COMPRESS_RATIO_KEY in sanitized
-            ):
+            if key == SEMANTIC_RETENTION_KEY:
                 sanitized[key] = SEMANTIC_RETENTION_FALLBACK
                 continue
             missing.append(key)

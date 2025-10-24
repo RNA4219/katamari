@@ -207,6 +207,27 @@ def test_collects_metrics_from_chainlit_log(tmp_path: Path) -> None:
     }
 
 
+def test_main_processes_chainlit_log_without_error(tmp_path: Path) -> None:
+    log_path = tmp_path / "chainlit_main.log"
+    log_path.write_text(
+        "INFO metrics={\"compress_ratio\": 0.42, \"semantic_retention\": 0.81}",
+        encoding="utf-8",
+    )
+    output_path = tmp_path / "main_metrics.json"
+
+    from scripts.perf import collect_metrics
+
+    exit_code = collect_metrics.main(
+        ["--log-path", str(log_path), "--output", str(output_path)]
+    )
+
+    assert exit_code == 0
+    assert json.loads(output_path.read_text(encoding="utf-8")) == {
+        "compress_ratio": 0.42,
+        "semantic_retention": 0.81,
+    }
+
+
 def test_parse_chainlit_log_extracts_metrics(tmp_path: Path) -> None:
     log_path = tmp_path / "chainlit_raw.log"
     log_path.write_text(

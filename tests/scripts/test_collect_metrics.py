@@ -10,10 +10,10 @@ from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-def test_semantic_retention_fallback_is_none() -> None:
+def test_semantic_retention_fallback_is_one() -> None:
     from scripts.perf import collect_metrics
 
-    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK is None
+    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK == 1.0
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")
@@ -83,6 +83,26 @@ def test_normalizes_nan_semantic_retention_from_prometheus(tmp_path: Path) -> No
     url, shutdown = _serve_metrics(payload)
     try:
         output_path = tmp_path / "metrics_nan.json"
+        _run_cli("--metrics-url", url, "--output", str(output_path))
+
+        data = json.loads(output_path.read_text(encoding="utf-8"))
+        from scripts.perf import collect_metrics
+
+        assert data["compress_ratio"] == 0.42
+        assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
+    finally:
+        shutdown()
+
+
+def test_missing_semantic_retention_falls_back_to_one(tmp_path: Path) -> None:
+    payload = (
+        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
+        "# TYPE compress_ratio gauge\n"
+        "compress_ratio 0.42"
+    )
+    url, shutdown = _serve_metrics(payload)
+    try:
+        output_path = tmp_path / "metrics_missing.json"
         _run_cli("--metrics-url", url, "--output", str(output_path))
 
         data = json.loads(output_path.read_text(encoding="utf-8"))

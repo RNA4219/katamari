@@ -5,14 +5,14 @@ import json
 import math
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 from urllib.error import URLError
 from urllib.request import urlopen
 
 
 COMPRESS_RATIO_KEY = "compress_ratio"
 SEMANTIC_RETENTION_KEY = "semantic_retention"
-SEMANTIC_RETENTION_FALLBACK: float = 1.0
+SEMANTIC_RETENTION_FALLBACK: Final[float] = 1.0
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
 METRIC_RANGES: dict[str, tuple[float, float]] = {
@@ -150,23 +150,13 @@ def _collect(
             if log_value is not None and _is_valid_metric(key, log_value):
                 log_candidate = log_value
 
-        if log_is_null:
-            sanitized[key] = None
-            continue
-
         if http_candidate is not None:
             candidate = http_candidate
         elif log_candidate is not None:
             candidate = log_candidate
 
         if candidate is None:
-            if http_is_nan:
-                sanitized[key] = SEMANTIC_RETENTION_FALLBACK
-                continue
-            if (
-                key == SEMANTIC_RETENTION_KEY
-                and COMPRESS_RATIO_KEY in sanitized
-            ):
+            if key == SEMANTIC_RETENTION_KEY or http_is_nan:
                 sanitized[key] = SEMANTIC_RETENTION_FALLBACK
                 continue
             missing.append(key)

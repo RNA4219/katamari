@@ -12,12 +12,12 @@ from urllib.request import urlopen
 
 COMPRESS_RATIO_KEY = "compress_ratio"
 SEMANTIC_RETENTION_KEY = "semantic_retention"
-SEMANTIC_RETENTION_FALLBACK: float | None = 1.0
+SEMANTIC_RETENTION_FALLBACK: float | None = None
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
 METRIC_RANGES: dict[str, tuple[float, float]] = {
     COMPRESS_RATIO_KEY: (0.0, 1.0),
-    SEMANTIC_RETENTION_KEY: (0.0, 1.0),
+    SEMANTIC_RETENTION_KEY: (-1.0, 1.0),
 }
 
 

@@ -6,13 +6,16 @@ import json
 import subprocess
 import sys
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-def test_semantic_retention_fallback_is_none() -> None:
-    from scripts.perf import collect_metrics
+import pytest
 
+from scripts.perf import collect_metrics
+
+
+def test_semantic_retention_fallback_is_none() -> None:
     assert collect_metrics.SEMANTIC_RETENTION_FALLBACK is None
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -47,6 +50,39 @@ def _serve_metrics(payload: str) -> tuple[str, Callable[[], None]]:
         thread.join()
 
     return f"http://{host}:{port}/metrics", _shutdown
+
+
+@pytest.fixture()
+def negative_semantic_retention_metrics() -> Iterator[str]:
+    payload = (
+        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
+        "# TYPE compress_ratio gauge\n"
+        "compress_ratio 0.42\n"
+        "# HELP semantic_retention Semantic retention score for trimmed context.\n"
+        "# TYPE semantic_retention gauge\n"
+        "semantic_retention -0.12"
+    )
+    url, shutdown = _serve_metrics(payload)
+    try:
+        yield url
+    finally:
+        shutdown()
+
+
+def test_preserves_negative_semantic_retention_from_http(
+    negative_semantic_retention_metrics: str, tmp_path: Path
+) -> None:
+    output_path = tmp_path / "metrics_negative.json"
+    _run_cli(
+        "--metrics-url",
+        negative_semantic_retention_metrics,
+        "--output",
+        str(output_path),
+    )
+
+    data = json.loads(output_path.read_text(encoding="utf-8"))
+    assert data["semantic_retention"] == -0.12
+    assert data["compress_ratio"] == 0.42
 
 
 def test_collects_metrics_from_http_endpoint(tmp_path: Path) -> None:
@@ -317,10 +353,17 @@ def test_non_zero_exit_when_latest_log_missing_compress_ratio(tmp_path: Path) ->
     )
     output_path = tmp_path / "chainlit_missing_compress_metrics.json"
 
-    assert (
-        data["semantic_retention"]
-        == collect_metrics.SEMANTIC_RETENTION_FALLBACK
+    completed = _run_cli(
+        "--log-path",
+        str(log_path),
+        "--output",
+        str(output_path),
+        check=False,
     )
+
+    assert completed.returncode != 0
+    assert not output_path.exists()
+    assert "compress_ratio" in completed.stderr
 
 
 def test_exit_code_is_non_zero_on_missing_metrics(tmp_path: Path) -> None:

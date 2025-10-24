@@ -150,8 +150,14 @@ def _collect(
             if log_value is not None and _is_valid_metric(key, log_value):
                 log_candidate = log_value
 
-        if log_is_null:
-            sanitized[key] = None
+        if log_is_null and http_candidate is None:
+            if (
+                key == SEMANTIC_RETENTION_KEY
+                and COMPRESS_RATIO_KEY in sanitized
+            ):
+                sanitized[key] = SEMANTIC_RETENTION_FALLBACK
+            else:
+                sanitized[key] = None
             continue
 
         if http_candidate is not None:

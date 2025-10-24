@@ -178,6 +178,39 @@ def test_replaces_nan_http_metric_with_log_value(tmp_path: Path) -> None:
         shutdown()
 
 
+def test_uses_http_metric_when_log_reports_null(tmp_path: Path) -> None:
+    payload = (
+        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
+        "# TYPE compress_ratio gauge\n"
+        "compress_ratio 0.45\n"
+        "# HELP semantic_retention Semantic retention score for trimmed context.\n"
+        "# TYPE semantic_retention gauge\n"
+        "semantic_retention 0.83"
+    )
+    url, shutdown = _serve_metrics(payload)
+    log_path = tmp_path / "chainlit_null_override.log"
+    log_path.write_text(
+        "INFO metrics={\"semantic_retention\": null}",
+        encoding="utf-8",
+    )
+    try:
+        output_path = tmp_path / "metrics_log_null.json"
+        _run_cli(
+            "--metrics-url",
+            url,
+            "--log-path",
+            str(log_path),
+            "--output",
+            str(output_path),
+        )
+
+        data = json.loads(output_path.read_text(encoding="utf-8"))
+        assert data["compress_ratio"] == 0.45
+        assert data["semantic_retention"] == 0.83
+    finally:
+        shutdown()
+
+
 def test_ignores_out_of_range_http_metrics_in_favor_of_log(tmp_path: Path) -> None:
     payload = (
         "# HELP compress_ratio Ratio of tokens kept after trimming.\n"

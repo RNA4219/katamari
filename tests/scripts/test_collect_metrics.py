@@ -15,8 +15,8 @@ import pytest
 from scripts.perf import collect_metrics
 
 
-def test_semantic_retention_fallback_is_none() -> None:
-    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK is None
+def test_semantic_retention_fallback_is_one_point_zero() -> None:
+    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK == pytest.approx(1.0)
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")
@@ -107,7 +107,7 @@ def test_collects_metrics_from_http_endpoint(tmp_path: Path) -> None:
         shutdown()
 
 
-def test_cli_writes_null_for_nan_semantic_retention(tmp_path: Path) -> None:
+def test_cli_writes_fallback_for_nan_semantic_retention(tmp_path: Path) -> None:
     payload = (
         "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
         "# TYPE compress_ratio gauge\n"
@@ -129,13 +129,14 @@ def test_cli_writes_null_for_nan_semantic_retention(tmp_path: Path) -> None:
         from scripts.perf import collect_metrics
 
         assert data["compress_ratio"] == 0.42
-        assert data["semantic_retention"] is None
-        assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
+        assert data["semantic_retention"] == pytest.approx(
+            collect_metrics.SEMANTIC_RETENTION_FALLBACK
+        )
     finally:
         shutdown()
 
 
-def test_cli_writes_null_when_semantic_retention_missing(tmp_path: Path) -> None:
+def test_cli_writes_fallback_when_semantic_retention_missing(tmp_path: Path) -> None:
     payload = (
         "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
         "# TYPE compress_ratio gauge\n"
@@ -154,8 +155,9 @@ def test_cli_writes_null_when_semantic_retention_missing(tmp_path: Path) -> None
         from scripts.perf import collect_metrics
 
         assert data["compress_ratio"] == 0.37
-        assert data["semantic_retention"] is None
-        assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
+        assert data["semantic_retention"] == pytest.approx(
+            collect_metrics.SEMANTIC_RETENTION_FALLBACK
+        )
     finally:
         shutdown()
 

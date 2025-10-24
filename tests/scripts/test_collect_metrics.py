@@ -107,7 +107,7 @@ def test_collects_metrics_from_http_endpoint(tmp_path: Path) -> None:
         shutdown()
 
 
-def test_normalizes_nan_semantic_retention_from_prometheus(tmp_path: Path) -> None:
+def test_cli_writes_null_for_nan_semantic_retention(tmp_path: Path) -> None:
     payload = (
         "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
         "# TYPE compress_ratio gauge\n"
@@ -119,10 +119,42 @@ def test_normalizes_nan_semantic_retention_from_prometheus(tmp_path: Path) -> No
     url, shutdown = _serve_metrics(payload)
     try:
         output_path = tmp_path / "metrics_nan.json"
-        _run_cli("--metrics-url", url, "--output", str(output_path))
+        result = _run_cli("--metrics-url", url, "--output", str(output_path))
+
+        assert result.returncode == 0
+        assert result.stdout == ""
+        assert result.stderr == ""
 
         data = json.loads(output_path.read_text(encoding="utf-8"))
+        from scripts.perf import collect_metrics
+
         assert data["compress_ratio"] == 0.42
+        assert data["semantic_retention"] is None
+        assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
+    finally:
+        shutdown()
+
+
+def test_cli_writes_null_when_semantic_retention_missing(tmp_path: Path) -> None:
+    payload = (
+        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
+        "# TYPE compress_ratio gauge\n"
+        "compress_ratio 0.37"
+    )
+    url, shutdown = _serve_metrics(payload)
+    try:
+        output_path = tmp_path / "metrics_missing.json"
+        result = _run_cli("--metrics-url", url, "--output", str(output_path))
+
+        assert result.returncode == 0
+        assert result.stdout == ""
+        assert result.stderr == ""
+
+        data = json.loads(output_path.read_text(encoding="utf-8"))
+        from scripts.perf import collect_metrics
+
+        assert data["compress_ratio"] == 0.37
+        assert data["semantic_retention"] is None
         assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
     finally:
         shutdown()
@@ -285,6 +317,8 @@ def test_missing_semantic_retention_uses_fallback_value(tmp_path: Path) -> None:
     _run_cli("--log-path", str(log_path), "--output", str(output_path))
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
+    from scripts.perf import collect_metrics
+
     assert data["compress_ratio"] == 0.55
     assert (
         data["semantic_retention"]

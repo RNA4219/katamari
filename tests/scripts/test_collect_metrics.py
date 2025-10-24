@@ -178,6 +178,28 @@ def test_replaces_nan_http_metric_with_log_value(tmp_path: Path) -> None:
         shutdown()
 
 
+def test_accepts_chainlit_log_without_http_metrics(tmp_path: Path) -> None:
+    log_path = tmp_path / "chainlit_only.log"
+    log_path.write_text(
+        "INFO metrics={\"compress_ratio\": 0.64, \"semantic_retention\": 0.86}",
+        encoding="utf-8",
+    )
+
+    output_path = tmp_path / "metrics_from_log.json"
+    result = _run_cli(
+        "--log-path",
+        str(log_path),
+        "--output",
+        str(output_path),
+    )
+
+    assert result.returncode == 0
+    assert json.loads(output_path.read_text(encoding="utf-8")) == {
+        "compress_ratio": 0.64,
+        "semantic_retention": 0.86,
+    }
+
+
 def test_ignores_out_of_range_http_metrics_in_favor_of_log(tmp_path: Path) -> None:
     payload = (
         "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
@@ -287,7 +309,10 @@ def test_missing_semantic_retention_records_none(tmp_path: Path) -> None:
     from scripts.perf import collect_metrics
 
     assert data["compress_ratio"] == 0.55
-    assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
+    assert (
+        data["semantic_retention"]
+        == collect_metrics.SEMANTIC_RETENTION_FALLBACK
+    )
 
 
 def test_latest_log_entry_with_null_semantic_retention_falls_back_to_none(

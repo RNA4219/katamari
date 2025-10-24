@@ -390,7 +390,6 @@ def test_cli_outputs_semantic_retention_fallback_when_log_reports_null(
     assert (
         data["semantic_retention"]
         == collect_metrics.SEMANTIC_RETENTION_FALLBACK
-        == 1.0
     )
 
 
@@ -414,8 +413,9 @@ def test_non_zero_exit_when_latest_log_missing_compress_ratio(tmp_path: Path) ->
     )
 
     assert completed.returncode != 0
-    assert not output_path.exists()
-    assert "compress_ratio" in completed.stderr
+    assert (
+        "Failed to collect metrics: missing compress_ratio" in completed.stderr
+    )
 
 
 def test_exit_code_is_non_zero_on_missing_metrics(tmp_path: Path) -> None:

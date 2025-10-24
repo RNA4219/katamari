@@ -48,6 +48,32 @@ def _compute_with_provider() -> float:
     return result
 
 
+def test_compute_semantic_retention_serializes_non_string_content() -> None:
+    embed_inputs: List[str] = []
+
+    def _embed(text: str) -> List[float]:
+        embed_inputs.append(text)
+        return [1.0]
+
+    before = [
+        {"content": ["hello", {"key": "value"}]},
+        {"content": None},
+        {"content": ""},
+    ]
+    after = [
+        {"content": {"summary": "ok"}},
+        {"content": ["bye"]},
+    ]
+
+    score = retention.compute_semantic_retention(before, after, embedder=_embed)
+
+    assert score == pytest.approx(1.0)
+    assert embed_inputs == [
+        "['hello', {'key': 'value'}]",
+        "{'summary': 'ok'}\n['bye']",
+    ]
+
+
 def test_compute_semantic_retention_recovers_after_setting_api_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

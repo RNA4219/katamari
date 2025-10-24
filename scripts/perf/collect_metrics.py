@@ -5,7 +5,7 @@ import json
 import math
 import sys
 from pathlib import Path
-from typing import Any, Final
+from typing import Any
 from urllib.error import URLError
 from urllib.request import urlopen
 

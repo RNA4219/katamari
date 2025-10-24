@@ -241,7 +241,7 @@ def test_missing_semantic_retention_records_none(tmp_path: Path) -> None:
     assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
 
 
-def test_latest_log_entry_with_null_semantic_retention_falls_back_to_one(
+def test_latest_log_entry_with_null_semantic_retention_falls_back_to_none(
     tmp_path: Path,
 ) -> None:
     log_path = tmp_path / "chainlit_null.log"
@@ -258,7 +258,12 @@ def test_latest_log_entry_with_null_semantic_retention_falls_back_to_one(
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.64
-    assert data["semantic_retention"] is None
+    from scripts.perf import collect_metrics
+
+    assert (
+        data["semantic_retention"]
+        == collect_metrics.SEMANTIC_RETENTION_FALLBACK
+    )
 
 
 def test_latest_log_entry_without_semantic_retention_falls_back_to_none(

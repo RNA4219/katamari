@@ -126,11 +126,9 @@ def test_cli_writes_null_for_nan_semantic_retention(tmp_path: Path) -> None:
         assert result.stderr == ""
 
         data = json.loads(output_path.read_text(encoding="utf-8"))
-        from scripts.perf import collect_metrics
 
         assert data["compress_ratio"] == 0.42
         assert data["semantic_retention"] is None
-        assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
     finally:
         shutdown()
 
@@ -151,11 +149,9 @@ def test_cli_writes_null_when_semantic_retention_missing(tmp_path: Path) -> None
         assert result.stderr == ""
 
         data = json.loads(output_path.read_text(encoding="utf-8"))
-        from scripts.perf import collect_metrics
 
         assert data["compress_ratio"] == 0.37
         assert data["semantic_retention"] is None
-        assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
     finally:
         shutdown()
 
@@ -387,11 +383,8 @@ def test_cli_outputs_semantic_retention_fallback_when_log_reports_null(
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.57
-    assert (
-        data["semantic_retention"]
-        == collect_metrics.SEMANTIC_RETENTION_FALLBACK
-        == 1.0
-    )
+    assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
+    assert data["semantic_retention"] is None
 
 
 def test_non_zero_exit_when_latest_log_missing_compress_ratio(tmp_path: Path) -> None:

@@ -207,6 +207,35 @@ def test_collects_metrics_from_chainlit_log(tmp_path: Path) -> None:
     }
 
 
+def test_chainlit_log_only_cli_handles_missing_and_null(tmp_path: Path) -> None:
+    log_path = tmp_path / "chainlit_mixed.log"
+    log_path.write_text(
+        "\n".join(
+            (
+                "INFO metrics={\"compress_ratio\": 0.51}",
+                "INFO metrics={\"semantic_retention\": null}",
+                "INFO metrics={\"compress_ratio\": 0.55, \"semantic_retention\": 0.91}",
+            )
+        ),
+        encoding="utf-8",
+    )
+    output_path = tmp_path / "chainlit_mixed_metrics.json"
+
+    completed = _run_cli(
+        "--log-path",
+        str(log_path),
+        "--output",
+        str(output_path),
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "NameError" not in completed.stderr
+
+    data = json.loads(output_path.read_text(encoding="utf-8"))
+    assert data == {"compress_ratio": 0.55, "semantic_retention": 0.91}
+
+
 def test_parse_chainlit_log_extracts_metrics(tmp_path: Path) -> None:
     log_path = tmp_path / "chainlit_raw.log"
     log_path.write_text(

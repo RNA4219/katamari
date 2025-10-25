@@ -1,11 +1,10 @@
 """collect_metrics CLI のサニタイズ挙動を検証するテスト群。
 
-技術仕様書（Katamari Technical Spec v1）は semantic_retention が欠損した場合、
-JSON では null（Python では None）を配信することを期待値として定義している。
-現実装は `SEMANTIC_RETENTION_FALLBACK` を介して欠損・異常値入力を正規化しつつ、
-HTTP／ログ由来のサニタイズとセーフガードで移行期間の後方互換性を担保する。本
-テスト群はこの仕様と実装の橋渡しとなり、欠損・異常値シナリオにおける期待値が
-他テストと矛盾しないことを保証する。"""
+技術仕様書（Katamari Technical Spec v1）は semantic_retention 欠損時の JSON
+出力を `null` と定義しているが、現行リリースでは安定性優先で
+`SEMANTIC_RETENTION_FALLBACK` (=1.0) を返す暫定仕様を採用している。
+本テスト群は Day8 ガードレールに沿って CLI 実装がこの暫定仕様と整合するか、
+欠損・異常値シナリオにおける期待値が他テストと矛盾しないかを継続的に検証する。"""
 
 from __future__ import annotations
 

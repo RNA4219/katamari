@@ -313,7 +313,6 @@ def test_missing_semantic_retention_uses_fallback_value(tmp_path: Path) -> None:
     _run_cli("--log-path", str(log_path), "--output", str(output_path))
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
-    from scripts.perf import collect_metrics
 
     assert data["compress_ratio"] == 0.55
     assert data["semantic_retention"] is None

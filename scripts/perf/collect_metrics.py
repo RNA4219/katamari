@@ -12,9 +12,9 @@ from urllib.request import urlopen
 
 COMPRESS_RATIO_KEY = "compress_ratio"
 SEMANTIC_RETENTION_KEY = "semantic_retention"
-# NOTE: Keep this dummy fallback inside the valid range so dashboards stay green
-# even when upstream fails to emit semantic retention.
-SEMANTIC_RETENTION_FALLBACK: Final[float] = 1.0
+# NOTE: Use ``None`` so downstream consumers can detect the absence of a metric
+# when upstream fails to emit semantic retention.
+SEMANTIC_RETENTION_FALLBACK: Final[float | None] = None
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
 METRIC_RANGES: dict[str, tuple[float, float]] = {

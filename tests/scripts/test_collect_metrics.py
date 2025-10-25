@@ -15,8 +15,8 @@ import pytest
 from scripts.perf import collect_metrics
 
 
-def test_semantic_retention_fallback_is_one_point_zero() -> None:
-    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK == pytest.approx(1.0)
+def test_semantic_retention_fallback_is_none() -> None:
+    assert collect_metrics.SEMANTIC_RETENTION_FALLBACK is None
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     script = Path("scripts/perf/collect_metrics.py")
@@ -383,8 +383,10 @@ def test_cli_outputs_semantic_retention_fallback_when_log_reports_null(
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.57
-    assert data["semantic_retention"] == collect_metrics.SEMANTIC_RETENTION_FALLBACK
-    assert data["semantic_retention"] is None
+    assert (
+        data["semantic_retention"]
+        is collect_metrics.SEMANTIC_RETENTION_FALLBACK
+    )
 
 
 def test_non_zero_exit_when_latest_log_missing_compress_ratio(tmp_path: Path) -> None:

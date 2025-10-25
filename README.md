@@ -88,13 +88,13 @@ make run
 | 任意 | `DEFAULT_CHAIN` | 既定で利用する推論チェーン（`single` / `reflect`） | `DEFAULT_CHAIN=single` | 未設定時は `single` を使用 |
 | 任意 | `CHAINLIT_AUTH_SECRET` | Chainlit セッション署名用シークレット | `CHAINLIT_AUTH_SECRET=change-me` | 本番は十分な長さに変更 |
 | 任意 | `PORT` | Chainlit を手動で起動するときの待ち受けポート | `PORT=8787` | `make run` は既定で 8787 を指定。必要なら `chainlit run ... --port` を利用 |
-| 任意 | `SEMANTIC_RETENTION_PROVIDER` | 会話保持率メトリクス算出時の埋め込みプロバイダー（`openai` / `gemini`） | `SEMANTIC_RETENTION_PROVIDER=gemini` | 指定時は下記モデル設定も併用。保持率メトリクスは未実装（計画中） |
-| 任意 | `SEMANTIC_RETENTION_OPENAI_MODEL` | OpenAI 埋め込みモデル名 | `SEMANTIC_RETENTION_OPENAI_MODEL=text-embedding-3-large` | OpenAI プロバイダー指定時に利用。保持率メトリクスは未実装（計画中） |
-| 任意 | `SEMANTIC_RETENTION_GEMINI_MODEL` | Google Gemini 埋め込みモデル名 | `SEMANTIC_RETENTION_GEMINI_MODEL=text-embedding-004` | Gemini プロバイダー指定時に利用。保持率メトリクスは未実装（計画中） |
+| 任意 | `SEMANTIC_RETENTION_PROVIDER` | 会話保持率メトリクス算出時の埋め込みプロバイダー（`openai` / `gemini`） | `SEMANTIC_RETENTION_PROVIDER=gemini` | 指定時は下記モデル設定も併用。`/metrics` の `semantic_retention` で埋め込み類似度を公開し、欠損時は Prometheus では `NaN`、Chainlit ログや JSON では `null` を出力 |
+| 任意 | `SEMANTIC_RETENTION_OPENAI_MODEL` | OpenAI 埋め込みモデル名 | `SEMANTIC_RETENTION_OPENAI_MODEL=text-embedding-3-large` | OpenAI プロバイダー指定時に利用。欠損時は Prometheus では `NaN`、Chainlit ログや JSON では `null` |
+| 任意 | `SEMANTIC_RETENTION_GEMINI_MODEL` | Google Gemini 埋め込みモデル名 | `SEMANTIC_RETENTION_GEMINI_MODEL=text-embedding-004` | Gemini プロバイダー指定時に利用。欠損時は Prometheus では `NaN`、Chainlit ログや JSON では `null` |
 
 > まず `.env` に必須項目を入力し、環境に合わせて任意項目を追加してください。Chainlit の詳細ログが必要な場合は一時的に `DEBUG=1` を追加するか、`chainlit run src/app.py --debug` で直接起動します。
 
-保持率メトリクス機能の実装までは上記保持率関連の設定を行う必要はありません。
+保持率メトリクスは Trim 後の会話埋め込み類似度を `/metrics` の `semantic_retention` として露出します。埋め込み設定を行わない場合や計算に失敗した場合は Prometheus では `NaN`、Chainlit ログや `scripts/perf/collect_metrics.py` の JSON 出力では `null` として欠損扱いになります。
 
 ### `.env` 設定例
 
@@ -146,7 +146,7 @@ GitHub Container Registry への公開フローは [docs/addenda/H_Deploy_Guide.
 ## 運用エンドポイント
 
 - `GET /healthz`: Chainlit アプリの Liveness。`{"status":"ok"}` を返却。
-- `GET /metrics`: Prometheus Text Format (`compress_ratio`, `semantic_retention`) を露出（`semantic_retention` は暫定ダミー値で、埋め込み導入後に差し替え予定）。
+- `GET /metrics`: Prometheus Text Format (`compress_ratio`, `semantic_retention`) を露出。`semantic_retention` は Trim 後の会話文脈と最新応答の埋め込み類似度を返却し、計算対象がない場合は `NaN`（Chainlit ログおよび JSON 収集時は `null`）としてエクスポートされる。
 - **運用メモ（2025-10-19 現在）**：上記エンドポイントを含めアプリ全体が Chainlit 既定の無認証設定で公開される。監視用途の早期導入を優先し、認証方式は [`TASK.2025-10-19-0002.md`](TASK.2025-10-19-0002.md) で検討・実装予定。
 
 ## 変更履歴の更新ルール

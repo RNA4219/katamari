@@ -22,7 +22,7 @@ repo
 └─ docs / config
 ```
 
-**備考**：`src/core_ext/retention.py` はチャット履歴保持率推定の計画中モジュール（未配線）。
+**備考**：`src/core_ext/retention.py` は Trim 実行時に保持率を算出し、`METRICS_REGISTRY` へ実測値（埋め込み類似度）を反映する。
 
 ## 2. Provider 抽象
 ```python
@@ -35,7 +35,7 @@ class ProviderClient(Protocol):
 
 ## 3. 前処理
 - **Persona**：YAML→System変換。禁則語検査（正規表現リスト）
-- **Trim**：最後Nターン保持（M1で保持率推定：埋め込み類似度 ※保持率算出は未実装・計画中）
+- **Trim**：最後Nターン保持。保持率は Trim 後の埋め込み類似度から算出し、`semantic_retention` を `/metrics` と CLI (`scripts/perf/collect_metrics.py`) に流す。欠損・計算失敗時は Prometheus では `NaN`、CLI では JSON `null` を返す。
 - **Prethought**：`目的/制約/視点/期待` への分解（テンプレプロンプト）
 
 ## 4. チェーン制御
@@ -66,6 +66,6 @@ class ProviderClient(Protocol):
 - prod: Docker/Helm（M3）、リバースプロキシでHTTP/2・Keep-Alive
 
 ## 9. 受け入れ試験（抜粋）
-- Settings反映・Trim圧縮率・Reflect順序・Header/OAuth（未実装・計画中[^oauth-task]）・メトリクス出力（`semantic_retention` は埋め込み類似度から算出した実測値を `/metrics` で露出し、欠損時は `null` を返す）
+- Settings反映・Trim圧縮率・Reflect順序・Header/OAuth（未実装・計画中[^oauth-task]）・メトリクス出力（`semantic_retention` は埋め込み類似度から算出した実測値を `/metrics` で露出し、欠損時は Prometheus では `NaN`、CLI/JSON では `null` を返す）
 
 [^oauth-task]: Header/OAuth 認証は `TASK.2025-10-19-0002.md` で導入予定。タスク完了後は (1) 本節の「未実装・計画中」注記を削除し、(2) 7章セキュリティの導入状況と設定内容を更新して認証状態の説明を整合させる。

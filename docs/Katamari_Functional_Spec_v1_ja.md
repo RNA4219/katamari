@@ -44,5 +44,5 @@
 - ログ：`req_id, user_id?, model, chain_id, token_in/out, latency_ms, compress_ratio`
   - **注記（2025-10-22 更新）**：`katamari.request` ロガーから JSON 形式で構造化ログ（`req_id`/`model`/`token_in`/`token_out`/`compress_ratio`/`step_latency_ms`/`retryable`）を出力する。詳細手順は `RUNBOOK.md` を参照。
 - メトリクス（現行 `/metrics`）：`compress_ratio`, `semantic_retention`
-  - `semantic_retention` は Trim 後の埋め込みから算出した実測値であり、欠損時は `null` を返却する。
+  - `semantic_retention` は Trim 後の埋め込みから算出した実測値であり、欠損時は `/metrics` では `NaN`、CLI/JSON (`scripts/perf/collect_metrics.py`) では `null` を返却する。
 - メトリクス（拡張計画中）：`requests_total`, `latency_ms_p95`, `sse_first_token_ms`, `trim_compress_ratio`

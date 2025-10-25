@@ -1,10 +1,9 @@
 """collect_metrics CLI のサニタイズ挙動を検証するテスト群。
 
 技術仕様書（Katamari Technical Spec v1）は semantic_retention 欠損時の JSON
-出力を `null` と定義しているが、現行リリースでは安定性優先で
-`SEMANTIC_RETENTION_FALLBACK` (=1.0) を返す暫定仕様を採用している。
-本テスト群は Day8 ガードレールに沿って CLI 実装がこの暫定仕様と整合するか、
-欠損・異常値シナリオにおける期待値が他テストと矛盾しないかを継続的に検証する。"""
+出力を `null` と定義しており、本テスト群は Day8 ガードレールに沿って CLI
+実装が仕様と整合するか、欠損・異常値シナリオにおける期待値が他テストと矛盾
+しないかを継続的に検証する。"""
 
 from __future__ import annotations
 
@@ -380,10 +379,7 @@ def test_missing_semantic_retention_uses_fallback_value(tmp_path: Path) -> None:
     data = json.loads(output_path.read_text(encoding="utf-8"))
 
     assert data["compress_ratio"] == 0.55
-    assert (
-        data["semantic_retention"]
-        == collect_metrics.SEMANTIC_RETENTION_FALLBACK
-    )
+    assert data["semantic_retention"] is None
 
 
 def test_latest_log_entry_with_null_semantic_retention_uses_fallback_value(
@@ -403,10 +399,7 @@ def test_latest_log_entry_with_null_semantic_retention_uses_fallback_value(
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.64
-    assert (
-        data["semantic_retention"]
-        == collect_metrics.SEMANTIC_RETENTION_FALLBACK
-    )
+    assert data["semantic_retention"] is None
 
 
 def test_latest_log_entry_without_semantic_retention_uses_fallback(
@@ -426,10 +419,7 @@ def test_latest_log_entry_without_semantic_retention_uses_fallback(
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.64
-    assert (
-        data["semantic_retention"]
-        == collect_metrics.SEMANTIC_RETENTION_FALLBACK
-    )
+    assert data["semantic_retention"] is None
 
 
 def test_cli_outputs_semantic_retention_fallback_when_log_reports_null(
@@ -447,10 +437,7 @@ def test_cli_outputs_semantic_retention_fallback_when_log_reports_null(
 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["compress_ratio"] == 0.57
-    assert (
-        data["semantic_retention"]
-        == collect_metrics.SEMANTIC_RETENTION_FALLBACK
-    )
+    assert data["semantic_retention"] is None
 
 
 def test_non_zero_exit_when_latest_log_missing_compress_ratio(tmp_path: Path) -> None:

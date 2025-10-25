@@ -9,7 +9,7 @@
 | ビジョン・要件 | `docs/Katamari_Requirements_v3_ja.md` | 対象ユーザー、価値、非機能要件、M1〜M3の到達目標。 |
 | 機能仕様 | `docs/Katamari_Functional_Spec_v1_ja.md` | ユースケース別フロー、画面要素、チェーン挙動。 |
 | 技術仕様 | `docs/Katamari_Technical_Spec_v1_ja.md` | システム構成、API、データフロー、例外ハンドリング方針。 |
-| OpenAPI | `docs/openapi/katamari_openapi.yaml` | HTTP インターフェース定義 (`/metrics`, `/healthz` 予定含む)。 |
+| OpenAPI | `docs/openapi/katamari_openapi.yaml` | HTTP インターフェース定義 (`/metrics`, `/healthz` を含む)。 |
 | 追加リファレンス | `docs/addenda/*.md` | UI モック、プロバイダ比較、テストケース、構成ファイル解説など。 |
 | マイルストーン DoD | `docs/adr/0004-m1-metrics-and-retention.md` ほか [ADR #0004〜#0007](adr/README.md) | M1〜M2.5 の到達基準と DoD チェックリスト。 |
 | フォーク運用 | `docs/UPSTREAM.md`, `docs/FORK_NOTES.md`<br>[ADR #0001](adr/0001-use-chainlit-subtree.md) | Chainlit subtree の取得・差分吸収手順。 |
@@ -70,7 +70,7 @@
 
 3. **実装フェーズ**  
    - `context_trimmer` を `tiktoken` ベースへ置換（±5% 精度）。  
-  - `semantic_retention` 指標を実装し `/metrics` で暫定ダミー値を露出（UI への表示は実測導入時に実装）。実測導入タスクは TODO: `semantic_retention` 追跡チケットへ連携。
+  - `semantic_retention` 指標を実装し `/metrics` で埋め込み実測値を露出（欠損時は `NaN` を返却、UI 表示は後続タスク）。Header 認証導入までは VPN/Firewall で公開範囲を限定する。
    - `/metrics` / `/healthz` エンドポイントを追加。  
    - Gemini Provider（stream 対応）を実装。  
    - 以降、OAuth・評価 UI・Prompt evolution など M2 系機能へ拡張。

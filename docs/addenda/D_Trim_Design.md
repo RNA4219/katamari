@@ -9,7 +9,7 @@
 ## D-2. 保持率推定（M1）
 - `semantic_retention = cosine(emb(before), emb(after))`
 - 目標: **≥0.85**（ユースケース依存で調整）
-- ※ `semantic_retention` は暫定ダミー値（計画中）。現状 UI には保持率表示を実装しておらず、バックエンドの `/metrics` のみがダミー値を返す。
+- 本番では埋め込み類似度を Chainlit セッションごとに算出し、`/metrics` へ `NaN` 許容でエクスポートする。UI 表示は未導入のため、運用ではダッシュボードで監視する。
 
 ## D-3. 制御パラメタ
 - `target_tokens`（UIのスライダ 1k–8k）
@@ -17,8 +17,9 @@
 - `priority_roles`（system/user優先。現行実装では未対応／将来導入予定）
 
 ## D-4. フィードバック
-- UIに `compress_ratio` を表示し、`semantic_retention`（M1）は実測導入タイミングで UI への表示実装を行う。
-- ※ 現在の UI は保持率を表示せず、バックエンド `/metrics` のダミー値のみが存在する。実測値導入時に本節の TODO を更新して差分追跡する。
+- UIに `compress_ratio` を表示し、`semantic_retention`（M1）は UI コンポーネント追加とアクセス制御導入後に公開する。
+- 現在は Prometheus で保持率を可視化しており、Header 認証未導入のため VPN/Firewall で公開範囲を制限している。
 
 ### TODO / Follow-up
-- [ ] `semantic_retention` 実測値導入後に UI 表示ロジックと `/metrics` のダミー値差し替えを整合（追跡: ROADMAP `semantic_retention` タスク）。
+- [ ] `semantic_retention` を UI 上に表示し、Header 認証導入後にロールベース表示制御を適用する（追跡: ROADMAP `semantic_retention` タスク）。
+- [ ] `/metrics` へのアクセス制御として Header 認証を実装し、DoD の 200/401 テストを追加する。

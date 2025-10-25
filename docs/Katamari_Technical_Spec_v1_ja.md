@@ -22,7 +22,7 @@ repo
 └─ docs / config
 ```
 
-**備考**：`src/core_ext/retention.py` はチャット履歴保持率推定の計画中モジュール（未配線）。
+**備考**：`src/core_ext/retention.py` はチャット履歴保持率を埋め込み類似度で算出し、`src/app.py` から `MetricsRegistry` へ送出する。
 
 ## 2. Provider 抽象
 ```python
@@ -35,7 +35,7 @@ class ProviderClient(Protocol):
 
 ## 3. 前処理
 - **Persona**：YAML→System変換。禁則語検査（正規表現リスト）
-- **Trim**：最後Nターン保持（M1で保持率推定：埋め込み類似度 ※保持率算出は未実装・計画中）
+- **Trim**：最後Nターン保持（M1で保持率推定：埋め込み類似度。欠損時は `NaN` を `/metrics` に送出）
 - **Prethought**：`目的/制約/視点/期待` への分解（テンプレプロンプト）
 
 ## 4. チェーン制御
@@ -43,7 +43,7 @@ class ProviderClient(Protocol):
 - Step境界で`system`メッセージに段階ヒントを追加（短く・安全に）
 
 ## 5. 評価器（M2）
-- **BERTScore**：`xlm-roberta-large` 既定（軽量化にfallback用モデルを併設）※M2予定・現状未実装。
+- **BERTScore**：`xlm-roberta-large` 既定（軽量化にfallback用モデルを併設）※M2予定・現状未導入。
 - **ROUGE**：`rouge-l`, `rouge-1/2`、日本語は正規化ベースから開始
 - **ルール**：語彙一致・構造検査（JSON/Markdown/字数）
 
@@ -66,6 +66,6 @@ class ProviderClient(Protocol):
 - prod: Docker/Helm（M3）、リバースプロキシでHTTP/2・Keep-Alive
 
 ## 9. 受け入れ試験（抜粋）
-- Settings反映・Trim圧縮率・Reflect順序・Header/OAuth（未実装・計画中[^oauth-task]）・メトリクス出力（`semantic_retention` は未実装・計画中）
+- Settings反映・Trim圧縮率・Reflect順序・Header/OAuth（未導入[^oauth-task]）・メトリクス出力（`semantic_retention` は埋め込み実測値）
 
-[^oauth-task]: Header/OAuth 認証は `TASK.2025-10-19-0002.md` で導入予定。タスク完了後は (1) 本節の「未実装・計画中」注記を削除し、(2) 7章セキュリティの導入状況と設定内容を更新して認証状態の説明を整合させる。
+[^oauth-task]: Header/OAuth 認証は `TASK.2025-10-19-0002.md` で導入予定。タスク完了後は (1) 本節の「未導入」注記を削除し、(2) 7章セキュリティの導入状況と設定内容を更新して認証状態の説明を整合させる。

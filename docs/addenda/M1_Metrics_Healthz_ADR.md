@@ -4,10 +4,10 @@
 - **背景**: M1 マイルストーンで Chainlit ベースのアプリに可観測性を導入する必要がある。
 - **決定**:
   - FastAPI ルーターに `GET /healthz` を追加し、200/`{"status":"ok"}` を返却する。
-  - `MetricsRegistry` で `compress_ratio` / `semantic_retention` を Gauge として保持し、`GET /metrics` から Prometheus Text Format で露出する（`semantic_retention` は暫定のダミー値を返却し、精度改善ロードマップに沿って差し替える計画）。
+  - `MetricsRegistry` で `compress_ratio` / `semantic_retention` を Gauge として保持し、`GET /metrics` から Prometheus Text Format で露出する。`semantic_retention` は埋め込み類似度による実測値を採用し、欠損時は `NaN` を返却する。
 - **影響**:
   - Chainlit ルートに副作用なくサブマウントでき、CI テスト (`pytest`) で監視エンドポイントが検証される。
-- `/metrics` は暫定で `semantic_retention` にダミー値を出力し、埋め込み導入後に算出精度を検証・更新するロードマップを維持できる。
+  - Header 認証が未導入のため、メトリクス公開範囲はネットワークフィルタと監査ログで補完する。
 
 ## 履歴
-- 2025-10-21: `/metrics` の `semantic_retention` がダミー値を返す現状と精度向上計画を明記し、関連ドキュメントと整合させた。
+- 2025-10-24: 埋め込み由来の `semantic_retention` を本番採用し、欠損時の `NaN` 送出と Header 認証未導入リスクを追記した。

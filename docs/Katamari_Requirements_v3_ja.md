@@ -9,7 +9,7 @@
 - **モデル初期セット**：
   - **GPT-5 系**：`gpt-5-main` / `gpt-5-main-mini` / `gpt-5-thinking` / `gpt-5-thinking-mini` / `gpt-5-thinking-nano` / `gpt-5-thinking-pro`
   - **Gemini 2.5 系**：`gemini-2.5-*` 一式
-- **評価器の実装順（難→易）**：**BERTScore → ROUGE → ルールベース** ※M2予定・現状未実装。
+- **評価器の実装順（難→易）**：**BERTScore → ROUGE → ルールベース** ※M2予定・現状未導入。
 - **Upstream**：Chainlit/chainlit（Apache-2.0）最新安定タグを追従
 
 ## 0. 概要 / 目的
@@ -18,7 +18,7 @@ LLM入出力の基盤機能（前処理・多段推論・人格YAML・最適化�
 - **ai-persona-compiler**（YAML→System）
 - **prethought-analyzer**（意図/制約/期待の分解）
 - **multistep-controller**（draft→critique→final）
-- **prompt-evolution**（M2：BERTScore/ROUGE/ルールで評価し進化）※M2予定・現状未実装。
+- **prompt-evolution**（M2：BERTScore/ROUGE/ルールで評価し進化）※M2予定・現状未導入。
 
 ## 1. スコープ
 ### 1.1 含む
@@ -37,7 +37,7 @@ LLM入出力の基盤機能（前処理・多段推論・人格YAML・最適化�
 1) Prethought→Persona→Trim→推論→SSE表示  
 2) Reflectチェーン：draft→critique→final をStepで可視化  
 3) Persona YAML→Systemの即時適用  
-4) 履歴肥大化時のTrim（圧縮率・保持率表示）※保持率表示は未実装（計画中）
+4) 履歴肥大化時のTrim（圧縮率・保持率表示）※保持率は UI 未導入（計画中）
 5) 進化（M2）：評価→最良プロンプト更新
 
 ## 3. 機能要件（FR）
@@ -49,13 +49,13 @@ LLM入出力の基盤機能（前処理・多段推論・人格YAML・最適化�
 - **FR-06**：ログ：`req_id, model, token_in/out, compress_ratio, step_latency_ms`
   - **注記（2025-10-22 更新）**：`src/core_ext/logging.py` の `StructuredLogger` と `src/app.py` の `REQUEST_LOGGER` が要件フィールド（`req_id`/`model`/`token_in`/`token_out`/`compress_ratio`/`step_latency_ms`/`retryable`/`latency_ms`）を JSON で出力する。検証は `tests/app/test_logging.py` で自動化済み。
 - **FR-07**：`/healthz`・`/metrics`（M1以降）
-- **FR-08（M2）**：`/evolve`（BERTScore→ROUGE→ルール順） ※M2予定・現状未実装。
+- **FR-08（M2）**：`/evolve`（BERTScore→ROUGE→ルール順） ※M2予定・現状未導入。
 
 ## 4. 非機能（NFR）
 - UI反映遅延 ≤ 300ms（SSE→描画）
-- SSE自動再接続（指数バックオフ、最大3回）※計画中。2025-10-22 現在は未実装であり、対応方針は今後起票予定の Task Seed「SSE自動再接続実装」を参照。
+- SSE自動再接続（指数バックオフ、最大3回）※計画中。2025-10-22 現在は未導入であり、対応方針は今後起票予定の Task Seed「SSE自動再接続実装」を参照。
 - 認証：M1 Header Auth → M1.5 OAuth（`CHAINLIT_AUTH_SECRET`）
-- **注記（2025-10-19 現在）**：Header Auth/OAuth は未実装で、現行リリースは Chainlit 既定の無認証挙動。対策タスクは [`TASK.2025-10-19-0002.md`](../TASK.2025-10-19-0002.md) を参照。
+- **注記（2025-10-19 現在）**：Header Auth/OAuth は未導入で、現行リリースは Chainlit 既定の無認証挙動。対策タスクは [`TASK.2025-10-19-0002.md`](../TASK.2025-10-19-0002.md) を参照。
 - Upstream追従：週次、差分は `core_ext/` に隔離
 
 ## 5. データモデル（抜粋）
@@ -70,12 +70,12 @@ forbid: [string, ...]
 notes: |
   ...
 # Trim Response
-{ messages: Message[], metrics: { input_tokens:number, output_tokens:number, compress_ratio:number, semantic_retention?:number /* ※ 暫定ダミー値。UI には未表示で、バックエンド `/metrics` のみでプレースホルダを返却（埋め込み導入後に精度更新予定） */ }, note?: string }
+{ messages: Message[], metrics: { input_tokens:number, output_tokens:number, compress_ratio:number, semantic_retention?:number /* 埋め込み類似度による実測値。欠損時は `NaN` を `/metrics` に送出し、UI は後続で導入予定 */ }, note?: string }
 ```
 
 ## 6. 受け入れ基準（AC）
 - AC-01：Settings更新→即System差替・ログ出力
-- AC-02：Trim実行→`compress_ratio` 表示（0.3–0.8）※保持率は UI 未表示／`/metrics` で暫定ダミー値（計画中）
+- AC-02：Trim実行→`compress_ratio` 表示（0.3–0.8）※保持率は UI 未表示／`/metrics` で埋め込み実測値
 - AC-03：reflect 3段の順序でストリーム可視化
 - AC-04：M1でHeader Auth→M1.5でOAuth有効化
 - **注記（2025-10-19 現在）**：上記認証要件は未着手のため、当面は Chainlit 既定の無認証挙動を継続する。対応後に本注記を撤回すること（[`TASK.2025-10-19-0002.md`](../TASK.2025-10-19-0002.md)）。
@@ -83,9 +83,9 @@ notes: |
 
 ## 7. マイルストーン / 工数（1名）
 - **M0（6h）**：Settings/SSE/Trim/Persona簡易/Reflect/最小ログ（`/healthz`・`/metrics` 実装）
-- **M1（8h）**：prethought・保持率推定（埋め込み）・`/metrics`・Header Auth・Healthz ※保持率は UI 未表示／`/metrics` は暫定ダミー値（精度検証待ち）
+- **M1（8h）**：prethought・保持率推定（埋め込み）・`/metrics`・Header Auth・Healthz ※保持率は UI 未表示、`/metrics` は埋め込み実測値。Header Auth は未導入。
 - **M1.5（4–6h）**：OAuth・厳密トークンカウント・UI微調整
-- **M2（12–16h）**：prompt-evolution（BERTScore→ROUGE→ルール）・スコアボード ※M2予定・現状未実装。
+- **M2（12–16h）**：prompt-evolution（BERTScore→ROUGE→ルール）・スコアボード ※M2予定・現状未導入。
 - **M2.5（8–12h 任意）**：Postgres永続化
 - **M3（6–8h）**：Docker/Helm/CI・FORK_NOTES/UPSTREAM整備
 **合計**：36–46h（約4.5〜6営業日）

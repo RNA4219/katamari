@@ -25,24 +25,24 @@
 - Settings更新イベントでYAML→Systemにコンパイルし、セッション先頭に反映（禁則ログは別Message）
 
 ### UC-04 Trim
-- 目標トークンに収まるよう「最後Nターン保持」→圧縮率をMessage表示（保持率表示は未実装・計画中）
+- 目標トークンに収まるよう「最後Nターン保持」→圧縮率をMessage表示（保持率は `/metrics` で観測し、UI 表示は未導入）
 
 ### UC-05 進化（M2）
-- 複数プロンプト候補を生成→BERTScore→ROUGE→ルールで評価→上位選抜→次世代生成 ※M2予定・現状未実装。
+- 複数プロンプト候補を生成→BERTScore→ROUGE→ルールで評価→上位選抜→次世代生成 ※M2予定・現状未導入。
 
 ## 3. エラー/例外
-- SSE切断時：指数バックオフ（1,2,4s）で最大3回再接続（※2025-10-22 現在未実装。対応計画は今後起票予定の Task Seed「SSE自動再接続実装」で管理する）
+- SSE切断時：指数バックオフ（1,2,4s）で最大3回再接続（※2025-10-22 現在未導入。対応計画は今後起票予定の Task Seed「SSE自動再接続実装」で管理する）
 - Persona YAMLパース失敗：既定Systemにフォールバックし、issuesを通知
 - モデル未設定：`gpt-5-main` にフォールバック
 
 ## 4. 権限/認証
 - M1：Header Auth（`Authorization: Bearer <token>`）
 - M1.5：OAuth（Chainlit設定に準拠）
-- **注記（2025-10-19 現在）**：Header Auth/OAuth は未実装であり、現行リリースは Chainlit 既定の無認証挙動を採用している。導入計画は [`TASK.2025-10-19-0002.md`](../TASK.2025-10-19-0002.md) を参照。
+- **注記（2025-10-19 現在）**：Header Auth/OAuth は未導入であり、現行リリースは Chainlit 既定の無認証挙動を採用している。導入計画は [`TASK.2025-10-19-0002.md`](../TASK.2025-10-19-0002.md) を参照。
 
 ## 5. ログ/メトリクス
 - ログ：`req_id, user_id?, model, chain_id, token_in/out, latency_ms, compress_ratio`
   - **注記（2025-10-22 更新）**：`katamari.request` ロガーから JSON 形式で構造化ログ（`req_id`/`model`/`token_in`/`token_out`/`compress_ratio`/`step_latency_ms`/`retryable`）を出力する。詳細手順は `RUNBOOK.md` を参照。
 - メトリクス（現行 `/metrics`）：`compress_ratio`, `semantic_retention`
-  - `semantic_retention` はダミー値であり、実測化は今後の課題
+  - `semantic_retention` は埋め込み類似度による実測値。欠損時は `NaN` を返却し、ダッシュボード側で除外する。
 - メトリクス（拡張計画中）：`requests_total`, `latency_ms_p95`, `sse_first_token_ms`, `trim_compress_ratio`

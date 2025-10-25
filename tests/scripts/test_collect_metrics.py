@@ -125,7 +125,9 @@ def test_cli_writes_fallback_for_nan_semantic_retention(tmp_path: Path) -> None:
         assert result.stdout == ""
         assert result.stderr == ""
 
-        data = json.loads(output_path.read_text(encoding="utf-8"))
+        content = output_path.read_text(encoding="utf-8")
+        assert "\"semantic_retention\": null" in content
+        data = json.loads(content)
 
         assert data["compress_ratio"] == 0.42
         assert data["semantic_retention"] is None
@@ -148,7 +150,9 @@ def test_cli_writes_fallback_when_semantic_retention_missing(tmp_path: Path) -> 
         assert result.stdout == ""
         assert result.stderr == ""
 
-        data = json.loads(output_path.read_text(encoding="utf-8"))
+        content = output_path.read_text(encoding="utf-8")
+        assert "\"semantic_retention\": null" in content
+        data = json.loads(content)
 
         assert data["compress_ratio"] == 0.37
         assert data["semantic_retention"] is None
@@ -312,7 +316,9 @@ def test_missing_semantic_retention_uses_fallback_value(tmp_path: Path) -> None:
 
     _run_cli("--log-path", str(log_path), "--output", str(output_path))
 
-    data = json.loads(output_path.read_text(encoding="utf-8"))
+    content = output_path.read_text(encoding="utf-8")
+    assert "\"semantic_retention\": null" in content
+    data = json.loads(content)
     from scripts.perf import collect_metrics
 
     assert data["compress_ratio"] == 0.55
@@ -337,7 +343,9 @@ def test_latest_log_entry_with_null_semantic_retention_uses_fallback_value(
 
     _run_cli("--log-path", str(log_path), "--output", str(output_path))
 
-    data = json.loads(output_path.read_text(encoding="utf-8"))
+    content = output_path.read_text(encoding="utf-8")
+    assert "\"semantic_retention\": null" in content
+    data = json.loads(content)
     assert data["compress_ratio"] == 0.64
     assert (
         data["semantic_retention"]
@@ -360,7 +368,9 @@ def test_latest_log_entry_without_semantic_retention_uses_fallback(
 
     _run_cli("--log-path", str(log_path), "--output", str(output_path))
 
-    data = json.loads(output_path.read_text(encoding="utf-8"))
+    content = output_path.read_text(encoding="utf-8")
+    assert "\"semantic_retention\": null" in content
+    data = json.loads(content)
     assert data["compress_ratio"] == 0.64
     assert (
         data["semantic_retention"]

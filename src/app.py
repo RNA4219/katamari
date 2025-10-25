@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import math
 import os
 from pathlib import Path
@@ -169,6 +170,7 @@ class MetricsRegistry:
 
 METRICS_REGISTRY = MetricsRegistry()
 REQUEST_LOGGER = StructuredLogger()
+_RETENTION_LOGGER = logging.getLogger("katamari.retention")
 
 
 def _to_int(value: Any) -> int:
@@ -211,11 +213,16 @@ async def _ensure_semantic_retention(
         metrics["semantic_retention"] = None
         return None
 
-    result = await asyncio.to_thread(
-        compute_semantic_retention,
-        before,
-        after,
-    )
+    try:
+        result = await asyncio.to_thread(
+            compute_semantic_retention,
+            before,
+            after,
+        )
+    except Exception:  # noqa: BLE001 - intentional broad catch for fallback
+        _RETENTION_LOGGER.exception("semantic retention computation failed")
+        metrics["semantic_retention"] = None
+        return None
     if result is None:
         metrics["semantic_retention"] = None
         return None

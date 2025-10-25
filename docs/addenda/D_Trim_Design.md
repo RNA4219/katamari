@@ -12,9 +12,9 @@
 - Trim 実行時に埋め込みを算出し、`/metrics` に `-1.0〜1.0` のレンジで実測値を送出する。欠損や埋め込み取得失敗時は `null`（JSON）で記録し、ダッシュボード側も欠損扱いに揃える。
 
 ### チェックリスト（保持率観測）
-- [ ] Trim 後の埋め込みが正常に計算され、`semantic_retention` が `-1.0〜1.0` の範囲で `/metrics` に出力される。
-- [ ] 埋め込み失敗・欠損時に `semantic_retention` が `null` として記録され、`scripts/perf/collect_metrics.py` が欠損を保持する。
-- [ ] ダッシュボード／ログ解析は `null` を欠損値として扱い、負値を異常値ではなく実測として保存する設定になっている。
+- [x] Trim 後の埋め込みが正常に計算され、`semantic_retention` が `-1.0〜1.0` の範囲で `/metrics` に出力される。（`scripts/perf/collect_metrics.py` の `_is_valid_metric` が上下限を検証し、異常値は採用しない）
+- [x] 埋め込み失敗・欠損時に `semantic_retention` が `null` として記録され、`scripts/perf/collect_metrics.py` が欠損を保持する。（`SEMANTIC_RETENTION_FALLBACK` を `None` に固定し、HTTP/ログ両方が欠損でも `null` を明示出力）
+- [x] ダッシュボード／ログ解析は `null` を欠損値として扱い、負値を異常値ではなく実測として保存する設定になっている。（CLI は負値をそのまま保持しつつ `null` を欠損として書き出すため、既存ダッシュボード設定と整合）
 
 ## D-3. 制御パラメタ
 - `target_tokens`（UIのスライダ 1k–8k）

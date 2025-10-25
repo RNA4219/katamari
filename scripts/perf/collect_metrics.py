@@ -5,6 +5,7 @@ import json
 import math
 import sys
 from pathlib import Path
+from types import NoneType
 from typing import Any
 from typing import Final
 from urllib.error import URLError

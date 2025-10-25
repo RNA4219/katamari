@@ -5,7 +5,6 @@ import json
 import math
 import sys
 from pathlib import Path
-from types import NoneType
 from typing import Any
 from typing import Final
 from urllib.error import URLError
@@ -15,8 +14,8 @@ from urllib.request import urlopen
 COMPRESS_RATIO_KEY = "compress_ratio"
 SEMANTIC_RETENTION_KEY = "semantic_retention"
 # NOTE: Maintain compatibility with legacy dashboards that expect the semantic
-# retention metric to be present by emitting a fallback score when unavailable.
-SEMANTIC_RETENTION_FALLBACK: Final[float] = 1.0
+# retention metric to be present by emitting a fallback value when unavailable.
+SEMANTIC_RETENTION_FALLBACK: Final[float | None] = None
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
 METRIC_RANGES: dict[str, tuple[float, float]] = {

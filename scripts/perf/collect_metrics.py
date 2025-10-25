@@ -121,15 +121,19 @@ def _collect(
             pass
 
     log_metrics: dict[str, float | None] = {}
+    log_source_consumed = False
     if log_path:
         try:
-            for key, value in _parse_chainlit_log(log_path).items():
-                if value is None:
-                    log_metrics[key] = None
-                elif _is_valid_metric(key, value):
-                    log_metrics[key] = value
+            parsed_log = _parse_chainlit_log(log_path)
         except OSError:
-            pass
+            parsed_log = {}
+        else:
+            log_source_consumed = True
+        for key, value in parsed_log.items():
+            if value is None:
+                log_metrics[key] = None
+            elif _is_valid_metric(key, value):
+                log_metrics[key] = value
 
     sanitized: dict[str, float | None] = {}
     missing: list[str] = []
@@ -151,11 +155,16 @@ def _collect(
             if log_value is not None and _is_valid_metric(key, log_value):
                 log_candidate = log_value
 
-        if log_is_null and http_candidate is None:
-            if key == SEMANTIC_RETENTION_KEY:
+        if key == SEMANTIC_RETENTION_KEY:
+            if log_is_null:
                 sanitized[key] = SEMANTIC_RETENTION_FALLBACK
-            else:
-                sanitized[key] = None
+                continue
+            if not log_value_present and log_source_consumed:
+                sanitized[key] = SEMANTIC_RETENTION_FALLBACK
+                continue
+
+        if log_is_null and key != SEMANTIC_RETENTION_KEY:
+            sanitized[key] = None
             continue
 
         if http_candidate is not None:

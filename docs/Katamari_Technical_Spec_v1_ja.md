@@ -66,6 +66,6 @@ class ProviderClient(Protocol):
 - prod: Docker/Helm（M3）、リバースプロキシでHTTP/2・Keep-Alive
 
 ## 9. 受け入れ試験（抜粋）
-- Settings反映・Trim圧縮率・Reflect順序・Header/OAuth（未実装・計画中[^oauth-task]）・メトリクス出力（`semantic_retention` は未実装・計画中）
+- Settings反映・Trim圧縮率・Reflect順序・Header/OAuth（未実装・計画中[^oauth-task]）・メトリクス出力（`semantic_retention` は埋め込み類似度から算出した実測値を `/metrics` で露出し、欠損時は `null` を返す）
 
 [^oauth-task]: Header/OAuth 認証は `TASK.2025-10-19-0002.md` で導入予定。タスク完了後は (1) 本節の「未実装・計画中」注記を削除し、(2) 7章セキュリティの導入状況と設定内容を更新して認証状態の説明を整合させる。

@@ -4,10 +4,11 @@
 - **背景**: M1 マイルストーンで Chainlit ベースのアプリに可観測性を導入する必要がある。
 - **決定**:
   - FastAPI ルーターに `GET /healthz` を追加し、200/`{"status":"ok"}` を返却する。
-  - `MetricsRegistry` で `compress_ratio` / `semantic_retention` を Gauge として保持し、`GET /metrics` から Prometheus Text Format で露出する（`semantic_retention` は暫定のダミー値を返却し、精度改善ロードマップに沿って差し替える計画）。`scripts/perf/collect_metrics.py` はこれらの値を収集し、保持率が欠損した場合は JSON `null` を出力、-1.0〜1.0 のレンジを守る負値も保持してダッシュボードへ渡す。
+  - `MetricsRegistry` で `compress_ratio` / `semantic_retention` を Gauge として保持し、`GET /metrics` から Prometheus Text Format で露出する。`semantic_retention` は Trim 後の埋め込み類似度から算出した実測値を返却し、欠損時は JSON `null` を維持する。`scripts/perf/collect_metrics.py` はこれらの値を収集し、保持率を `-1.0〜1.0` レンジで保存しつつ、負値は実測として扱う。
 - **影響**:
   - Chainlit ルートに副作用なくサブマウントでき、CI テスト (`pytest`) で監視エンドポイントが検証される。
-- `/metrics` は暫定で `semantic_retention` にダミー値を出力し、埋め込み導入後に算出精度を検証・更新するロードマップを維持できる。
+- `/metrics` は `semantic_retention` の実測値を返却し、`null` は欠損・負値は実測シグナルとしてダッシュボードに引き継ぐ。
 
 ## 履歴
 - 2025-10-21: `/metrics` の `semantic_retention` がダミー値を返す現状と精度向上計画を明記し、関連ドキュメントと整合させた。
+- 2025-10-23: `semantic_retention` の実測計測・`null` フォールバック・`-1.0〜1.0` レンジ運用を反映。

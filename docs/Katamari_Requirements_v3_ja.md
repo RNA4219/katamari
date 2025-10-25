@@ -70,12 +70,12 @@ forbid: [string, ...]
 notes: |
   ...
 # Trim Response
-{ messages: Message[], metrics: { input_tokens:number, output_tokens:number, compress_ratio:number, semantic_retention?:number /* ※ 暫定ダミー値。UI には未表示で、バックエンド `/metrics` のみでプレースホルダを返却（埋め込み導入後に精度更新予定） */ }, note?: string }
+{ messages: Message[], metrics: { input_tokens:number, output_tokens:number, compress_ratio:number, semantic_retention?:number /* Trim 後の埋め込み類似度を実測で格納（-1.0〜1.0）。欠損時は `null` を許容 */ }, note?: string }
 ```
 
 ## 6. 受け入れ基準（AC）
 - AC-01：Settings更新→即System差替・ログ出力
-- AC-02：Trim実行→`compress_ratio` 表示（0.3–0.8）※保持率は UI 未表示／`/metrics` で暫定ダミー値（計画中）
+- AC-02：Trim実行→`compress_ratio` 表示（0.3–0.8）※保持率は UI 未表示だが `/metrics` では埋め込み由来の実測値（`-1.0〜1.0`、欠損時 `null`）を提供
 - AC-03：reflect 3段の順序でストリーム可視化
 - AC-04：M1でHeader Auth→M1.5でOAuth有効化
 - **注記（2025-10-19 現在）**：上記認証要件は未着手のため、当面は Chainlit 既定の無認証挙動を継続する。対応後に本注記を撤回すること（[`TASK.2025-10-19-0002.md`](../TASK.2025-10-19-0002.md)）。
@@ -83,7 +83,7 @@ notes: |
 
 ## 7. マイルストーン / 工数（1名）
 - **M0（6h）**：Settings/SSE/Trim/Persona簡易/Reflect/最小ログ（`/healthz`・`/metrics` 実装）
-- **M1（8h）**：prethought・保持率推定（埋め込み）・`/metrics`・Header Auth・Healthz ※保持率は UI 未表示／`/metrics` は暫定ダミー値（精度検証待ち）
+- **M1（8h）**：prethought・保持率推定（埋め込み）・`/metrics`・Header Auth・Healthz ※保持率は UI 未表示／`/metrics` は実測値（`-1.0〜1.0`、欠損時 `null`）
 - **M1.5（4–6h）**：OAuth・厳密トークンカウント・UI微調整
 - **M2（12–16h）**：prompt-evolution（BERTScore→ROUGE→ルール）・スコアボード ※M2予定・現状未実装。
 - **M2.5（8–12h 任意）**：Postgres永続化

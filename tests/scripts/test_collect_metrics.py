@@ -192,6 +192,37 @@ def test_prefers_chainlit_log_over_nan_http_metric(tmp_path: Path) -> None:
         shutdown()
 
 
+def test_cli_fails_when_compress_ratio_null_in_log(tmp_path: Path) -> None:
+    payload = (
+        "# HELP semantic_retention Semantic retention score for trimmed context.\n"
+        "# TYPE semantic_retention gauge\n"
+        "semantic_retention 0.77"
+    )
+    url, shutdown = _serve_metrics(payload)
+    log_path = tmp_path / "chainlit.log"
+    log_path.write_text(
+        'INFO metrics={"compress_ratio": null}\n',
+        encoding="utf-8",
+    )
+    try:
+        output_path = tmp_path / "metrics_missing_compress_ratio.json"
+        result = _run_cli(
+            "--metrics-url",
+            url,
+            "--log-path",
+            str(log_path),
+            "--output",
+            str(output_path),
+            check=False,
+        )
+
+        assert result.returncode != 0
+        assert "missing compress_ratio" in result.stderr
+        assert not output_path.exists()
+    finally:
+        shutdown()
+
+
 def test_cli_fails_when_compress_ratio_is_null_and_no_http_candidate(
     tmp_path: Path,
 ) -> None:

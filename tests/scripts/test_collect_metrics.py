@@ -20,7 +20,7 @@ import pytest
 from scripts.perf import collect_metrics
 
 
-def test_semantic_retention_fallback_value() -> None:
+def test_semantic_retention_fallback_is_none() -> None:
     assert collect_metrics.SEMANTIC_RETENTION_FALLBACK is None
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -161,6 +161,79 @@ def test_cli_writes_null_when_semantic_retention_missing(tmp_path: Path) -> None
         shutdown()
 
 
+def test_cli_prefers_null_when_all_sources_missing_semantic_retention(
+    tmp_path: Path,
+) -> None:
+    http_payload = (
+        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
+        "# TYPE compress_ratio gauge\n"
+        "compress_ratio 0.58"
+    )
+    url, shutdown = _serve_metrics(http_payload)
+    log_path = tmp_path / "chainlit_missing_semantic.log"
+    log_path.write_text(
+        "INFO metrics={\"compress_ratio\": 0.52}",
+        encoding="utf-8",
+    )
+    try:
+        output_path = tmp_path / "metrics_missing_all_sources.json"
+        _run_cli(
+            "--metrics-url",
+            url,
+            "--log-path",
+            str(log_path),
+            "--output",
+            str(output_path),
+        )
+
+        content = output_path.read_text(encoding="utf-8")
+        data = json.loads(content)
+
+        assert data["compress_ratio"] == 0.58
+        assert data["semantic_retention"] is None
+        assert '"semantic_retention": null' in content
+    finally:
+        shutdown()
+
+
+def test_cli_writes_null_when_log_reports_null_and_http_missing_semantic(
+    tmp_path: Path,
+) -> None:
+    http_payload = (
+        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
+        "# TYPE compress_ratio gauge\n"
+        "compress_ratio 0.61\n"
+        "# HELP semantic_retention Semantic retention score for trimmed context.\n"
+        "# TYPE semantic_retention gauge\n"
+        "semantic_retention nan"
+    )
+    url, shutdown = _serve_metrics(http_payload)
+    log_path = tmp_path / "chainlit_null_semantic.log"
+    log_path.write_text(
+        "INFO metrics={\"compress_ratio\": 0.61, \"semantic_retention\": null}",
+        encoding="utf-8",
+    )
+    try:
+        output_path = tmp_path / "metrics_null_sources.json"
+        _run_cli(
+            "--metrics-url",
+            url,
+            "--log-path",
+            str(log_path),
+            "--output",
+            str(output_path),
+        )
+
+        content = output_path.read_text(encoding="utf-8")
+        data = json.loads(content)
+
+        assert data["compress_ratio"] == 0.61
+        assert data["semantic_retention"] is None
+        assert '"semantic_retention": null' in content
+    finally:
+        shutdown()
+
+
 def test_prefers_chainlit_log_over_nan_http_metric(tmp_path: Path) -> None:
     payload = (
         "# HELP semantic_retention Semantic retention score for trimmed context.\n"
@@ -187,6 +260,37 @@ def test_prefers_chainlit_log_over_nan_http_metric(tmp_path: Path) -> None:
         data = json.loads(output_path.read_text(encoding="utf-8"))
         assert data["compress_ratio"] == 0.51
         assert data["semantic_retention"] == 0.88
+    finally:
+        shutdown()
+
+
+def test_cli_fails_when_compress_ratio_null_in_log(tmp_path: Path) -> None:
+    payload = (
+        "# HELP semantic_retention Semantic retention score for trimmed context.\n"
+        "# TYPE semantic_retention gauge\n"
+        "semantic_retention 0.77"
+    )
+    url, shutdown = _serve_metrics(payload)
+    log_path = tmp_path / "chainlit.log"
+    log_path.write_text(
+        'INFO metrics={"compress_ratio": null}\n',
+        encoding="utf-8",
+    )
+    try:
+        output_path = tmp_path / "metrics_missing_compress_ratio.json"
+        result = _run_cli(
+            "--metrics-url",
+            url,
+            "--log-path",
+            str(log_path),
+            "--output",
+            str(output_path),
+            check=False,
+        )
+
+        assert result.returncode != 0
+        assert "missing compress_ratio" in result.stderr
+        assert not output_path.exists()
     finally:
         shutdown()
 
@@ -366,7 +470,7 @@ def test_collects_metrics_from_chainlit_log(tmp_path: Path) -> None:
     }
 
 
-def test_missing_semantic_retention_uses_fallback_value(tmp_path: Path) -> None:
+def test_missing_semantic_retention_serializes_null(tmp_path: Path) -> None:
     log_path = tmp_path / "fallback.log"
     log_path.write_text(
         "INFO metrics={\"compress_ratio\": 0.55}\nINFO done",
@@ -382,7 +486,7 @@ def test_missing_semantic_retention_uses_fallback_value(tmp_path: Path) -> None:
     assert data["semantic_retention"] is None
 
 
-def test_latest_log_entry_with_null_semantic_retention_uses_fallback_value(
+def test_latest_log_entry_with_null_semantic_retention_serializes_null(
     tmp_path: Path,
 ) -> None:
     log_path = tmp_path / "chainlit_null.log"
@@ -402,7 +506,7 @@ def test_latest_log_entry_with_null_semantic_retention_uses_fallback_value(
     assert data["semantic_retention"] is None
 
 
-def test_latest_log_entry_without_semantic_retention_uses_fallback(
+def test_latest_log_entry_without_semantic_retention_serializes_null(
     tmp_path: Path,
 ) -> None:
     log_path = tmp_path / "chainlit_missing.log"
@@ -422,7 +526,7 @@ def test_latest_log_entry_without_semantic_retention_uses_fallback(
     assert data["semantic_retention"] is None
 
 
-def test_cli_outputs_semantic_retention_fallback_when_log_reports_null(
+def test_cli_outputs_null_when_log_reports_null(
     tmp_path: Path,
 ) -> None:
     log_path = tmp_path / "chainlit_null_cli.log"

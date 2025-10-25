@@ -16,6 +16,8 @@
 - [x] 埋め込み失敗・欠損時に `semantic_retention` が `null` として記録され、`scripts/perf/collect_metrics.py` が欠損を保持する。（`SEMANTIC_RETENTION_FALLBACK` を `None` に固定し、HTTP/ログ両方が欠損でも `null` を明示出力）
 - [x] ダッシュボード／ログ解析は `null` を欠損値として扱い、負値を異常値ではなく実測として保存する設定になっている。（CLI は負値をそのまま保持しつつ `null` を欠損として書き出すため、既存ダッシュボード設定と整合）
 
+現行実装（`scripts/perf/collect_metrics.py` と `/metrics` ハンドラの組合せ）が上記 3 項目を満たしており、保持率計測と欠損処理は運用中のパイプラインで検証済み。最新の Trim リリースでも追加対応は不要であることを確認した。
+
 ## D-3. 制御パラメタ
 - `target_tokens`（UIのスライダ 1k–8k）
 - `min_turns`（最低保持ターン数。現行実装では未対応／将来導入予定）

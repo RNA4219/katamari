@@ -1,4 +1,4 @@
-"""collect_metrics CLI の挙動を検証するテスト。保持率欠損時は 1.0 をフォールバック値として出力する。"""
+"""collect_metrics CLI の挙動を検証するテスト。保持率欠損時は null を出力する。"""
 
 from __future__ import annotations
 

@@ -14,8 +14,8 @@ from urllib.request import urlopen
 COMPRESS_RATIO_KEY = "compress_ratio"
 SEMANTIC_RETENTION_KEY = "semantic_retention"
 # NOTE: Maintain compatibility with legacy dashboards that expect the semantic
-# retention metric to be present by emitting a fallback value when unavailable.
-SEMANTIC_RETENTION_FALLBACK: Final[float | None] = None
+# retention metric to be present by emitting a JSON null when unavailable.
+SEMANTIC_RETENTION_FALLBACK: Final[None] = None
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
 METRIC_RANGES: dict[str, tuple[float, float]] = {
@@ -27,13 +27,6 @@ METRIC_RANGES: dict[str, tuple[float, float]] = {
 def _is_finite(value: float) -> bool:
     try:
         return math.isfinite(value)
-    except (TypeError, ValueError):
-        return False
-
-
-def _is_nan(value: float | None) -> bool:
-    try:
-        return math.isnan(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return False
 
@@ -138,9 +131,8 @@ def _collect(
 
         http_value = http_metrics.get(key)
         http_candidate: float | None = None
-        if http_value is not None and not _is_nan(http_value):
-            if _is_valid_metric(key, http_value):
-                http_candidate = http_value
+        if http_value is not None and _is_valid_metric(key, http_value):
+            http_candidate = http_value
 
         log_value_present = key in log_metrics
         log_is_null = log_value_present and log_metrics[key] is None
@@ -150,26 +142,24 @@ def _collect(
             if log_value is not None and _is_valid_metric(key, log_value):
                 log_candidate = log_value
 
-        if log_is_null and http_candidate is None:
-            if key == SEMANTIC_RETENTION_KEY:
-                sanitized[key] = SEMANTIC_RETENTION_FALLBACK
-            else:
-                sanitized[key] = None
-            continue
-
         if http_candidate is not None:
             candidate = http_candidate
         elif log_candidate is not None:
             candidate = log_candidate
 
-        if candidate is None:
-            if key == SEMANTIC_RETENTION_KEY:
-                sanitized[key] = SEMANTIC_RETENTION_FALLBACK
-                continue
-            missing.append(key)
+        if candidate is not None:
+            sanitized[key] = candidate
             continue
 
-        sanitized[key] = candidate
+        if key == SEMANTIC_RETENTION_KEY:
+            sanitized[key] = SEMANTIC_RETENTION_FALLBACK
+            continue
+
+        if log_is_null:
+            sanitized[key] = None
+            continue
+
+        missing.append(key)
 
     semantic_value = sanitized.get(SEMANTIC_RETENTION_KEY)
     if semantic_value is not None and not _is_finite(semantic_value):

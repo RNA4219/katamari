@@ -1,4 +1,4 @@
-"""collect_metrics CLI の挙動を検証するテスト。"""
+"""collect_metrics CLI の挙動を検証するテスト。保持率欠損時は null を出力する。"""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ import pytest
 from scripts.perf import collect_metrics
 
 
-def test_semantic_retention_fallback_is_none() -> None:
+def test_semantic_retention_fallback_is_null() -> None:
     assert collect_metrics.SEMANTIC_RETENTION_FALLBACK is None
 
 def _run_cli(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:

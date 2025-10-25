@@ -14,7 +14,7 @@ from urllib.request import urlopen
 COMPRESS_RATIO_KEY = "compress_ratio"
 SEMANTIC_RETENTION_KEY = "semantic_retention"
 # NOTE: Maintain compatibility with legacy dashboards that expect the semantic
-# retention metric to be present by emitting a JSON null when unavailable.
+# retention metric key to exist by emitting an explicit null when unavailable.
 SEMANTIC_RETENTION_FALLBACK: Final[None] = None
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)

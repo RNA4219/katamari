@@ -1,9 +1,9 @@
 """collect_metrics CLI のサニタイズ挙動を検証するテスト群。
 
 技術仕様書（Katamari Technical Spec v1）は semantic_retention 欠損時の JSON
-出力を `null` と定義している。本テスト群は Day8 ガードレールに沿って CLI
-実装がこの仕様と整合するか、欠損・異常値シナリオにおける期待値が他テストと
-矛盾しないかを継続的に検証する。"""
+出力を `null` と定義しており、本テスト群は Day8 ガードレールに沿って CLI
+実装が仕様と整合するか、欠損・異常値シナリオにおける期待値が他テストと矛盾
+しないかを継続的に検証する。"""
 
 from __future__ import annotations
 

@@ -162,6 +162,79 @@ def test_cli_writes_null_when_semantic_retention_missing(tmp_path: Path) -> None
         shutdown()
 
 
+def test_cli_prefers_null_when_all_sources_missing_semantic_retention(
+    tmp_path: Path,
+) -> None:
+    http_payload = (
+        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
+        "# TYPE compress_ratio gauge\n"
+        "compress_ratio 0.58"
+    )
+    url, shutdown = _serve_metrics(http_payload)
+    log_path = tmp_path / "chainlit_missing_semantic.log"
+    log_path.write_text(
+        "INFO metrics={\"compress_ratio\": 0.52}",
+        encoding="utf-8",
+    )
+    try:
+        output_path = tmp_path / "metrics_missing_all_sources.json"
+        _run_cli(
+            "--metrics-url",
+            url,
+            "--log-path",
+            str(log_path),
+            "--output",
+            str(output_path),
+        )
+
+        content = output_path.read_text(encoding="utf-8")
+        data = json.loads(content)
+
+        assert data["compress_ratio"] == 0.58
+        assert data["semantic_retention"] is None
+        assert '"semantic_retention": null' in content
+    finally:
+        shutdown()
+
+
+def test_cli_writes_null_when_log_reports_null_and_http_missing_semantic(
+    tmp_path: Path,
+) -> None:
+    http_payload = (
+        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
+        "# TYPE compress_ratio gauge\n"
+        "compress_ratio 0.61\n"
+        "# HELP semantic_retention Semantic retention score for trimmed context.\n"
+        "# TYPE semantic_retention gauge\n"
+        "semantic_retention nan"
+    )
+    url, shutdown = _serve_metrics(http_payload)
+    log_path = tmp_path / "chainlit_null_semantic.log"
+    log_path.write_text(
+        "INFO metrics={\"compress_ratio\": 0.61, \"semantic_retention\": null}",
+        encoding="utf-8",
+    )
+    try:
+        output_path = tmp_path / "metrics_null_sources.json"
+        _run_cli(
+            "--metrics-url",
+            url,
+            "--log-path",
+            str(log_path),
+            "--output",
+            str(output_path),
+        )
+
+        content = output_path.read_text(encoding="utf-8")
+        data = json.loads(content)
+
+        assert data["compress_ratio"] == 0.61
+        assert data["semantic_retention"] is None
+        assert '"semantic_retention": null' in content
+    finally:
+        shutdown()
+
+
 def test_prefers_chainlit_log_over_nan_http_metric(tmp_path: Path) -> None:
     payload = (
         "# HELP semantic_retention Semantic retention score for trimmed context.\n"

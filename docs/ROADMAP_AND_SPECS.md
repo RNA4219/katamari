@@ -69,9 +69,9 @@
    - `.github/workflows/release.yml` でタグ push 時に GHCR へ Docker イメージを公開。
 
 3. **実装フェーズ**  
-   - `context_trimmer` を `tiktoken` ベースへ置換（±5% 精度）。  
-  - `semantic_retention` 指標を埋め込み類似度から算出し、`/metrics` で実測値を露出（`-1.0〜1.0` を維持し、欠損は JSON `null`）。UI 表示は任意であり、共有先はダッシュボード/Guardrails ログが基本となる。
-    - `scripts/perf/collect_metrics.py` で `/metrics` または Chainlit ログから収集する際、保持率は `-1.0〜1.0` レンジを尊重し、欠損は JSON `null` として書き出す。ダッシュボード連携時は `null` を欠損扱い、負値は異常値ではなく実測シグナルとして保存する。
+   - `context_trimmer` を `tiktoken` ベースへ置換（±5% 精度）。
+   - ✅ `semantic_retention` 指標を埋め込み類似度から算出し、`/metrics` で実測値を露出（`-1.0〜1.0` を維持し、欠損は Prometheus では `NaN`、CLI (`scripts/perf/collect_metrics.py`) では JSON `null`）。UI 表示は任意であり、共有先はダッシュボード/Guardrails ログが基本となる。
+    - `scripts/perf/collect_metrics.py` で `/metrics` または Chainlit ログから収集する際、保持率は `-1.0〜1.0` レンジを尊重し、Prometheus 欠損値は `NaN` として取得しつつ JSON 出力では `null` として書き出す。ダッシュボード連携時は `null` を欠損扱い、負値は異常値ではなく実測シグナルとして保存する。
    - `/metrics` / `/healthz` エンドポイントを追加。  
    - Gemini Provider（stream 対応）を実装。  
    - 以降、OAuth・評価 UI・Prompt evolution など M2 系機能へ拡張。

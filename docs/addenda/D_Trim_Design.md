@@ -9,7 +9,12 @@
 ## D-2. 保持率推定（M1）
 - `semantic_retention = cosine(emb(before), emb(after))`
 - 目標: **≥0.85**（ユースケース依存で調整）
-- ※ `semantic_retention` は暫定ダミー値（計画中）。現状 UI には保持率表示を実装しておらず、バックエンドの `/metrics` のみがダミー値を返す。
+- Trim 実行時に埋め込みを算出し、`/metrics` に `-1.0〜1.0` のレンジで実測値を送出する。欠損や埋め込み取得失敗時は `null`（JSON）で記録し、ダッシュボード側も欠損扱いに揃える。
+
+### チェックリスト（保持率観測）
+- [ ] Trim 後の埋め込みが正常に計算され、`semantic_retention` が `-1.0〜1.0` の範囲で `/metrics` に出力される。
+- [ ] 埋め込み失敗・欠損時に `semantic_retention` が `null` として記録され、`scripts/perf/collect_metrics.py` が欠損を保持する。
+- [ ] ダッシュボード／ログ解析は `null` を欠損値として扱い、負値を異常値ではなく実測として保存する設定になっている。
 
 ## D-3. 制御パラメタ
 - `target_tokens`（UIのスライダ 1k–8k）
@@ -17,8 +22,8 @@
 - `priority_roles`（system/user優先。現行実装では未対応／将来導入予定）
 
 ## D-4. フィードバック
-- UIに `compress_ratio` を表示し、`semantic_retention`（M1）は実測導入タイミングで UI への表示実装を行う。
-- ※ 現在の UI は保持率を表示せず、バックエンド `/metrics` のダミー値のみが存在する。実測値導入時に本節の TODO を更新して差分追跡する。
+- UIには `compress_ratio` を表示し、保持率は `/metrics`・Guardrails ログで実測値として共有する（UI 表示は意思決定待ち）。
+- ダッシュボード連携時は保持率を `-1.0〜1.0` のレンジでグラフ化し、`null` は欠損処理とする運用を徹底する。
 
 ### TODO / Follow-up
-- [ ] `semantic_retention` 実測値導入後に UI 表示ロジックと `/metrics` のダミー値差し替えを整合（追跡: ROADMAP `semantic_retention` タスク）。
+- [ ] UI に保持率を提示する場合は、`null` や負値の扱いと説明テキストを定義して UX を検証する。

@@ -1,10 +1,9 @@
 """collect_metrics CLI のサニタイズ挙動を検証するテスト群。
 
-技術仕様書（docs/Katamari_Technical_Spec_v1_ja.md）は semantic_retention
-欠損時の CLI/JSON 出力を `null` と定義しており、本テスト群は Day8
-ガードレール（third_party/Day8/workflow-cookbook/GUARDRAILS.md）に沿って
-実装が仕様と整合するか、欠損・異常値シナリオにおける期待値が他テストと矛盾
-しないかを継続的に検証する。"""
+現行仕様では保持率メトリクス欠損時に JSON `null` を出力し、CLI 側の
+`SEMANTIC_RETENTION_FALLBACK` は `None` に固定されている。技術仕様書
+（Katamari Technical Spec v1）と Day8 ガードレールに沿って、欠損・異常値
+シナリオにおける期待値が他テストと矛盾しないかを継続的に検証する。"""
 
 from __future__ import annotations
 

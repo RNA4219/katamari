@@ -199,6 +199,30 @@ def test_prefers_chainlit_log_over_nan_http_metric(tmp_path: Path) -> None:
         shutdown()
 
 
+def test_cli_fails_when_compress_ratio_is_null_and_no_http_candidate(
+    tmp_path: Path,
+) -> None:
+    log_path = tmp_path / "chainlit_null.log"
+    log_path.write_text(
+        "INFO metrics={\"compress_ratio\": null, \"semantic_retention\": 0.72}",
+        encoding="utf-8",
+    )
+
+    output_path = tmp_path / "metrics_unavailable.json"
+    result = _run_cli(
+        "--log-path",
+        str(log_path),
+        "--output",
+        str(output_path),
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert "Failed to collect metrics" in result.stderr
+    assert not output_path.exists()
+
+
 def test_replaces_nan_http_metric_with_log_value(tmp_path: Path) -> None:
     payload = (
         "# HELP compress_ratio Ratio of tokens kept after trimming.\n"

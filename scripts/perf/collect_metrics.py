@@ -150,17 +150,19 @@ def _collect(
             if log_value is not None and _is_valid_metric(key, log_value):
                 log_candidate = log_value
 
-        if log_is_null and http_candidate is None:
-            if key == SEMANTIC_RETENTION_KEY:
-                sanitized[key] = SEMANTIC_RETENTION_FALLBACK
-            else:
-                missing.append(key)
-            continue
-
-        if http_candidate is not None:
+        if log_is_null:
+            if http_candidate is None:
+                if key == SEMANTIC_RETENTION_KEY:
+                    sanitized[key] = SEMANTIC_RETENTION_FALLBACK
+                else:
+                    missing.append(key)
+                continue
             candidate = http_candidate
-        elif log_candidate is not None:
-            candidate = log_candidate
+        else:
+            if http_candidate is not None:
+                candidate = http_candidate
+            elif log_candidate is not None:
+                candidate = log_candidate
 
         if candidate is None:
             if key == SEMANTIC_RETENTION_KEY:

@@ -155,7 +155,7 @@ def _collect(
             if key == SEMANTIC_RETENTION_KEY:
                 sanitized[key] = SEMANTIC_RETENTION_FALLBACK
             else:
-                sanitized[key] = None
+                missing.append(key)
             continue
 
         if http_candidate is not None:

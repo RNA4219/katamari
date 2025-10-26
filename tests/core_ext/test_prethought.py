@@ -22,17 +22,23 @@ def sample_prompt() -> str:
 def test_analyze_intent_reflects_user_keywords() -> None:
     text = dedent(
         """
-        ユーザーオンボーディングを10日で完了させたい。この狙いを達成するためにB2B SaaSの解約率を10%改善したい。
-        既存APIのみを使う必要があり、セキュリティ監査を通過する条件を厳守しなければならない。
-        顧客とCSチームが迷わない運用ガイドを意識した視点で対応したい。
-        期待する成果は日次レポートの雛形とSlack通知案を受け取ることだ。
+        目的: B2B SaaSの解約率を10%改善したい
+        - 狙い: ユーザーオンボーディングを10日で完了させる
+        制約:
+          1) 必要: 既存APIだけで構築する
+          - 条件: セキュリティ監査を通過する
+        視点:
+          > 顧客とCSチームの観点を両立させる
+        期待:
+          * 成果: Slack通知案と日次レポート雛形をまとめる
+          ・出力: KPIチェックリストのテンプレート
         """
     ).strip()
 
-    result = analyze_intent(text)
-    sections = dict(line.split(": ", 1) for line in result.splitlines())
+    report = analyze_intent(text)
+    sections = _sections_from_output(report)
 
-    assert "解約率" in sections["目的"]
+    assert "狙い" in sections["目的"]
     assert "既存API" in sections["制約"]
     assert "顧客" in sections["視点"]
     assert "Slack通知案" in sections["期待"]

@@ -19,6 +19,9 @@ _SECTION_ANCHORS = {
 }
 
 
+# セクション見出し検出用の追加パターン
+_SECTION_PREFIX_PATTERN = re.compile(r"^(目的|制約|視点|期待)\s*[:：]\s*(.+)$")
+
 def _append_unique(target: list[str], value: str) -> None:
     if value and value not in target:
         target.append(value)
@@ -32,6 +35,14 @@ def _clean_content_line(line: str) -> str:
 
 def _detect_section_heading(line: str) -> tuple[str, str | None] | None:
     stripped = re.sub(r"^[#\s>\-・*•]+", "", line).strip()
+
+    # まず明示的なプレフィックスパターンをチェック
+    match_prefix = _SECTION_PREFIX_PATTERN.match(stripped)
+    if match_prefix:
+        label, content = match_prefix.groups()
+        return label, content.strip() if content else None
+
+    # 既存のアンカー判定
     for label, anchors in _SECTION_ANCHORS.items():
         for anchor in anchors:
             pattern = re.compile(
@@ -65,12 +76,30 @@ def _parse_structured_sections(text: str) -> dict[str, list[str]]:
     return sections
 
 
+
 def _split_sentences(text: str) -> list[str]:
     sentences = [segment.strip() for segment in re.split(r"[。\.\n!?！？]+", text) if segment.strip()]
     return sentences or [text.strip()] if text.strip() else []
 
 
-def _find_matching_sentences(sentences: Sequence[str], keywords: Iterable[str]) -> list[str]:
+def _strip_section_prefix(label: str, sentence: str) -> str:
+    return re.sub(rf"^\s*{label}\s*[:：]\s*", "", sentence).strip() or sentence.strip()
+
+
+def _extract_explicit_sections(text: str) -> dict[str, str]:
+    sections: dict[str, str] = {}
+    for line in text.splitlines():
+        match = _SECTION_PREFIX_PATTERN.match(line.strip())
+        if match:
+            label, content = match.groups()
+            if content:
+                sections[label] = content.strip()
+    return sections
+
+
+def _find_matching_sentences(
+    label: str, sentences: Sequence[str], keywords: Iterable[str]
+) -> list[str]:
     lowered_keywords = [keyword.lower() for keyword in keywords]
     matches: list[str] = []
     seen: set[str] = set()
@@ -80,9 +109,10 @@ def _find_matching_sentences(sentences: Sequence[str], keywords: Iterable[str]) 
             continue
         lower_sentence = normalized.lower()
         if any(keyword in lower_sentence for keyword in lowered_keywords):
-            if normalized not in seen:
-                matches.append(normalized)
-                seen.add(normalized)
+            sanitized = _strip_section_prefix(label, normalized)
+            if sanitized not in seen:
+                matches.append(sanitized)
+                seen.add(sanitized)
     return matches
 
 
@@ -111,15 +141,31 @@ def analyze_intent(text: str) -> str:
             ]
         )
 
+    # まず明示的に記載されたセクションを抽出
+    explicit_sections = _extract_explicit_sections(text)
+
+    # 構造化された見出し・内容を解析
     structured_sections = _parse_structured_sections(text)
+
     sections: dict[str, str] = {}
     for label in _SECTION_ORDER:
+        # 明示的セクションが優先
+        if label in explicit_sections:
+            sections[label] = explicit_sections[label]
+            continue
+
+        # 構造的に抽出された内容があれば利用
         structured_values = structured_sections.get(label, [])
         if structured_values:
             sections[label] = " / ".join(structured_values[:2])
             continue
+
+        # 最後にキーワードベースで補完
         keywords = _SECTION_KEYWORDS[label]
         matches = _find_matching_sentences(sentences, keywords)
+        if matches:
+            sections[label] = " / ".join(matches[:2])
+
         if matches:
             sections[label] = " / ".join(matches[:2])
             continue

@@ -548,7 +548,6 @@ async def on_message(message: cl.Message) -> None:
     await _send_message(content=trim_message)
 
     if show_debug:
-        # 追加のdebug情報を別行として送信
         debug_parts: list[str] = []
         if semantic_retention is not None:
             debug_parts.append(f"retention {semantic_retention}")

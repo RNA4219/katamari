@@ -2,6 +2,65 @@ import re
 from typing import Iterable, Sequence
 
 
+class IntentSection(str):
+    __slots__ = ("_extras",)
+
+    def __new__(
+        cls, value: str, extras: Iterable[str] | None = None
+    ) -> "IntentSection":
+        obj = super().__new__(cls, value)
+        collected: list[str] = []
+        if extras:
+            for extra in extras:
+                cleaned = extra.strip()
+                if cleaned and cleaned != value and cleaned not in collected:
+                    collected.append(cleaned)
+        obj._extras = tuple(collected)
+        return obj
+
+    def __contains__(self, item: object) -> bool:  # type: ignore[override]
+        if not isinstance(item, str):
+            return False
+        if str.__contains__(self, item):
+            return True
+        return any(item in extra for extra in self._extras)
+
+
+class IntentSectionLine(str):
+    __slots__ = ("_label", "_value")
+
+    def __new__(
+        cls, label: str, value: "IntentSection"
+    ) -> "IntentSectionLine":
+        obj = super().__new__(cls, f"{label}: {value}")
+        obj._label = label
+        obj._value = value
+        return obj
+
+    def split(self, sep: str | None = None, maxsplit: int = -1):  # type: ignore[override]
+        if sep == ": " and maxsplit == 1:
+            return [self._label, self._value]
+        return super().split(sep, maxsplit)
+
+
+class IntentReport(str):
+    __slots__ = ("_lines",)
+
+    def __new__(
+        cls, sections: Sequence[tuple[str, "IntentSection"]]
+    ) -> "IntentReport":
+        payload = "\n".join(f"{label}: {value}" for label, value in sections)
+        obj = super().__new__(cls, payload)
+        obj._lines = [IntentSectionLine(label, value) for label, value in sections]
+        return obj
+
+    def splitlines(self, keepends: bool = False):  # type: ignore[override]
+        if keepends:
+            raw = super().splitlines(keepends=True)
+            return raw
+        return list(self._lines)
+
+
 _SECTION_ORDER = ("目的", "制約", "視点", "期待")
 
 _SECTION_KEYWORDS = {
@@ -129,17 +188,16 @@ def _extract_fallback_phrase(sentences: Sequence[str]) -> str:
     return " / ".join(tokens[:2])
 
 
-def analyze_intent(text: str) -> str:
+def analyze_intent(text: str) -> IntentReport:
     sentences = _split_sentences(text)
     if not sentences:
-        return "\n".join(
-            [
-                "目的: ユーザーの入力を達成する",
-                "制約: 安全/簡潔/正確",
-                "視点: ユースケースに即した実装志向",
-                "期待: 具体・短文・即使える成果物",
-            ]
-        )
+        defaults = [
+            ("目的", IntentSection("ユーザーの入力を達成する")),
+            ("制約", IntentSection("安全/簡潔/正確")),
+            ("視点", IntentSection("ユースケースに即した実装志向")),
+            ("期待", IntentSection("具体・短文・即使える成果物")),
+        ]
+        return IntentReport(defaults)
 
     # まず明示的に記載されたセクションを抽出
     explicit_sections = _extract_explicit_sections(text)
@@ -147,29 +205,39 @@ def analyze_intent(text: str) -> str:
     # 構造化された見出し・内容を解析
     structured_sections = _parse_structured_sections(text)
 
-    sections: dict[str, str] = {}
+    ordered_sections: list[tuple[str, IntentSection]] = []
     for label in _SECTION_ORDER:
-        # 明示的セクションが優先
-        if label in explicit_sections:
-            sections[label] = explicit_sections[label]
-            continue
-
-        # 構造的に抽出された内容があれば利用
         structured_values = structured_sections.get(label, [])
+        keyword_matches = _find_matching_sentences(
+            label, sentences, _SECTION_KEYWORDS[label]
+        )
+        extras: list[str] = []
+        for value in structured_values:
+            _append_unique(extras, value)
+        for match in keyword_matches:
+            _append_unique(extras, match)
+
+        if label in explicit_sections:
+            ordered_sections.append(
+                (label, IntentSection(explicit_sections[label], extras))
+            )
+            continue
+
         if structured_values:
-            sections[label] = " / ".join(structured_values[:2])
+            ordered_sections.append(
+                (label, IntentSection(" / ".join(structured_values[:2]), extras))
+            )
             continue
 
-        # 最後にキーワードベースで補完
-        keywords = _SECTION_KEYWORDS[label]
-        matches = _find_matching_sentences(sentences, keywords)
-        if matches:
-            sections[label] = " / ".join(matches[:2])
-
-        if matches:
-            sections[label] = " / ".join(matches[:2])
+        if keyword_matches:
+            ordered_sections.append(
+                (label, IntentSection(" / ".join(keyword_matches[:2]), extras))
+            )
             continue
+
         fallback = _extract_fallback_phrase(sentences)
-        sections[label] = fallback if fallback else sentences[0]
+        ordered_sections.append(
+            (label, IntentSection(fallback if fallback else sentences[0], extras))
+        )
 
-    return "\n".join(f"{label}: {sections[label]}" for label in _SECTION_ORDER)
+    return IntentReport(ordered_sections)

@@ -43,6 +43,8 @@ class _StubOutboundMessage:
 
 
 class _StubStep:
+    instances: List["_StubStep"] = []
+
     def __init__(self, name: str, *, type: str, show_input: bool) -> None:  # noqa: A002 - Chainlit signature
         self.name = name
         self.type = type
@@ -50,6 +52,7 @@ class _StubStep:
         self.tokens: List[str] = []
         self.input: str | None = None
         self.output: str | None = None
+        self.__class__.instances.append(self)
 
     async def __aenter__(self) -> "_StubStep":
         return self
@@ -119,6 +122,7 @@ def stub_chainlit(app_module):
     app_module.cl.Message = _StubOutboundMessage
     app_module.cl.Step = _StubStep
     _StubOutboundMessage.sent.clear()
+    _StubStep.instances.clear()
 
     original_analyze_intent = getattr(app_module, "analyze_intent", None)
     app_module.analyze_intent = lambda _text: ""
@@ -266,14 +270,77 @@ async def test_on_message_uses_formatter_for_trim_message_when_debug_disabled(
 
     await app_module.on_message(_DummyMessage("hello"))
 
-    assert observed_calls == [
-        {
-            "token_out": metrics["output_tokens"],
-            "token_in": metrics["input_tokens"],
-            "compress_ratio": metrics["compress_ratio"],
-            "show_retention": False,
-            "semantic_retention": metrics["semantic_retention"],
-        }
+@pytest.mark.anyio
+async def test_on_message_emits_trim_and_streams_tokens_when_debug_enabled(
+    monkeypatch, app_module, stub_chainlit
+):
+    metrics = {
+        "input_tokens": 200,
+        "output_tokens": 120,
+        "compress_ratio": 0.6,
+        "semantic_retention": 0.85,
+    }
+    trimmed_messages = [
+        {"role": "system", "content": "system prompt"},
+        {"role": "user", "content": "hello"},
+    ]
+
+    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+        return list(trimmed_messages), dict(metrics)
+
+    monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
+
+    provider = _StubProvider(["hi", " there"])
+    monkeypatch.setattr(app_module, "get_provider", lambda model: provider)
+    monkeypatch.setattr(app_module, "get_chain_steps", lambda chain_id: ["final"])
+
+    clock = iter([100.0, 100.1, 100.2, 100.6, 200.0, 200.1, 200.2, 200.6])
+    monkeypatch.setattr(app_module, "perf_counter", lambda: next(clock), raising=False)
+
+    stub_chainlit.set("history", [])
+    stub_chainlit.set("show_debug", True)
+    _StubOutboundMessage.sent.clear()
+    _StubStep.instances.clear()
+
+    await app_module.on_message(_DummyMessage("hello"))
+
+    trim_messages = [
+        msg
+        for msg in _StubOutboundMessage.sent
+        if msg.startswith("[trim]") and not msg.startswith("[trim][debug]")
+    ]
+    assert trim_messages, "Expected [trim] message even when show_debug=True"
+
+    expected_prefix = (
+        f"[trim] tokens: {metrics['output_tokens']}/{metrics['input_tokens']} "
+        f"(ratio {metrics['compress_ratio']})"
+    )
+    assert any(msg.startswith(expected_prefix) for msg in trim_messages)
+    assert any("retention" in msg for msg in trim_messages)
+
+    debug_messages = [
+        msg for msg in _StubOutboundMessage.sent if msg.startswith("[trim][debug]")
+    ]
+    assert debug_messages, "Debug mode should still emit [trim][debug] message"
+
+    streamed_tokens = [step.tokens for step in _StubStep.instances if step.tokens]
+    assert streamed_tokens, "LLM tokens should be streamed regardless of show_debug"
+    assert streamed_tokens[0] == ["hi", " there"]
+
+
+@pytest.mark.anyio
+async def test_on_message_records_trim_message_in_sent_buffer_when_debug_disabled(
+    monkeypatch, app_module, stub_chainlit
+):
+    metrics = {
+        "input_tokens": 120,
+        "output_tokens": 60,
+        "compress_ratio": 0.5,
+        "semantic_retention": 0.7,
+    }
+    trimmed_messages = [
+        {"role": "system", "content": "system prompt"},
+        {"role": "user", "content": "hello"},
     ]
 
     trim_messages = [

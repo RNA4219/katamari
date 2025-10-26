@@ -8,6 +8,9 @@ import { ChainlitContext } from './context';
 import {
   useChatSession,
   SOCKET_IO_RECONNECTION_OPTIONS,
+  RECONNECTION_ATTEMPTS,
+  RECONNECTION_DELAY_MS,
+  RECONNECTION_DELAY_MAX_MS
   SOCKET_IO_RECONNECTION_BASE_DELAY_MS,
   SOCKET_IO_RECONNECTION_BACKOFF_FACTOR
 } from './useChatSession';
@@ -86,6 +89,10 @@ describe('useChatSession', () => {
 
     expect(mockIo).toHaveBeenCalledTimes(1);
     const [, options] = mockIo.mock.calls[0];
+    expect(options).toMatchObject(SOCKET_IO_RECONNECTION_OPTIONS);
+    expect(options.reconnectionAttempts).toBe(RECONNECTION_ATTEMPTS);
+    expect(options.reconnectionDelay).toBe(RECONNECTION_DELAY_MS);
+    expect(options.reconnectionDelayMax).toBe(RECONNECTION_DELAY_MAX_MS);
     expect(options).toMatchObject({
       ...SOCKET_IO_RECONNECTION_OPTIONS,
       reconnectionDelay: SOCKET_IO_RECONNECTION_BASE_DELAY_MS,

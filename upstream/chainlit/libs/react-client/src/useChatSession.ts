@@ -55,6 +55,9 @@ import { OutputAudioChunk } from './types/audio';
 import { ChainlitContext } from './context';
 import type { IToken } from './useChatData';
 
+export const RECONNECTION_ATTEMPTS = 3;
+export const RECONNECTION_DELAY_MS = 1000;
+export const RECONNECTION_DELAY_MAX_MS = RECONNECTION_DELAY_MS * 4;
 const SOCKET_IO_RECONNECTION_ATTEMPTS = 3;
 export const SOCKET_IO_RECONNECTION_BASE_DELAY_MS = 1000;
 export const SOCKET_IO_RECONNECTION_BACKOFF_FACTOR = 2;

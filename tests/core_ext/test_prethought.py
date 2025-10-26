@@ -1,28 +1,28 @@
-import re
+import pytest
 
 from src.core_ext.prethought import analyze_intent
 
 
-def test_analyze_intent_reflects_user_keywords() -> None:
-    text = (
-        "ユーザーはモバイルアプリでタスク管理を高速化したい。"
-        "制約はオフライン対応と応答時間30ms以下。"
-        "プロダクトマネージャー視点で既存UXを壊さない。"
-        "期待する出力はダークテーマUI案とQAチェックリスト。"
+@pytest.fixture
+def sample_prompt() -> str:
+    return (
+        "目的: ユーザーオンボーディングを10日で完了させる\n"
+        "制約: セキュリティ監査を通過しつつ既存APIだけで構築する\n"
+        "視点: CSチームと新規顧客の双方が迷わない運用ガイドにする\n"
+        "期待: 30分以内に読めるチェックリストとKPIテンプレート"
     )
 
-    result = analyze_intent(text)
 
-    sections = dict(
-        line.split(":", 1)
-        for line in re.split(r"\n+", result)
-        if ":" in line
-    )
+def test_analyze_intent_reflects_explicit_sections(sample_prompt: str) -> None:
+    result = analyze_intent(sample_prompt)
+    sections = dict(line.split(": ", 1) for line in result.splitlines())
 
-    assert any(keyword in sections.get("目的", "") for keyword in ["モバイルアプリ", "高速化"])
-    assert all(keyword in sections.get("制約", "") for keyword in ["オフライン", "30ms"])
-    assert any(
-        keyword in sections.get("視点", "")
-        for keyword in ["プロダクトマネージャー", "UX"]
+    assert sections["目的"] == "ユーザーオンボーディングを10日で完了させる"
+    assert (
+        sections["制約"]
+        == "セキュリティ監査を通過しつつ既存APIだけで構築する"
     )
-    assert all(keyword in sections.get("期待", "") for keyword in ["ダークテーマ", "QA"])
+    assert (
+        sections["視点"] == "CSチームと新規顧客の双方が迷わない運用ガイドにする"
+    )
+    assert sections["期待"] == "30分以内に読めるチェックリストとKPIテンプレート"

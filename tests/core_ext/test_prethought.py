@@ -1,5 +1,4 @@
 import pytest
-import re
 from textwrap import dedent
 
 from src.core_ext.prethought import analyze_intent
@@ -13,6 +12,12 @@ def sample_prompt() -> str:
         "視点: CSチームと新規顧客の双方が迷わない運用ガイドにする\n"
         "期待: 30分以内に読めるチェックリストとKPIテンプレート"
     )
+
+
+def _sections_from_output(result: str) -> dict[str, str]:
+    return dict(line.split(": ", 1) for line in result.splitlines() if ": " in line)
+
+
 def test_analyze_intent_reflects_user_keywords() -> None:
     text = dedent(
         """
@@ -28,10 +33,18 @@ def test_analyze_intent_reflects_user_keywords() -> None:
         """
     ).strip()
 
+    result = analyze_intent(text)
+    sections = _sections_from_output(result)
+
+    assert "B2B" in sections["目的"] and "解約率" in sections["目的"]
+    assert "2週間" in sections["制約"] and "日本リージョン" in sections["制約"]
+    assert "カスタマーサクセス" in sections["視点"]
+    assert "日次レポート" in sections["期待"] and "Slack" in sections["期待"]
+
 
 def test_analyze_intent_reflects_explicit_sections(sample_prompt: str) -> None:
     result = analyze_intent(sample_prompt)
-    sections = dict(line.split(": ", 1) for line in result.splitlines())
+    sections = _sections_from_output(result)
 
     assert sections["目的"] == "ユーザーオンボーディングを10日で完了させる"
     assert (
@@ -42,7 +55,3 @@ def test_analyze_intent_reflects_explicit_sections(sample_prompt: str) -> None:
         sections["視点"] == "CSチームと新規顧客の双方が迷わない運用ガイドにする"
     )
     assert sections["期待"] == "30分以内に読めるチェックリストとKPIテンプレート"
-    assert all(keyword in sections.get("目的", "") for keyword in ["B2B", "解約率"])
-    assert all(keyword in sections.get("制約", "") for keyword in ["2週間", "日本リージョン"])
-    assert "カスタマーサクセス" in sections.get("視点", "")
-    assert all(keyword in sections.get("期待", "") for keyword in ["日次レポート", "Slack"])

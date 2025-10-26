@@ -224,7 +224,7 @@ def _reject_unauthorized() -> None:
 
 
 def _require_header_auth(
-    authorization: Annotated[str | None, Header(alias="Authorization")]
+    authorization: Annotated[str | None, Header(alias="Authorization")] = None
 ) -> None:
     token = _extract_bearer_token(authorization)
     if not _is_token_authorized(token):
@@ -494,9 +494,11 @@ async def on_message(message: cl.Message) -> None:
     show_debug = bool(_session_get("show_debug"))
 
     # 1) Prethought (optional display as a step)
-    intent = analyze_intent(message.content)
-    if show_debug and intent:
-        await _send_message(content=f"[prethought]\n{intent}")
+    intent: str | None = None
+    if show_debug:
+        intent = analyze_intent(message.content)
+        if intent:
+            await _send_message(content=f"[prethought]\n{intent}")
 
     # 2) Build/trim history
     hist_data = _session_get("history") or []
@@ -538,29 +540,17 @@ async def on_message(message: cl.Message) -> None:
     )
     _session_set("history", trimmed)
     _session_set("trim_metrics", metrics)
-if show_debug:
-    # 詳細なデバッグメッセージを構築して送信
-    trim_message = _format_trim_message(
-        token_out=token_out,
-        token_in=token_in,
-        compress_ratio=compress_ratio,
-        show_retention=show_debug,
-        semantic_retention=semantic_retention,
-    )
-    await _send_message(content=trim_message)
 
-    # 追加のdebug情報を別行として送信
-    debug_parts: list[str] = []
-    if semantic_retention is not None:
-        debug_parts.append(f"retention {semantic_retention}")
-    if debug_parts:
-        await _send_message(content=f"[trim][debug] {', '.join(debug_parts)}")
+    base_trim_message = f"[trim] tokens: {token_out}/{token_in}"
+    await _send_message(content=base_trim_message)
 
-else:
-    # show_debug=False時は最小限の情報のみ1行で送信
-    base = f"[trim] tokens: {token_out}/{token_in} (ratio {compress_ratio})"
-    await _send_message(content=base)
-
+    if show_debug:
+        debug_parts: list[str] = []
+        debug_parts.append(f"ratio {compress_ratio}")
+        if semantic_retention is not None:
+            debug_parts.append(f"retention {semantic_retention}")
+        if debug_parts:
+            await _send_message(content=f"[trim][debug] {', '.join(debug_parts)}")
 
     # 3) Run chain
     provider = get_provider(model)

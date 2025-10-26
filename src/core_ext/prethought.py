@@ -149,27 +149,28 @@ def analyze_intent(text: str) -> str:
 
     sections: dict[str, str] = {}
     for label in _SECTION_ORDER:
-        # 明示的セクションが優先
-        if label in explicit_sections:
-            sections[label] = explicit_sections[label]
-            continue
+        values: list[str] = []
 
-        # 構造的に抽出された内容があれば利用
+        explicit_value = explicit_sections.get(label)
+        if explicit_value:
+            values.append(explicit_value)
+
         structured_values = structured_sections.get(label, [])
-        if structured_values:
-            sections[label] = " / ".join(structured_values[:2])
-            continue
+        for item in structured_values:
+            if item and item not in values:
+                values.append(item)
 
-        # 最後にキーワードベースで補完
-        keywords = _SECTION_KEYWORDS[label]
-        matches = _find_matching_sentences(sentences, keywords)
-        if matches:
-            sections[label] = " / ".join(matches[:2])
+        if explicit_value is None:
+            keywords = _SECTION_KEYWORDS[label]
+            matches = _find_matching_sentences(label, sentences, keywords)
+            for match in matches:
+                if match and match not in values:
+                    values.append(match)
 
-        if matches:
-            sections[label] = " / ".join(matches[:2])
-            continue
-        fallback = _extract_fallback_phrase(sentences)
-        sections[label] = fallback if fallback else sentences[0]
+        if not values:
+            fallback = _extract_fallback_phrase(sentences)
+            values.append(fallback if fallback else sentences[0])
+
+        sections[label] = " / ".join(values[:2]) if len(values) > 1 else values[0]
 
     return "\n".join(f"{label}: {sections[label]}" for label in _SECTION_ORDER)

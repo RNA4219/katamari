@@ -118,6 +118,7 @@ def stub_chainlit(app_module):
     app_module.cl.user_session = session
     app_module.cl.Message = _StubOutboundMessage
     app_module.cl.Step = _StubStep
+    app_module.analyze_intent = lambda *_args, **_kwargs: ""
     _StubOutboundMessage.sent.clear()
     return session
 
@@ -234,7 +235,6 @@ async def test_on_message_emits_trim_message_when_debug_disabled(
 
 @pytest.mark.anyio
 async def test_on_message_trim_base_content_ignores_debug_toggle(
-async def test_on_message_records_trim_message_in_sent_buffer_when_debug_disabled(
     monkeypatch, app_module, stub_chainlit
 ):
     metrics = {
@@ -287,6 +287,68 @@ async def test_on_message_records_trim_message_in_sent_buffer_when_debug_disable
     assert any(
         "retention" in msg for msg in all_messages if msg != base_content
     ), "Debug mode should include retention info message"
+
+
+@pytest.mark.anyio
+async def test_on_message_emits_base_trim_and_stream_tokens_with_debug_enabled(
+    monkeypatch, app_module, stub_chainlit
+):
+    metrics = {
+        "input_tokens": 120,
+        "output_tokens": 60,
+        "compress_ratio": 0.5,
+        "semantic_retention": 0.7,
+    }
+    trimmed_messages = [
+        {"role": "system", "content": "system prompt"},
+        {"role": "user", "content": "hello"},
+    ]
+
+    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+        return list(trimmed_messages), dict(metrics)
+
+    monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
+
+    provider = _StubProvider(["he", "llo"])
+    monkeypatch.setattr(app_module, "get_provider", lambda model: provider)
+    monkeypatch.setattr(app_module, "get_chain_steps", lambda chain_id: ["final"])
+
+    perf_values = iter([100.0, 100.1, 100.2, 100.6])
+    monkeypatch.setattr(app_module, "perf_counter", lambda: next(perf_values), raising=False)
+
+    monkeypatch.setattr(app_module, "analyze_intent", lambda _: "intent")
+
+    recorded_steps: list[_StubStep] = []
+
+    class _RecordingStep(_StubStep):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            recorded_steps.append(self)
+
+    app_module.cl.Step = _RecordingStep
+
+    stub_chainlit.set("show_debug", True)
+    stub_chainlit.set("history", [])
+    _StubOutboundMessage.sent.clear()
+
+    await app_module.on_message(_DummyMessage("hello"))
+
+    base_messages = [
+        msg for msg in _StubOutboundMessage.sent if msg.startswith("[trim] tokens")
+    ]
+    assert base_messages, "Base [trim] notification should be emitted when debug is enabled"
+    assert all(
+        "retention" not in msg for msg in base_messages
+    ), "Base [trim] notification must omit retention details"
+
+    debug_messages = [
+        msg for msg in _StubOutboundMessage.sent if msg.startswith("[trim][debug]")
+    ]
+    assert debug_messages, "Debug mode should add a separate retention message"
+    assert any("retention" in msg for msg in debug_messages)
+
+    assert recorded_steps, "Chain execution should create at least one step"
+    assert recorded_steps[0].tokens == ["he", "llo"]
 
 
 @pytest.mark.anyio

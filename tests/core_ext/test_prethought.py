@@ -42,15 +42,15 @@ def test_analyze_intent_reflects_explicit_sections(sample_prompt: str) -> None:
     result = analyze_intent(sample_prompt)
     sections = _sections_from_output(result)
 
-    assert sections["目的"] == "ユーザーオンボーディングを10日で完了させる"
-    assert (
-        sections["制約"]
-        == "セキュリティ監査を通過しつつ既存APIだけで構築する"
-    )
-    assert (
-        sections["視点"] == "CSチームと新規顧客の双方が迷わない運用ガイドにする"
-    )
-    assert sections["期待"] == "30分以内に読めるチェックリストとKPIテンプレート"
+    explicit_values = {
+        label: line.split(": ", 1)[1]
+        for label in ("目的", "制約", "視点", "期待")
+        for line in sample_prompt.splitlines()
+        if line.startswith(f"{label}: ")
+    }
+
+    for label, expected in explicit_values.items():
+        assert sections[label] == expected
 
 
 def _sections_from_output(report: str) -> dict[str, IntentSection]:

@@ -228,7 +228,65 @@ async def test_on_message_emits_trim_message_when_debug_disabled(
     ]
 
     assert trim_messages, "[trim] message should be emitted even when show_debug is False"
+    assert all("ratio" not in content for content in trim_messages)
     assert all("retention" not in content for content in trim_messages)
+
+
+@pytest.mark.anyio
+async def test_on_message_trim_base_content_ignores_debug_toggle(
+async def test_on_message_records_trim_message_in_sent_buffer_when_debug_disabled(
+    monkeypatch, app_module, stub_chainlit
+):
+    metrics = {
+        "input_tokens": 120,
+        "output_tokens": 60,
+        "compress_ratio": 0.5,
+        "semantic_retention": 0.7,
+    }
+    trimmed_messages = [
+        {"role": "system", "content": "system prompt"},
+        {"role": "user", "content": "hello"},
+    ]
+
+    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+        return list(trimmed_messages), dict(metrics)
+
+    monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
+
+    provider = _StubProvider(["hi"])
+    monkeypatch.setattr(app_module, "get_provider", lambda model: provider)
+    monkeypatch.setattr(app_module, "get_chain_steps", lambda chain_id: ["final"])
+
+    clock = iter([100.0, 100.1, 100.2, 100.6, 200.0, 200.1, 200.2, 200.6])
+    monkeypatch.setattr(app_module, "perf_counter", lambda: next(clock), raising=False)
+
+    # show_debug=False の状態でトリム実行
+    stub_chainlit.set("history", [])
+    stub_chainlit.set("show_debug", False)
+    _StubOutboundMessage.sent.clear()
+
+    await app_module.on_message(_DummyMessage("hello"))
+
+    base_messages = [
+        content for content in _StubOutboundMessage.sent if content.startswith("[trim]")
+    ]
+    assert base_messages, "Expected [trim] message to be recorded in sent buffer"
+    base_content = base_messages[0]
+    assert "retention" not in base_content, "Debug info should not appear when show_debug=False"
+
+    # 状態をクリアして show_debug=True に変更
+    _StubOutboundMessage.sent.clear()
+    stub_chainlit.set("history", [])
+    stub_chainlit.set("show_debug", True)
+
+    await app_module.on_message(_DummyMessage("hello"))
+
+    all_messages = list(_StubOutboundMessage.sent)
+    trim_messages = [msg for msg in all_messages if msg.startswith("[trim]")]
+    assert base_content in trim_messages, "Base trim message should be included in debug mode"
+    assert any(
+        "retention" in msg for msg in all_messages if msg != base_content
+    ), "Debug mode should include retention info message"
 
 
 @pytest.mark.anyio

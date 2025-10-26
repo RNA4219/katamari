@@ -11,6 +11,8 @@ import {
   RECONNECTION_ATTEMPTS,
   RECONNECTION_DELAY_MS,
   RECONNECTION_DELAY_MAX_MS
+  SOCKET_IO_RECONNECTION_BASE_DELAY_MS,
+  SOCKET_IO_RECONNECTION_BACKOFF_FACTOR
 } from './useChatSession';
 import { wavRecorderState, wavStreamPlayerState } from 'src/state';
 
@@ -91,5 +93,12 @@ describe('useChatSession', () => {
     expect(options.reconnectionAttempts).toBe(RECONNECTION_ATTEMPTS);
     expect(options.reconnectionDelay).toBe(RECONNECTION_DELAY_MS);
     expect(options.reconnectionDelayMax).toBe(RECONNECTION_DELAY_MAX_MS);
+    expect(options).toMatchObject({
+      ...SOCKET_IO_RECONNECTION_OPTIONS,
+      reconnectionDelay: SOCKET_IO_RECONNECTION_BASE_DELAY_MS,
+      reconnectionDelayMax:
+        SOCKET_IO_RECONNECTION_BASE_DELAY_MS *
+        SOCKET_IO_RECONNECTION_BACKOFF_FACTOR ** 2
+    });
   });
 });

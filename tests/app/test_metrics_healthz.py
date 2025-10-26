@@ -52,17 +52,28 @@ def app_context(tmp_path) -> Iterator[Tuple[object, object]]:
         os.environ["CHAINLIT_APP_ROOT"] = previous_root
 
 
-def test_healthz_endpoint_returns_ok_status(app_context) -> None:
+@pytest.fixture()
+def auth_secret(monkeypatch: pytest.MonkeyPatch) -> str:
+    secret = "test-secret"
+    monkeypatch.setenv("CHAINLIT_AUTH_SECRET", secret)
+    return secret
+
+
+def test_healthz_endpoint_returns_ok_status(app_context, auth_secret) -> None:
     chainlit_app, _ = app_context
     client = TestClient(chainlit_app)
 
-    response = client.get("/healthz")
+    response = client.get(
+        "/healthz", headers={"Authorization": f"Bearer {auth_secret}"}
+    )
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
 
-def test_metrics_endpoint_exposes_trim_gauges(app_context) -> None:
+def test_metrics_endpoint_exposes_trim_gauges(
+    app_context, auth_secret
+) -> None:
     chainlit_app, app_module = app_context
     app_module.METRICS_REGISTRY.observe_trim(
         compress_ratio=0.75,
@@ -70,7 +81,9 @@ def test_metrics_endpoint_exposes_trim_gauges(app_context) -> None:
     )
     client = TestClient(chainlit_app)
 
-    response = client.get("/metrics")
+    response = client.get(
+        "/metrics", headers={"Authorization": f"Bearer {auth_secret}"}
+    )
 
     assert response.status_code == 200
     body = response.text
@@ -81,7 +94,9 @@ def test_metrics_endpoint_exposes_trim_gauges(app_context) -> None:
     assert response.headers["content-type"].startswith("text/plain")
 
 
-def test_metrics_endpoint_reports_nan_for_missing_retention(app_context) -> None:
+def test_metrics_endpoint_reports_nan_for_missing_retention(
+    app_context, auth_secret
+) -> None:
     chainlit_app, app_module = app_context
     app_module.METRICS_REGISTRY.observe_trim(
         compress_ratio=0.5,
@@ -93,7 +108,9 @@ def test_metrics_endpoint_reports_nan_for_missing_retention(app_context) -> None
     )
     client = TestClient(chainlit_app)
 
-    response = client.get("/metrics")
+    response = client.get(
+        "/metrics", headers={"Authorization": f"Bearer {auth_secret}"}
+    )
 
     assert response.status_code == 200
     body = response.text
@@ -107,7 +124,9 @@ def test_metrics_endpoint_reports_nan_for_missing_retention(app_context) -> None
     )
 
 
-def test_metrics_endpoint_does_not_report_one_for_missing_retention(app_context) -> None:
+def test_metrics_endpoint_does_not_report_one_for_missing_retention(
+    app_context, auth_secret
+) -> None:
     chainlit_app, app_module = app_context
     app_module.METRICS_REGISTRY.observe_trim(
         compress_ratio=0.7,
@@ -116,7 +135,9 @@ def test_metrics_endpoint_does_not_report_one_for_missing_retention(app_context)
 
     client = TestClient(chainlit_app)
 
-    response = client.get("/metrics")
+    response = client.get(
+        "/metrics", headers={"Authorization": f"Bearer {auth_secret}"}
+    )
 
     assert response.status_code == 200
     body = response.text
@@ -130,7 +151,9 @@ def test_metrics_endpoint_does_not_report_one_for_missing_retention(app_context)
     assert "semantic_retention 1.0" not in body
 
 
-def test_export_prometheus_outputs_nan_for_missing_retention(app_context) -> None:
+def test_export_prometheus_outputs_nan_for_missing_retention(
+    app_context, auth_secret
+) -> None:
     _, app_module = app_context
     registry = app_module.METRICS_REGISTRY
     registry.observe_trim(compress_ratio=0.8, semantic_retention=None)
@@ -140,3 +163,26 @@ def test_export_prometheus_outputs_nan_for_missing_retention(app_context) -> Non
     assert "semantic_retention nan" in payload
     parsed = _parse_prometheus(payload)
     assert math.isnan(parsed["semantic_retention"])
+
+
+def test_operations_endpoints_require_bearer_token(
+    app_context, auth_secret
+) -> None:
+    chainlit_app, _ = app_context
+    client = TestClient(chainlit_app)
+
+    unauthorized_healthz = client.get("/healthz")
+    assert unauthorized_healthz.status_code == 401
+
+    authorized_healthz = client.get(
+        "/healthz", headers={"Authorization": f"Bearer {auth_secret}"}
+    )
+    assert authorized_healthz.status_code == 200
+
+    unauthorized_metrics = client.get("/metrics")
+    assert unauthorized_metrics.status_code == 401
+
+    authorized_metrics = client.get(
+        "/metrics", headers={"Authorization": f"Bearer {auth_secret}"}
+    )
+    assert authorized_metrics.status_code == 200

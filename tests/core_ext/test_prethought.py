@@ -9,9 +9,14 @@ from src.core_ext.prethought import analyze_intent
 def sample_prompt() -> str:
     return (
         "目的: ユーザーオンボーディングを10日で完了させる\n"
+        "- B2B SaaSの解約率を10%改善\n"
         "制約: セキュリティ監査を通過しつつ既存APIだけで構築する\n"
+        "- 2週間でPoC完了\n"
+        "- PIIは日本リージョンに限定\n"
         "視点: CSチームと新規顧客の双方が迷わない運用ガイドにする\n"
-        "期待: 30分以内に読めるチェックリストとKPIテンプレート"
+        "- カスタマーサクセス部門の手離れを減らす\n"
+        "期待: 30分以内に読めるチェックリストとKPIテンプレート\n"
+        "- 日次レポート雛形とSlack通知案"
     )
 def test_analyze_intent_reflects_user_keywords() -> None:
     text = dedent(

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
 import math
@@ -14,13 +15,14 @@ import os
 from pathlib import Path
 from threading import Lock
 from time import perf_counter
-from typing import Any, Dict, List, Mapping, Sequence, cast, Literal
+from typing import Annotated, Any, Dict, List, Mapping, Sequence, cast, Literal
 
 import chainlit as cl
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.responses import PlainTextResponse
 from chainlit.input_widget import Select, Slider, TextInput, Switch
 from chainlit.server import app as chainlit_app, router as chainlit_router
+from starlette.datastructures import Headers
 
 from core_ext.logging import InferenceLogRecord, StepLatency, StructuredLogger
 from core_ext.persona_compiler import compile_persona_yaml
@@ -186,6 +188,56 @@ METRICS_REGISTRY = MetricsRegistry()
 REQUEST_LOGGER = StructuredLogger()
 _RETENTION_LOGGER = logging.getLogger("katamari.retention")
 
+_BEARER_PREFIX = "Bearer "
+
+
+def _get_auth_secret() -> str | None:
+    secret = os.getenv("CHAINLIT_AUTH_SECRET")
+    if not secret:
+        return None
+    stripped = secret.strip()
+    return stripped or None
+
+
+def _extract_bearer_token(value: str | None) -> str | None:
+    if value is None:
+        return None
+    if not value.startswith(_BEARER_PREFIX):
+        return None
+    token = value[len(_BEARER_PREFIX) :].strip()
+    return token or None
+
+
+def _is_token_authorized(token: str | None) -> bool:
+    secret = _get_auth_secret()
+    if secret is None or token is None:
+        return False
+    return hmac.compare_digest(token, secret)
+
+
+def _reject_unauthorized() -> None:
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Unauthorized",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def _require_header_auth(
+    authorization: Annotated[str | None, Header(alias="Authorization")]
+) -> None:
+    token = _extract_bearer_token(authorization)
+    if not _is_token_authorized(token):
+        _reject_unauthorized()
+
+
+@cl.header_auth_callback
+async def _header_auth_callback(headers: Headers) -> cl.User | None:
+    token = _extract_bearer_token(headers.get("Authorization"))
+    if not _is_token_authorized(token):
+        return None
+    return cl.User(identifier="ops")
+
 
 def _to_int(value: Any) -> int:
     try:
@@ -257,14 +309,14 @@ async def _ensure_semantic_retention(
 ops_router = APIRouter()
 
 
-@ops_router.get("/healthz")
+@ops_router.get("/healthz", dependencies=[Depends(_require_header_auth)])
 async def healthz() -> Dict[str, str]:
     """Liveness probe."""
 
     return {"status": "ok"}
 
 
-@ops_router.get("/metrics")
+@ops_router.get("/metrics", dependencies=[Depends(_require_header_auth)])
 async def metrics() -> PlainTextResponse:
     """Expose runtime metrics in Prometheus text format."""
 

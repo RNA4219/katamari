@@ -20,7 +20,7 @@
 
 ## D-3. 制御パラメタ
 - `target_tokens`（UIのスライダ 1k–8k）
-- `min_turns`（最低保持ターン数。現行実装で対応済みで、直近ターンから逆順に走査して最低ターン数ぶんの対話ペアを確保した上でトリムする）
+- `min_turns`（最低保持ターン数。現行実装で対応済みで、直近ターンから逆順に走査して最低ターン数ぶんの対話ペアを確保した上でトリムする。`src/core_ext/context_trimmer.trim_messages` は `_group_conversation_turns` でターン単位に分割し、`min_turns` 指定回数ぶんを保持した状態で予算を超える場合のみさらに古いターンを削除する）
 - `priority_roles`（system/user優先。現行実装では未対応／将来導入予定）
 
 ## D-4. フィードバック

@@ -2,12 +2,23 @@ name: CI
 
 env:
   CACHE_VERSION: v1
+  REQUESTED_REF: ${{ inputs.ref || (github.event_name == 'workflow_dispatch' && github.event.inputs.ref) || '' }}
 
 on:
   push:
     branches:
       - main
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to check out for diagnostics
+        required: false
   workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
 
 jobs:
   staleness-guard:
@@ -65,6 +76,8 @@ jobs:
       - name: Capture job start
         run: echo "PY_JOB_START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.REQUESTED_REF != '' && env.REQUESTED_REF || github.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -136,6 +149,8 @@ jobs:
         check: [lint, test]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.REQUESTED_REF != '' && env.REQUESTED_REF || github.ref }}
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.9
@@ -179,6 +194,8 @@ jobs:
         run: echo "PROVIDER_JOB_START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         if: steps.check-secrets.outputs.ready == 'true'
+        with:
+          ref: ${{ env.REQUESTED_REF != '' && env.REQUESTED_REF || github.ref }}
       - uses: actions/setup-python@v5
         if: steps.check-secrets.outputs.ready == 'true'
         with:

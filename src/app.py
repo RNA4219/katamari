@@ -472,11 +472,10 @@ async def on_message(message: cl.Message) -> None:
     )
     _session_set("history", trimmed)
     _session_set("trim_metrics", metrics)
-    if show_debug:
-        base = f"[trim] tokens: {token_out}/{token_in} (ratio {compress_ratio})"
-        if semantic_retention is not None:
-            base += f", retention {semantic_retention}"
-        await _send_message(content=base)
+    base = f"[trim] tokens: {token_out}/{token_in} (ratio {compress_ratio})"
+    if show_debug and semantic_retention is not None:
+        base += f", retention {semantic_retention}"
+    await _send_message(content=base)
 
     # 3) Run chain
     provider = get_provider(model)

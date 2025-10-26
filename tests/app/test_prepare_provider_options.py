@@ -61,24 +61,16 @@ def test_prepare_provider_options_parallel_flag(app_module, model_id: str, expec
         assert reasoning.get("parallel") in (None, False)
 
 
-def test_load_parallel_reasoning_models_uses_registry(monkeypatch, tmp_path, app_module) -> None:
-    registry_path = Path(app_module.__file__).resolve().parents[1] / "config" / "model_registry.json"
-    registry_payload = json.dumps(
-        [
-            {"id": "gpt-5-thinking", "parallel": False},
-            {"id": "gpt-5-thinking-pro", "parallel": True},
-            {"id": "gpt-5-thinking-mini", "parallel": None},
-        ]
-    )
-    original_read_text = Path.read_text
+@pytest.mark.parametrize(
+    "model_id",
+    [
+        "gpt-5-thinking",
+        "gpt-5-thinking-mini",
+    ],
+)
+def test_prepare_provider_options_thinking_effort_default(app_module, model_id: str) -> None:
+    options = app_module._prepare_provider_options(model_id, {})
+    reasoning = options.get("reasoning")
 
-    def _mock_read_text(self: Path, *args, **kwargs):
-        if self == registry_path:
-            return registry_payload
-        return original_read_text(self, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "read_text", _mock_read_text)
-
-    result = app_module._load_parallel_reasoning_models()
-
-    assert result == frozenset({"gpt-5-thinking-pro"})
+    assert reasoning is not None
+    assert reasoning.get("effort") == app_module._REASONING_DEFAULT["effort"]

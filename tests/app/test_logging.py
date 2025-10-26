@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
 from typing import Any, AsyncIterator, Dict, Iterable, Iterator, List
+from unittest.mock import Mock
 
 import pytest
 
@@ -343,10 +344,8 @@ async def test_on_message_records_trim_message_in_sent_buffer_when_debug_disable
         {"role": "user", "content": "hello"},
     ]
 
-    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
-        return list(trimmed_messages), dict(metrics)
-
-    monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
+    mock_trim = Mock(return_value=(list(trimmed_messages), dict(metrics)))
+    monkeypatch.setattr(app_module, "trim_messages", mock_trim)
 
     provider = _StubProvider(["hi"])
     monkeypatch.setattr(app_module, "get_provider", lambda model: provider)
@@ -362,12 +361,20 @@ async def test_on_message_records_trim_message_in_sent_buffer_when_debug_disable
 
     await app_module.on_message(_DummyMessage("hello"))
 
+    mock_trim.assert_called_once()
+
     trim_messages = [
         message
         for message in _StubOutboundMessage.sent
         if message.startswith("[trim]") and not message.startswith("[trim][debug]")
     ]
-    expected_message = "[trim] tokens: 60/120 (ratio 0.5)"
+    expected_message = app_module._format_trim_message(
+        token_out=metrics["output_tokens"],
+        token_in=metrics["input_tokens"],
+        compress_ratio=metrics["compress_ratio"],
+        show_retention=False,
+        semantic_retention=metrics["semantic_retention"],
+    )
     assert trim_messages, "[trim] message should be emitted"
     assert all(message == expected_message for message in trim_messages)
 

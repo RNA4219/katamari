@@ -89,6 +89,20 @@ async def _send_message(**kwargs: Any) -> None:
     await cast(Any, message).send()
 
 
+def _format_trim_message(
+    *,
+    token_out: int,
+    token_in: int,
+    compress_ratio: float,
+    show_retention: bool,
+    semantic_retention: float | None,
+) -> str:
+    base = f"[trim] tokens: {token_out}/{token_in} (ratio {compress_ratio})"
+    if show_retention and semantic_retention is not None:
+        return f"{base}, retention {semantic_retention}"
+    return base
+
+
 def _chat_message(role: str, content: Any) -> ChatMessage:
     return {"role": role, "content": content}
 
@@ -472,13 +486,22 @@ async def on_message(message: cl.Message) -> None:
     )
     _session_set("history", trimmed)
     _session_set("trim_metrics", metrics)
-    base = f"[trim] tokens: {token_out}/{token_in}"
     if show_debug:
-        details: List[str] = [f"ratio {compress_ratio}"]
+        trim_message = _format_trim_message(
+            token_out=token_out,
+            token_in=token_in,
+            compress_ratio=compress_ratio,
+            show_retention=show_debug,
+            semantic_retention=semantic_retention,
+        )
+    else:
+        base = f"[trim] tokens: {token_out}/{token_in}"
         if semantic_retention is not None:
-            details.append(f"retention {semantic_retention}")
-        base = f"{base} ({', '.join(details)})"
-    await _send_message(content=base)
+            base = f"{base} (retention {semantic_retention})"
+        trim_message = base
+
+    await _send_message(content=trim_message)
+
 
     # 3) Run chain
     provider = get_provider(model)

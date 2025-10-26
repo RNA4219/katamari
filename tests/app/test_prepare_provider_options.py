@@ -65,7 +65,9 @@ def test_prepare_provider_options_parallel_flag(app_module, model_id: str, expec
     "model_id",
     [
         "gpt-5-thinking",
+        "gpt-5-thinking-pro",
         "gpt-5-thinking-mini",
+        "gpt-5-thinking-nano",
     ],
 )
 def test_prepare_provider_options_thinking_effort_default(app_module, model_id: str) -> None:

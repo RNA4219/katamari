@@ -1,9 +1,10 @@
 import re
-from typing import Iterable, Sequence
+from typing import Iterable, Sequence, SupportsIndex
 
 
 class IntentSection(str):
     __slots__ = ("_extras",)
+    _extras: tuple[str, ...]
 
     def __new__(
         cls, value: str, extras: Iterable[str] | None = None
@@ -18,7 +19,11 @@ class IntentSection(str):
         obj._extras = tuple(collected)
         return obj
 
-    def __contains__(self, item: object) -> bool:  # type: ignore[override]
+    @property
+    def extras(self) -> tuple[str, ...]:
+        return self._extras
+
+    def __contains__(self, item: object) -> bool:
         if not isinstance(item, str):
             return False
         if str.__contains__(self, item):
@@ -28,6 +33,8 @@ class IntentSection(str):
 
 class IntentSectionLine(str):
     __slots__ = ("_label", "_value")
+    _label: str
+    _value: "IntentSection"
 
     def __new__(
         cls, label: str, value: "IntentSection"
@@ -37,7 +44,17 @@ class IntentSectionLine(str):
         obj._value = value
         return obj
 
-    def split(self, sep: str | None = None, maxsplit: int = -1):  # type: ignore[override]
+    @property
+    def label(self) -> str:
+        return self._label
+
+    @property
+    def value(self) -> "IntentSection":
+        return self._value
+
+    def split(
+        self, sep: str | None = None, maxsplit: SupportsIndex = -1
+    ) -> list[str]:
         if sep == ": " and maxsplit == 1:
             return [self._label, self._value]
         return super().split(sep, maxsplit)
@@ -45,6 +62,7 @@ class IntentSectionLine(str):
 
 class IntentReport(str):
     __slots__ = ("_lines",)
+    _lines: list[IntentSectionLine]
 
     def __new__(
         cls, sections: Sequence[tuple[str, "IntentSection"]]
@@ -54,11 +72,14 @@ class IntentReport(str):
         obj._lines = [IntentSectionLine(label, value) for label, value in sections]
         return obj
 
-    def splitlines(self, keepends: bool = False):  # type: ignore[override]
+    @property
+    def lines(self) -> tuple[IntentSectionLine, ...]:
+        return tuple(self._lines)
+
+    def splitlines(self, keepends: bool = False) -> list[str]:
         if keepends:
-            raw = super().splitlines(keepends=True)
-            return raw
-        return list(self._lines)
+            return super().splitlines(keepends=True)
+        return [str(line) for line in self._lines]
 
 
 _SECTION_ORDER = ("目的", "制約", "視点", "期待")
@@ -117,7 +138,7 @@ def _detect_section_heading(line: str) -> tuple[str, str | None] | None:
 
 
 def _parse_structured_sections(text: str) -> dict[str, list[str]]:
-    sections = {label: [] for label in _SECTION_ORDER}
+    sections: dict[str, list[str]] = {label: [] for label in _SECTION_ORDER}
     current_label: str | None = None
     for raw_line in text.splitlines():
         if not raw_line.strip():
@@ -255,10 +276,7 @@ def _sections_from_output(report: IntentReport | str) -> dict[str, str]:
     for line in lines:
         if not line:
             continue
-        if isinstance(line, IntentSectionLine):
-            parts = line.split(": ", 1)
-        else:
-            parts = line.split(": ", 1)
+        parts = line.split(": ", 1)
         if len(parts) != 2:
             continue
         label, value = parts
@@ -270,6 +288,6 @@ try:
     import builtins as _builtins
 
     if getattr(_builtins, "_sections_from_output", None) is None:
-        _builtins._sections_from_output = _sections_from_output
+        setattr(_builtins, "_sections_from_output", _sections_from_output)
 except Exception:  # pragma: no cover - defensive for import-time issues
     pass

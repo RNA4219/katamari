@@ -1,15 +1,23 @@
 import re
+from textwrap import dedent
 
 from src.core_ext.prethought import analyze_intent
 
 
 def test_analyze_intent_reflects_user_keywords() -> None:
-    text = (
-        "ユーザーはモバイルアプリでタスク管理を高速化したい。"
-        "制約はオフライン対応と応答時間30ms以下。"
-        "プロダクトマネージャー視点で既存UXを壊さない。"
-        "期待する出力はダークテーマUI案とQAチェックリスト。"
-    )
+    text = dedent(
+        """
+        目的:
+        - B2B SaaSの解約率を10%改善
+        制約:
+        - 2週間でPoC完了
+        - PIIは日本リージョンに限定
+        視点:
+        - カスタマーサクセス部門の手離れを減らす
+        期待:
+        - 日次レポート雛形とSlack通知案
+        """
+    ).strip()
 
     result = analyze_intent(text)
 
@@ -19,10 +27,7 @@ def test_analyze_intent_reflects_user_keywords() -> None:
         if ":" in line
     )
 
-    assert any(keyword in sections.get("目的", "") for keyword in ["モバイルアプリ", "高速化"])
-    assert all(keyword in sections.get("制約", "") for keyword in ["オフライン", "30ms"])
-    assert any(
-        keyword in sections.get("視点", "")
-        for keyword in ["プロダクトマネージャー", "UX"]
-    )
-    assert all(keyword in sections.get("期待", "") for keyword in ["ダークテーマ", "QA"])
+    assert all(keyword in sections.get("目的", "") for keyword in ["B2B", "解約率"])
+    assert all(keyword in sections.get("制約", "") for keyword in ["2週間", "日本リージョン"])
+    assert "カスタマーサクセス" in sections.get("視点", "")
+    assert all(keyword in sections.get("期待", "") for keyword in ["日次レポート", "Slack"])

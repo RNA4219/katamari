@@ -14,10 +14,6 @@ def sample_prompt() -> str:
     )
 
 
-def _sections_from_output(result: str) -> dict[str, str]:
-    return dict(line.split(": ", 1) for line in result.splitlines() if ": " in line)
-
-
 def test_analyze_intent_reflects_user_keywords() -> None:
     text = dedent(
         """
@@ -34,12 +30,13 @@ def test_analyze_intent_reflects_user_keywords() -> None:
     ).strip()
 
     result = analyze_intent(text)
-    sections = _sections_from_output(result)
+    sections = dict(line.split(": ", 1) for line in result.splitlines())
 
-    assert "B2B" in sections["目的"] and "解約率" in sections["目的"]
-    assert "2週間" in sections["制約"] and "日本リージョン" in sections["制約"]
+    assert sections["目的"].startswith("B2B SaaSの解約率")
+    assert "PoC完了" in sections["制約"]
+    assert "日本リージョン" in sections["制約"]
     assert "カスタマーサクセス" in sections["視点"]
-    assert "日次レポート" in sections["期待"] and "Slack" in sections["期待"]
+    assert sections["期待"].endswith("Slack通知案")
 
 
 def test_analyze_intent_reflects_explicit_sections(sample_prompt: str) -> None:

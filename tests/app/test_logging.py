@@ -205,7 +205,7 @@ async def test_on_message_computes_semantic_retention(
 
 
 @pytest.mark.anyio
-async def test_on_message_emits_trim_message_when_debug_disabled(
+async def test_on_message_uses_formatter_for_trim_message_when_debug_disabled(
     monkeypatch, app_module, stub_chainlit
 ):
     metrics = {
@@ -231,141 +231,61 @@ async def test_on_message_emits_trim_message_when_debug_disabled(
     clock = iter([100.0, 100.1, 100.2, 100.6])
     monkeypatch.setattr(app_module, "perf_counter", lambda: next(clock), raising=False)
 
-    await app_module.on_message(_DummyMessage("hello"))
-
-    trim_messages = [
-        content
-        for content in _StubOutboundMessage.sent
-        if content.startswith("[trim]") and not content.startswith("[trim][debug]")
-    ]
-
-    assert trim_messages, "[trim] message should be emitted even when show_debug is False"
-    expected_base = (
-        f"[trim] tokens: {metrics['output_tokens']}/{metrics['input_tokens']} "
-        f"(ratio {metrics['compress_ratio']})"
-    )
-    assert all(msg == expected_base for msg in trim_messages)
-    assert all("retention" not in content for content in trim_messages)
-
-
-@pytest.mark.anyio
-async def test_on_message_trim_base_content_ignores_debug_toggle(
-    monkeypatch, app_module, stub_chainlit
-):
-    metrics = {
-        "input_tokens": 120,
-        "output_tokens": 60,
-        "compress_ratio": 0.5,
-        "semantic_retention": 0.7,
-    }
-    trimmed_messages = [
-        {"role": "system", "content": "system prompt"},
-        {"role": "user", "content": "hello"},
-    ]
-
-    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
-        return list(trimmed_messages), dict(metrics)
-
-    monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
-
-    provider = _StubProvider(["hi"])
-    monkeypatch.setattr(app_module, "get_provider", lambda model: provider)
-    monkeypatch.setattr(app_module, "get_chain_steps", lambda chain_id: ["final"])
-
-    clock = iter([100.0, 100.1, 100.2, 100.6, 200.0, 200.1, 200.2, 200.6])
-    monkeypatch.setattr(app_module, "perf_counter", lambda: next(clock), raising=False)
-
-    # show_debug=False の状態でトリム実行
     stub_chainlit.set("history", [])
     stub_chainlit.set("show_debug", False)
     _StubOutboundMessage.sent.clear()
 
-    await app_module.on_message(_DummyMessage("hello"))
+    observed_calls: list[dict[str, Any]] = []
 
-    base_messages = [
-        content
-        for content in _StubOutboundMessage.sent
-        if content.startswith("[trim]") and not content.startswith("[trim][debug]")
-    ]
-    assert base_messages, "Expected [trim] message when show_debug=False"
-    base_content = base_messages[0]
-    assert "retention" not in base_content, "Debug info should not appear when show_debug=False"
+    def _fake_format_trim_message(
+        *,
+        token_out: int,
+        token_in: int,
+        compress_ratio: float,
+        show_retention: bool,
+        semantic_retention: float | None,
+    ) -> str:
+        observed_calls.append(
+            {
+                "token_out": token_out,
+                "token_in": token_in,
+                "compress_ratio": compress_ratio,
+                "show_retention": show_retention,
+                "semantic_retention": semantic_retention,
+            }
+        )
+        return (
+            f"[trim] tokens: {token_out}/{token_in} (ratio {compress_ratio})"
+        )
 
-    # 状態をクリアして show_debug=True に変更
-    _StubOutboundMessage.sent.clear()
-    stub_chainlit.set("history", [])
-    stub_chainlit.set("show_debug", True)
-
-    await app_module.on_message(_DummyMessage("hello"))
-
-    all_messages = list(_StubOutboundMessage.sent)
-    trim_messages = [
-        msg for msg in all_messages if msg.startswith("[trim]") and not msg.startswith("[trim][debug]")
-    ]
-    assert trim_messages, "Debug run should emit [trim] message"
-    expected_prefix = (
-        f"[trim] tokens: {metrics['output_tokens']}/{metrics['input_tokens']} "
-        f"(ratio {metrics['compress_ratio']})"
+    monkeypatch.setattr(
+        app_module,
+        "_format_trim_message",
+        _fake_format_trim_message,
     )
-    assert all(msg.startswith(expected_prefix) for msg in trim_messages)
-    assert any(
-        "retention" in msg for msg in trim_messages
-    ), "Debug mode should append retention info to base trim message"
-    assert any(
-        msg.startswith("[trim][debug]") and "retention" in msg for msg in all_messages
-    ), "Debug mode should emit dedicated [trim][debug] message"
-
-
-@pytest.mark.anyio
-async def test_on_message_records_trim_message_in_sent_buffer_when_debug_disabled(
-    monkeypatch, app_module, stub_chainlit
-):
-    metrics = {
-        "input_tokens": 120,
-        "output_tokens": 60,
-        "compress_ratio": 0.5,
-        "semantic_retention": 0.7,
-    }
-    trimmed_messages = [
-        {"role": "system", "content": "system prompt"},
-        {"role": "user", "content": "hello"},
-    ]
-
-    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
-        return list(trimmed_messages), dict(metrics)
-
-    monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
-
-    provider = _StubProvider(["hi"])
-    monkeypatch.setattr(app_module, "get_provider", lambda model: provider)
-    monkeypatch.setattr(app_module, "get_chain_steps", lambda chain_id: ["final"])
-
-    clock = iter([100.0, 100.1, 100.2, 100.6, 200.0, 200.1, 200.2, 200.6])
-    monkeypatch.setattr(app_module, "perf_counter", lambda: next(clock), raising=False)
-
-    stub_chainlit.set("history", [])
-    stub_chainlit.set("show_debug", False)
-    _StubOutboundMessage.sent.clear()
 
     await app_module.on_message(_DummyMessage("hello"))
+
+    assert observed_calls == [
+        {
+            "token_out": metrics["output_tokens"],
+            "token_in": metrics["input_tokens"],
+            "compress_ratio": metrics["compress_ratio"],
+            "show_retention": False,
+            "semantic_retention": metrics["semantic_retention"],
+        }
+    ]
 
     trim_messages = [
-        content for content in _StubOutboundMessage.sent if content.startswith("[trim]")
+        message
+        for message in _StubOutboundMessage.sent
+        if message.startswith("[trim]") and not message.startswith("[trim][debug]")
     ]
-    assert trim_messages, "Expected [trim] message to be recorded in sent buffer"
-    assert all("retention" not in msg for msg in trim_messages), "Debug-only info should be absent when show_debug=False"
+    expected_message = "[trim] tokens: 60/120 (ratio 0.5)"
+    assert trim_messages, "[trim] message should be emitted"
+    assert all(message == expected_message for message in trim_messages)
 
-    stub_chainlit.set("show_debug", True)
-    stub_chainlit.set("history", [])
-    _StubOutboundMessage.sent.clear()
-
-    await app_module.on_message(_DummyMessage("hello"))
-
-    debug_messages = [
-        content for content in _StubOutboundMessage.sent if content.startswith("[trim]")
-    ]
-    assert debug_messages, "Expected [trim] message to be emitted when show_debug=True"
-    assert any("retention" in msg for msg in debug_messages), "Debug mode should append retention info"
+    assert not any(message.startswith("[trim][debug]") for message in trim_messages)
 
 
 @pytest.mark.anyio

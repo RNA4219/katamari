@@ -228,6 +228,7 @@ async def test_on_message_emits_trim_message_when_debug_disabled(
     ]
 
     assert trim_messages, "[trim] message should be emitted even when show_debug is False"
+    assert all("ratio" not in content for content in trim_messages)
     assert all("retention" not in content for content in trim_messages)
 
 

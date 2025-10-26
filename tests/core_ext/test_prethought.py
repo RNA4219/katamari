@@ -41,7 +41,7 @@ def test_analyze_intent_reflects_user_keywords() -> None:
 
 def test_analyze_intent_reflects_explicit_sections(sample_prompt: str) -> None:
     result = analyze_intent(sample_prompt)
-    sections = dict(line.split(": ", 1) for line in result.splitlines())
+    sections = _sections_from_output(result)
 
     assert sections["目的"] == "ユーザーオンボーディングを10日で完了させる"
     assert (

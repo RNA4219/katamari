@@ -233,6 +233,7 @@ async def test_on_message_emits_trim_message_when_debug_disabled(
 
 
 @pytest.mark.anyio
+async def test_on_message_trim_base_content_ignores_debug_toggle(
 async def test_on_message_records_trim_message_in_sent_buffer_when_debug_disabled(
     monkeypatch, app_module, stub_chainlit
 ):
@@ -256,15 +257,36 @@ async def test_on_message_records_trim_message_in_sent_buffer_when_debug_disable
     monkeypatch.setattr(app_module, "get_provider", lambda model: provider)
     monkeypatch.setattr(app_module, "get_chain_steps", lambda chain_id: ["final"])
 
-    clock = iter([100.0, 100.1, 100.2, 100.6])
+    clock = iter([100.0, 100.1, 100.2, 100.6, 200.0, 200.1, 200.2, 200.6])
     monkeypatch.setattr(app_module, "perf_counter", lambda: next(clock), raising=False)
+
+    # show_debug=False の状態でトリム実行
+    stub_chainlit.set("history", [])
+    stub_chainlit.set("show_debug", False)
+    _StubOutboundMessage.sent.clear()
 
     await app_module.on_message(_DummyMessage("hello"))
 
-    recorded = [content for content in _StubOutboundMessage.sent if "[trim]" in content]
+    base_messages = [
+        content for content in _StubOutboundMessage.sent if content.startswith("[trim]")
+    ]
+    assert base_messages, "Expected [trim] message to be recorded in sent buffer"
+    base_content = base_messages[0]
+    assert "retention" not in base_content, "Debug info should not appear when show_debug=False"
 
-    assert recorded, "Expected [trim] message to be recorded in sent buffer"
-    assert all("retention" not in content for content in recorded)
+    # 状態をクリアして show_debug=True に変更
+    _StubOutboundMessage.sent.clear()
+    stub_chainlit.set("history", [])
+    stub_chainlit.set("show_debug", True)
+
+    await app_module.on_message(_DummyMessage("hello"))
+
+    all_messages = list(_StubOutboundMessage.sent)
+    trim_messages = [msg for msg in all_messages if msg.startswith("[trim]")]
+    assert base_content in trim_messages, "Base trim message should be included in debug mode"
+    assert any(
+        "retention" in msg for msg in all_messages if msg != base_content
+    ), "Debug mode should include retention info message"
 
 
 @pytest.mark.anyio

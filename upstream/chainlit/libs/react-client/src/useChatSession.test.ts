@@ -10,7 +10,7 @@ import {
   SOCKET_IO_RECONNECTION_OPTIONS,
   RECONNECTION_ATTEMPTS,
   RECONNECTION_DELAY_MS,
-  RECONNECTION_DELAY_MAX_MS
+  RECONNECTION_DELAY_MAX_MS,
   SOCKET_IO_RECONNECTION_BASE_DELAY_MS,
   SOCKET_IO_RECONNECTION_BACKOFF_FACTOR
 } from './useChatSession';
@@ -74,7 +74,8 @@ describe('useChatSession', () => {
                   interrupt: vi.fn()
                 } as any
               );
-            }
+            },
+            children
           },
           children
         )

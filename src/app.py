@@ -472,9 +472,12 @@ async def on_message(message: cl.Message) -> None:
     )
     _session_set("history", trimmed)
     _session_set("trim_metrics", metrics)
-    base = f"[trim] tokens: {token_out}/{token_in} (ratio {compress_ratio})"
-    if show_debug and semantic_retention is not None:
-        base += f", retention {semantic_retention}"
+    base = f"[trim] tokens: {token_out}/{token_in}"
+    if show_debug:
+        details: List[str] = [f"ratio {compress_ratio}"]
+        if semantic_retention is not None:
+            details.append(f"retention {semantic_retention}")
+        base = f"{base} ({', '.join(details)})"
     await _send_message(content=base)
 
     # 3) Run chain

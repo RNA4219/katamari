@@ -209,7 +209,9 @@ def analyze_intent(text: str) -> IntentReport:
     for label in _SECTION_ORDER:
         structured_values = structured_sections.get(label, [])
         keyword_matches = _find_matching_sentences(
-            label, sentences, _SECTION_KEYWORDS[label]
+            label=label,
+            sentences=sentences,
+            keywords=_SECTION_KEYWORDS[label],
         )
         extras: list[str] = []
         for value in structured_values:

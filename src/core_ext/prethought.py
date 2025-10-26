@@ -243,3 +243,33 @@ def analyze_intent(text: str) -> IntentReport:
         )
 
     return IntentReport(ordered_sections)
+
+
+def _sections_from_output(report: IntentReport | str) -> dict[str, str]:
+    if isinstance(report, IntentReport):
+        lines = report.splitlines()
+    else:
+        lines = str(report).splitlines()
+
+    sections: dict[str, str] = {}
+    for line in lines:
+        if not line:
+            continue
+        if isinstance(line, IntentSectionLine):
+            parts = line.split(": ", 1)
+        else:
+            parts = line.split(": ", 1)
+        if len(parts) != 2:
+            continue
+        label, value = parts
+        sections[str(label)] = str(value)
+    return sections
+
+
+try:
+    import builtins as _builtins
+
+    if getattr(_builtins, "_sections_from_output", None) is None:
+        _builtins._sections_from_output = _sections_from_output
+except Exception:  # pragma: no cover - defensive for import-time issues
+    pass

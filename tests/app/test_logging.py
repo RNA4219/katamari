@@ -343,6 +343,25 @@ async def test_on_message_records_trim_message_in_sent_buffer_when_debug_disable
         {"role": "user", "content": "hello"},
     ]
 
+    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+        return list(trimmed_messages), dict(metrics)
+
+    monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
+
+    provider = _StubProvider(["hi"])
+    monkeypatch.setattr(app_module, "get_provider", lambda model: provider)
+    monkeypatch.setattr(app_module, "get_chain_steps", lambda chain_id: ["final"])
+
+    clock = iter([100.0, 100.1, 100.2, 100.6])
+    monkeypatch.setattr(app_module, "perf_counter", lambda: next(clock), raising=False)
+
+    stub_chainlit.set("history", [])
+    stub_chainlit.set("show_debug", False)
+    _StubOutboundMessage.sent.clear()
+    _StubStep.instances.clear()
+
+    await app_module.on_message(_DummyMessage("hello"))
+
     trim_messages = [
         message
         for message in _StubOutboundMessage.sent

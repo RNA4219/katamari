@@ -55,14 +55,15 @@ import { OutputAudioChunk } from './types/audio';
 import { ChainlitContext } from './context';
 import type { IToken } from './useChatData';
 
-const RECONNECTION_ATTEMPTS = 3;
-const RECONNECTION_DELAY_MS = 1000;
-const RECONNECTION_DELAY_MAX_MS = RECONNECTION_DELAY_MS * 4;
+export const SOCKET_IO_RECONNECTION_ATTEMPTS = 3;
+export const SOCKET_IO_RECONNECTION_BASE_DELAY_MS = 1000;
+export const SOCKET_IO_RECONNECTION_MAX_DELAY_MS =
+  SOCKET_IO_RECONNECTION_BASE_DELAY_MS * 4;
 
 export const SOCKET_IO_RECONNECTION_OPTIONS = {
-  reconnectionAttempts: RECONNECTION_ATTEMPTS,
-  reconnectionDelay: RECONNECTION_DELAY_MS,
-  reconnectionDelayMax: RECONNECTION_DELAY_MAX_MS,
+  reconnectionAttempts: SOCKET_IO_RECONNECTION_ATTEMPTS,
+  reconnectionDelay: SOCKET_IO_RECONNECTION_BASE_DELAY_MS,
+  reconnectionDelayMax: SOCKET_IO_RECONNECTION_MAX_DELAY_MS,
   randomizationFactor: 0
 } as const;
 

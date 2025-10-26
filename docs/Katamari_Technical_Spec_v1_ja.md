@@ -30,8 +30,8 @@ class ProviderClient(Protocol):
     async def stream(self, model: str, messages: list[dict], **opts) -> AsyncIterator[str]: ...
     async def complete(self, model: str, messages: list[dict], **opts) -> str: ...
 ```
-- Thinking系は `reasoning` パラメタを付与
-  - 既定値は `{"effort": "medium"}` に、並列実行が許可されたモデルでは `parallel: true` を追加
+- Thinking系は `reasoning` パラメタを常時付与
+  - 既定値は `{"effort": "medium", "parallel": true}` を起点とし、並列非対応モデルでは `parallel` を削除
   - 並列可否は `config/model_registry.json` の `parallel: true` フラグ（なければ `gpt-5-thinking`, `gpt-5-thinking-pro` を既定許可）で判定
   - ユーザ入力で `reasoning` が渡された場合は当該設定を尊重しつつ、非対応モデルでは `parallel` を削除してシリアル化する
 

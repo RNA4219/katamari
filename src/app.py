@@ -89,6 +89,20 @@ async def _send_message(**kwargs: Any) -> None:
     await cast(Any, message).send()
 
 
+def _format_trim_message(
+    *,
+    token_out: int,
+    token_in: int,
+    compress_ratio: float,
+    show_retention: bool,
+    semantic_retention: float | None,
+) -> str:
+    base = f"[trim] tokens: {token_out}/{token_in} (ratio {compress_ratio})"
+    if show_retention and semantic_retention is not None:
+        return f"{base}, retention {semantic_retention}"
+    return base
+
+
 def _chat_message(role: str, content: Any) -> ChatMessage:
     return {"role": role, "content": content}
 
@@ -472,14 +486,29 @@ async def on_message(message: cl.Message) -> None:
     )
     _session_set("history", trimmed)
     _session_set("trim_metrics", metrics)
+if show_debug:
+    # 詳細なデバッグメッセージを構築して送信
+    trim_message = _format_trim_message(
+        token_out=token_out,
+        token_in=token_in,
+        compress_ratio=compress_ratio,
+        show_retention=show_debug,
+        semantic_retention=semantic_retention,
+    )
+    await _send_message(content=trim_message)
+
+    # 追加のdebug情報を別行として送信
+    debug_parts: list[str] = []
+    if semantic_retention is not None:
+        debug_parts.append(f"retention {semantic_retention}")
+    if debug_parts:
+        await _send_message(content=f"[trim][debug] {', '.join(debug_parts)}")
+
+else:
+    # show_debug=False時は最小限の情報のみ1行で送信
     base = f"[trim] tokens: {token_out}/{token_in} (ratio {compress_ratio})"
     await _send_message(content=base)
-    if show_debug:
-        debug_parts: List[str] = []
-        if semantic_retention is not None:
-            debug_parts.append(f"retention {semantic_retention}")
-        if debug_parts:
-            await _send_message(content=f"[trim][debug] {', '.join(debug_parts)}")
+
 
     # 3) Run chain
     provider = get_provider(model)

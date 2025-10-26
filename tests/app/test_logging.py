@@ -228,7 +228,46 @@ async def test_on_message_emits_trim_message_when_debug_disabled(
     ]
 
     assert trim_messages, "[trim] message should be emitted even when show_debug is False"
-    assert all("retention" not in content for content in trim_messages)
+    assert any(
+        "tokens: 60/120 (ratio 0.5)" in content for content in trim_messages
+    )
+
+
+@pytest.mark.anyio
+async def test_on_message_includes_retention_metric_even_when_debug_disabled(
+    monkeypatch, app_module, stub_chainlit,
+):
+    metrics = {
+        "input_tokens": 120,
+        "output_tokens": 60,
+        "compress_ratio": 0.5,
+        "semantic_retention": 0.7,
+    }
+    trimmed_messages = [
+        {"role": "system", "content": "system prompt"},
+        {"role": "user", "content": "hello"},
+    ]
+
+    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+        return list(trimmed_messages), dict(metrics)
+
+    monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
+
+    provider = _StubProvider(["hi"])
+    monkeypatch.setattr(app_module, "get_provider", lambda model: provider)
+    monkeypatch.setattr(app_module, "get_chain_steps", lambda chain_id: ["final"])
+
+    clock = iter([100.0, 100.1, 100.2, 100.6])
+    monkeypatch.setattr(app_module, "perf_counter", lambda: next(clock), raising=False)
+
+    await app_module.on_message(_DummyMessage("hello"))
+
+    trim_messages = [
+        content for content in _StubOutboundMessage.sent if "[trim]" in content
+    ]
+
+    assert trim_messages, "[trim] message should always be emitted"
+    assert any("retention 0.7" in content for content in trim_messages)
 
 
 @pytest.mark.anyio

@@ -58,3 +58,18 @@ def test_prepare_provider_options_parallel_flag(app_module, model_id: str, expec
         if reasoning is None:
             return
         assert reasoning.get("parallel") in (None, False)
+
+
+@pytest.mark.parametrize(
+    "model_id",
+    [
+        "gpt-5-thinking",
+        "gpt-5-thinking-mini",
+    ],
+)
+def test_prepare_provider_options_thinking_effort_default(app_module, model_id: str) -> None:
+    options = app_module._prepare_provider_options(model_id, {})
+    reasoning = options.get("reasoning")
+
+    assert reasoning is not None
+    assert reasoning.get("effort") == app_module._REASONING_DEFAULT["effort"]

@@ -30,7 +30,7 @@ def test_analyze_intent_reflects_user_keywords() -> None:
     ).strip()
 
     result = analyze_intent(text)
-    sections = dict(line.split(": ", 1) for line in result.splitlines())
+    sections = _sections_from_output(result)
 
     assert "解約率" in sections["目的"]
     assert "既存API" in sections["制約"]

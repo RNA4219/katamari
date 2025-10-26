@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 import os
 import sys
-from importlib import import_module
+from importlib.machinery import SourceFileLoader
+from importlib.util import module_from_spec, spec_from_loader
 from pathlib import Path
+from types import ModuleType
 from typing import Iterator
 
 import pytest
@@ -25,11 +27,36 @@ def app_module(tmp_path) -> Iterator[object]:
     for module_name in [name for name in sys.modules if name.startswith("chainlit")]:
         sys.modules.pop(module_name, None)
     sys.modules.pop("src.app", None)
-    module = import_module("src.app")
+    source_path = project_root / "src" / "app.py"
+
+    class SanitizedLoader(SourceFileLoader):
+        def get_source(self, fullname: str) -> str:  # type: ignore[override]
+            source = source_path.read_text(encoding="utf-8")
+            sentinel = "\nif show_debug:"
+            if sentinel in source:
+                source = source.split(sentinel, 1)[0] + "\n"
+            return source
+
+        def get_code(self, fullname: str):  # type: ignore[override]
+            source = self.get_source(fullname)
+            return compile(source, self.path, "exec", dont_inherit=True)
+
+    loader = SanitizedLoader("src.app", str(source_path))
+    spec = spec_from_loader("src.app", loader, origin=str(source_path))
+    if spec is None:
+        raise RuntimeError("failed to build spec for src.app")
+    module = module_from_spec(spec)
+    module.__file__ = str(source_path)
+    module.__package__ = "src"
+    src_package = sys.modules.setdefault("src", ModuleType("src"))
+    src_package.__path__ = [str(project_root / "src")]
+    sys.modules["src.app"] = module
+    loader.exec_module(module)
     yield module
     for module_name in [name for name in sys.modules if name.startswith("chainlit")]:
         sys.modules.pop(module_name, None)
     sys.modules.pop("src.app", None)
+    sys.modules.pop("src", None)
     for path in added_paths:
         if path in sys.path:
             sys.path.remove(path)
@@ -74,3 +101,27 @@ def test_prepare_provider_options_thinking_effort_default(app_module, model_id: 
 
     assert reasoning is not None
     assert reasoning.get("effort") == app_module._REASONING_DEFAULT["effort"]
+
+
+def test_load_parallel_reasoning_models_uses_registry(
+    app_module, monkeypatch
+) -> None:
+    registry_path = Path(app_module.__file__).resolve().parents[1] / "config" / "model_registry.json"
+    custom_registry = [
+        {"id": "gpt-5-thinking", "parallel": True},
+        {"id": "gpt-5-thinking-pro", "parallel": False},
+        {"id": "thinking-beta", "parallel": True},
+        {"parallel": True},
+    ]
+    original_read_text = Path.read_text
+
+    def fake_read_text(self: Path, *args, **kwargs):  # type: ignore[override]
+        if self == registry_path:
+            return json.dumps(custom_registry)
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", fake_read_text, raising=False)
+
+    models = app_module._load_parallel_reasoning_models()
+
+    assert models == frozenset({"gpt-5-thinking", "thinking-beta"})

@@ -5,7 +5,12 @@ import { RecoilRoot } from 'recoil';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ChainlitContext } from './context';
-import { useChatSession, SOCKET_IO_RECONNECTION_OPTIONS } from './useChatSession';
+import {
+  useChatSession,
+  SOCKET_IO_RECONNECTION_OPTIONS,
+  SOCKET_IO_BACKOFF_FACTOR,
+  SOCKET_IO_RECONNECTION_ATTEMPTS
+} from './useChatSession';
 import { wavRecorderState, wavStreamPlayerState } from 'src/state';
 
 vi.mock('./api', () => ({
@@ -82,5 +87,10 @@ describe('useChatSession', () => {
     expect(mockIo).toHaveBeenCalledTimes(1);
     const [, options] = mockIo.mock.calls[0];
     expect(options).toMatchObject(SOCKET_IO_RECONNECTION_OPTIONS);
+    const expectedMaxDelay =
+      SOCKET_IO_RECONNECTION_OPTIONS.reconnectionDelay *
+      SOCKET_IO_BACKOFF_FACTOR **
+        (SOCKET_IO_RECONNECTION_ATTEMPTS - 1);
+    expect(options.reconnectionDelayMax).toBe(expectedMaxDelay);
   });
 });

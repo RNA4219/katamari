@@ -55,6 +55,17 @@ import { OutputAudioChunk } from './types/audio';
 import { ChainlitContext } from './context';
 import type { IToken } from './useChatData';
 
+const RECONNECTION_ATTEMPTS = 3;
+const RECONNECTION_DELAY_MS = 1000;
+const RECONNECTION_DELAY_MAX_MS = RECONNECTION_DELAY_MS * 4;
+
+export const SOCKET_IO_RECONNECTION_OPTIONS = {
+  reconnectionAttempts: RECONNECTION_ATTEMPTS,
+  reconnectionDelay: RECONNECTION_DELAY_MS,
+  reconnectionDelayMax: RECONNECTION_DELAY_MAX_MS,
+  randomizationFactor: 0
+} as const;
+
 const useChatSession = () => {
   const client = useContext(ChainlitContext);
   const sessionId = useRecoilValue(sessionIdState);
@@ -118,6 +129,7 @@ const useChatSession = () => {
         path,
         withCredentials: true,
         transports,
+        ...SOCKET_IO_RECONNECTION_OPTIONS,
         auth: {
           clientType: client.type,
           sessionId,

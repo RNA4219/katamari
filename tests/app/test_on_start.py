@@ -153,3 +153,22 @@ async def test_on_start_preserves_existing_session_values(monkeypatch, app_modul
         "min_turns": 0,
         "show_debug": False,
     }
+
+
+@pytest.mark.anyio
+async def test_on_start_reuses_persona_yaml_from_session(app_module) -> None:
+    persona_yaml = "name: Tester\nstyle: friendly"
+
+    await app_module.apply_settings({"persona_yaml": persona_yaml})
+
+    _StubChatSettings.value_factory = lambda: {
+        **_session_snapshot(app_module),
+        "persona_yaml": app_module._session_get("persona_yaml"),
+    }
+
+    await app_module.on_start()
+
+    chat_settings = _StubChatSettings.instances[-1]
+    widgets = {widget.id: widget for widget in chat_settings.inputs}
+
+    assert widgets["persona_yaml"].initial == persona_yaml

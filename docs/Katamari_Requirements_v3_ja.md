@@ -26,10 +26,10 @@ LLM入出力の基盤機能（前処理・多段推論・人格YAML・最適化�
 - 前処理API：persona-compiler / context-trimmer / prethought
 - 実行API：multistep（reflectチェーン）
 - 進化API：prompt-evolution（M2以降）
-- `/metrics`（Prometheus）と`/healthz` の提供（`/api/models` は計画中），最小ログ
+- `/metrics`（Prometheus）と`/healthz` の提供（`/api/models` は計画中）。両エンドポイントは `CHAINLIT_AUTH_SECRET` に基づく Bearer 認証を必須とする。
 
 ### 1.2 含まない
-- 重厚な認証（M1.5でOAuthまで）
+- OAuth 認証（M1.5で導入予定）
 - 課金・請求管理
 - 画像/音声/アニメ系
 
@@ -48,14 +48,14 @@ LLM入出力の基盤機能（前処理・多段推論・人格YAML・最適化�
 - **FR-05**：chain=single|reflect（3段Step表示）
 - **FR-06**：ログ：`req_id, model, token_in/out, compress_ratio, step_latency_ms`
   - **注記（2025-10-22 更新）**：`src/core_ext/logging.py` の `StructuredLogger` と `src/app.py` の `REQUEST_LOGGER` が要件フィールド（`req_id`/`model`/`token_in`/`token_out`/`compress_ratio`/`step_latency_ms`/`retryable`/`latency_ms`）を JSON で出力する。検証は `tests/app/test_logging.py` で自動化済み。
-- **FR-07**：`/healthz`・`/metrics`（M1以降）
+- **FR-07**：`/healthz`・`/metrics`（M1以降／`Authorization: Bearer <CHAINLIT_AUTH_SECRET>` 必須）
 - **FR-08（M2）**：`/evolve`（BERTScore→ROUGE→ルール順） ※M2予定・現状未実装。
 
 ## 4. 非機能（NFR）
 - UI反映遅延 ≤ 300ms（SSE→描画）
 - SSE自動再接続（指数バックオフ、最大3回）※計画中。2025-10-22 現在は未実装であり、対応方針は今後起票予定の Task Seed「SSE自動再接続実装」を参照。
-- 認証：M1 Header Auth → M1.5 OAuth（`CHAINLIT_AUTH_SECRET`）
-- **注記（2025-10-19 現在）**：Header Auth/OAuth は未実装で、現行リリースは Chainlit 既定の無認証挙動。対策タスクは [`TASK.2025-10-19-0002.md`](../TASK.2025-10-19-0002.md) を参照。
+- 認証：M1 でサービス系エンドポイント（`/healthz`・`/metrics`）に `CHAINLIT_AUTH_SECRET` を Bearer Token として適用 → M1.5 で OAuth（Chainlit設定準拠）に拡張
+- **注記（2025-10-23 更新）**：`/healthz`・`/metrics` は `Authorization: Bearer <CHAINLIT_AUTH_SECRET>` が必須です。Chainlit UI は引き続き無認証で稼働しており、M1.5 で OAuth を導入予定です。対策タスクは [`TASK.2025-10-19-0002.md`](../TASK.2025-10-19-0002.md) を参照。
 - Upstream追従：週次、差分は `core_ext/` に隔離
 
 ## 5. データモデル（抜粋）
@@ -77,13 +77,13 @@ notes: |
 - AC-01：Settings更新→即System差替・ログ出力
 - AC-02：Trim実行→`compress_ratio` 表示（0.3–0.8）※保持率は UI 未表示だが `/metrics` では埋め込み由来の実測値（`-1.0〜1.0`、欠損時 `null`）を提供
 - AC-03：reflect 3段の順序でストリーム可視化
-- AC-04：M1でHeader Auth→M1.5でOAuth有効化
-- **注記（2025-10-19 現在）**：上記認証要件は未着手のため、当面は Chainlit 既定の無認証挙動を継続する。対応後に本注記を撤回すること（[`TASK.2025-10-19-0002.md`](../TASK.2025-10-19-0002.md)）。
+- AC-04：M1で `/healthz`・`/metrics` に `CHAINLIT_AUTH_SECRET` ベースの Bearer 認証を適用 → M1.5でOAuthを有効化
+- **注記（2025-10-23 更新）**：M1の Bearer 認証は `/healthz`・`/metrics` で運用中です。Chainlit UI の OAuth 適用は未完了のため、M1.5 完了まで既定の無認証挙動が継続します。対応タスクは [`TASK.2025-10-19-0002.md`](../TASK.2025-10-19-0002.md) を参照。
 - AC-05：Apache-2.0遵守（LICENSE/NOTICE/変更点）
 
 ## 7. マイルストーン / 工数（1名）
 - **M0（6h）**：Settings/SSE/Trim/Persona簡易/Reflect/最小ログ（`/healthz`・`/metrics` 実装）
-- **M1（8h）**：prethought・保持率推定（埋め込み）・`/metrics`・Header Auth・Healthz ※保持率は UI 未表示／`/metrics` は実測値（`-1.0〜1.0`、欠損時 `null`）
+- **M1（8h）**：prethought・保持率推定（埋め込み）・`/metrics`（`Authorization: Bearer <CHAINLIT_AUTH_SECRET>`）・Healthz（同認証） ※保持率は UI 未表示／`/metrics` は実測値（`-1.0〜1.0`、欠損時 `null`）
 - **M1.5（4–6h）**：OAuth・厳密トークンカウント・UI微調整
 - **M2（12–16h）**：prompt-evolution（BERTScore→ROUGE→ルール）・スコアボード ※M2予定・現状未実装。
 - **M2.5（8–12h 任意）**：Postgres永続化

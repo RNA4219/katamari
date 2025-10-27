@@ -1,6 +1,13 @@
 from __future__ import annotations
 
+import shutil
 import subprocess
+
+import pytest
+
+
+if shutil.which("make") is None:
+    pytest.skip("'make' command not found", allow_module_level=True)
 
 
 def run_make_dry(target: str) -> list[str]:

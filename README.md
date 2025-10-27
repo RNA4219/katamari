@@ -147,7 +147,7 @@ GitHub Container Registry への公開フローは [docs/addenda/H_Deploy_Guide.
 
 - `GET /healthz`: Chainlit アプリの Liveness。`{"status":"ok"}` を返却。
 - `GET /metrics`: Prometheus Text Format (`compress_ratio`, `semantic_retention`) を露出。`semantic_retention` は Trim 後の会話文脈と最新応答の埋め込み類似度を返却し、計算対象がない場合は Prometheus では `NaN`、CLI/JSON 収集（例: `scripts/perf/collect_metrics.py`）では `null` としてエクスポートされる。
-- **運用メモ（2025-10-23 現在）**：`/healthz`・`/metrics` は `Authorization: Bearer <CHAINLIT_AUTH_SECRET>` を必須化済み。Chainlit UI 本体は引き続き無認証で公開されるため、監視トークン配布と UI への OAuth 導入（[`TASK.2025-10-19-0002.md`](TASK.2025-10-19-0002.md)）を並行管理する。
+- **運用メモ（2025-10-23 現在）**：`/healthz`・`/metrics` へのアクセスは常に `Authorization: Bearer <CHAINLIT_AUTH_SECRET>` ヘッダーが必要。`CHAINLIT_AUTH_SECRET` が未設定または値が一致しない場合は HTTP 401 を返す。Chainlit UI 本体は引き続き無認証で公開されるため、監視トークン配布と UI への OAuth 導入（[`TASK.2025-10-19-0002.md`](TASK.2025-10-19-0002.md)）を並行管理する。
 
 ## 変更履歴の更新ルール
 

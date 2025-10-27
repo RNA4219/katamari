@@ -284,6 +284,7 @@ async def test_on_message_uses_formatter_for_trim_message_when_debug_disabled(
         }
     ]
     assert formatted_messages == [_StubOutboundMessage.sent[0]]
+    assert _StubOutboundMessage.sent.count(formatted_messages[0]) == 1
 
 @pytest.mark.anyio
 async def test_on_message_emits_trim_and_streams_tokens_when_debug_enabled(

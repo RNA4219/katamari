@@ -224,3 +224,36 @@ async def test_on_start_uses_saved_persona_yaml_after_settings_update(app_module
     widgets = {widget.id: widget for widget in chat_settings.inputs}
 
     assert widgets["persona_yaml"].initial == persona_yaml
+
+
+@pytest.mark.anyio
+async def test_on_start_restores_values_saved_via_apply_settings(app_module) -> None:
+    await app_module.apply_settings(
+        {
+            "trim_tokens": 2048,
+            "min_turns": 3,
+            "show_debug": True,
+            "system": "custom override",
+        }
+    )
+
+    _StubChatSettings.value_factory = lambda: {
+        **_session_snapshot(app_module),
+        "system": app_module._session_get("system"),
+    }
+
+    await app_module.on_start()
+
+    session = app_module.cl.user_session
+    assert session.get("trim_tokens") == 2048
+    assert session.get("min_turns") == 3
+    assert session.get("show_debug") is True
+    assert session.get("system") == "custom override"
+
+    chat_settings = _StubChatSettings.instances[-1]
+    widgets = {widget.id: widget for widget in chat_settings.inputs}
+
+    assert widgets["trim_tokens"].initial == 2048
+    assert widgets["min_turns"].initial == 3
+    assert widgets["show_debug"].initial is True
+    assert chat_settings.last_payload.get("system") == "custom override"

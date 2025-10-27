@@ -423,28 +423,42 @@ async def on_start() -> None:
             return bool(value)
         return False
 
-    existing_trim = _to_int(_session_get("trim_tokens"))
-    trim_tokens = existing_trim if existing_trim > 0 else 4096
+    existing_trim_raw = _session_get("trim_tokens")
+    existing_trim = _to_int(existing_trim_raw)
+    if existing_trim > 0:
+        trim_tokens = existing_trim
+        if existing_trim_raw != existing_trim:
+            _session_set("trim_tokens", trim_tokens)
+    else:
+        trim_tokens = 4096
+        _session_set("trim_tokens", trim_tokens)
 
-    existing_min_turns = _to_int(_session_get("min_turns"))
-    min_turns = existing_min_turns if existing_min_turns >= 0 else 0
+    existing_min_turns_raw = _session_get("min_turns")
+    existing_min_turns = _to_int(existing_min_turns_raw)
+    if existing_min_turns >= 0:
+        min_turns = existing_min_turns
+        if existing_min_turns_raw != existing_min_turns:
+            _session_set("min_turns", min_turns)
+    else:
+        min_turns = 0
+        _session_set("min_turns", min_turns)
 
     existing_show_debug = _session_get("show_debug")
-    show_debug = _coerce_bool(existing_show_debug)
+    if isinstance(existing_show_debug, bool):
+        show_debug = existing_show_debug
+    else:
+        show_debug = _coerce_bool(existing_show_debug)
+        _session_set("show_debug", show_debug)
 
     existing_system = _session_get("system")
-    system_prompt = (
-        existing_system
-        if isinstance(existing_system, str) and existing_system.strip()
-        else DEFAULT_SYSTEM_PROMPT
-    )
+    if isinstance(existing_system, str) and existing_system.strip():
+        system_prompt = existing_system
+    else:
+        system_prompt = DEFAULT_SYSTEM_PROMPT
+        _session_set("system", system_prompt)
 
     _session_set("model", selected_model)
     _session_set("chain", selected_chain)
-    _session_set("trim_tokens", trim_tokens)
-    _session_set("min_turns", min_turns)
-    _session_set("system", system_prompt)
-    _session_set("show_debug", show_debug)
 
     def _resolve_initial_index(values: Sequence[str], selected: str) -> int:
         try:
@@ -464,8 +478,11 @@ async def on_start() -> None:
 
     show_debug = _coerce_bool(_session_get("show_debug"))
     persona_yaml_value = _session_get("persona_yaml")
-    persona_yaml = persona_yaml_value if isinstance(persona_yaml_value, str) else ""
-    _session_set("persona_yaml", persona_yaml)
+    if isinstance(persona_yaml_value, str):
+        persona_yaml = persona_yaml_value
+    else:
+        persona_yaml = ""
+        _session_set("persona_yaml", persona_yaml)
 
     chat_settings = cl.ChatSettings(
         inputs=[
@@ -537,6 +554,12 @@ async def apply_settings(settings: Mapping[str, Any]) -> None:
 
         _session_set("history", new_history)
 
+    system_override: str | None = None
+    if "system" in settings:
+        raw_system = settings.get("system")
+        if isinstance(raw_system, str) and raw_system.strip():
+            system_override = raw_system
+
     for key in ("model", "chain", "trim_tokens", "min_turns", "show_debug"):
         if key in settings:
             _session_set(key, settings.get(key))
@@ -561,6 +584,11 @@ async def apply_settings(settings: Mapping[str, Any]) -> None:
             _sync_history_system(system)
             if issues:
                 await _send_message(content="\n".join(["[persona issues]"] + issues))
+            return
+
+    if system_override is not None:
+        _session_set("system", system_override)
+        _sync_history_system(system_override)
 
 @cl.on_message
 async def on_message(message: cl.Message) -> None:

@@ -37,14 +37,14 @@ LLM入出力の基盤機能（前処理・多段推論・人格YAML・最適化�
 1) Prethought→Persona→Trim→推論→SSE表示  
 2) Reflectチェーン：draft→critique→final をStepで可視化  
 3) Persona YAML→Systemの即時適用  
-4) 履歴肥大化時のTrim（圧縮率・保持率表示）※保持率表示は未実装（計画中）
+4) 履歴肥大化時のTrim（圧縮率表示／`show_debug` = ON かつ保持率推定が得られた場合は保持率も表示）
 5) 進化（M2）：評価→最良プロンプト更新
 
 ## 3. 機能要件（FR）
 - **FR-01**：SSEストリーム（初回トークン p95 ≤ 1.0s）
 - **FR-02**：Settings集約：model / chain / trim_tokens / persona_yaml / show_debug
 - **FR-03**：Persona YAML→System（禁則チェックログ付）
-- **FR-04**：Trim（最後Nターン保持）＋圧縮率表示
+- **FR-04**：Trim（最後Nターン保持）＋圧縮率表示（`show_debug` = ON で保持率推定が利用可能な場合は `[trim]` メッセージに `retention` を併記し、`[trim][debug]` メッセージでも保持率を再掲）
 - **FR-05**：chain=single|reflect（3段Step表示）
 - **FR-06**：ログ：`req_id, model, token_in/out, compress_ratio, step_latency_ms`
   - **注記（2025-10-22 更新）**：`src/core_ext/logging.py` の `StructuredLogger` と `src/app.py` の `REQUEST_LOGGER` が要件フィールド（`req_id`/`model`/`token_in`/`token_out`/`compress_ratio`/`step_latency_ms`/`retryable`/`latency_ms`）を JSON で出力する。検証は `tests/app/test_logging.py` で自動化済み。
@@ -75,7 +75,7 @@ notes: |
 
 ## 6. 受け入れ基準（AC）
 - AC-01：Settings更新→即System差替・ログ出力
-- AC-02：Trim実行→`compress_ratio` 表示（0.3–0.8）※保持率は UI 未表示だが `/metrics` では埋め込み由来の実測値（`-1.0〜1.0`、欠損時 `null`）を提供
+- AC-02：Trim実行→`compress_ratio` 表示（0.3–0.8）／`show_debug` = ON かつ保持率推定が得られた場合は `[trim]` および `[trim][debug]` メッセージで保持率（`-1.0〜1.0`、欠損時 `null`）を表示し、同値を `/metrics` にも反映
 - AC-03：reflect 3段の順序でストリーム可視化
 - AC-04：M1で `/healthz`・`/metrics` に `CHAINLIT_AUTH_SECRET` ベースの Bearer 認証を適用 → M1.5でOAuthを有効化
 - **注記（2025-10-23 更新）**：M1の Bearer 認証は `/healthz`・`/metrics` で運用中です。Chainlit UI の OAuth 適用は未完了のため、M1.5 完了まで既定の無認証挙動が継続します。対応タスクは [`TASK.2025-10-19-0002.md`](../TASK.2025-10-19-0002.md) を参照。

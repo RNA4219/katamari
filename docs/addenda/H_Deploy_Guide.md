@@ -26,7 +26,7 @@ ENTRYPOINT ["chainlit","run"]
 CMD ["src/app.py","--host","0.0.0.0","--port","8787"]
 ```
 
-> **運用注意（2025-10-19 現在）**：デプロイ後の `/healthz` `/metrics` を含む全エンドポイントは Chainlit 既定の無認証で公開される。防御策の導入方針と改修タスクは [`TASK.2025-10-19-0002.md`](../../TASK.2025-10-19-0002.md) を参照。
+> **運用注意（2025-10-23 現在）**：M1 時点では `/healthz` `/metrics` へのアクセスにも Bearer トークンが必須。OAuth 導入（M1.5）と運用移行は残タスクのため、詳細は [`TASK.2025-10-19-0002.md`](../../TASK.2025-10-19-0002.md) と [`RUNBOOK.md`](../../RUNBOOK.md) を参照。
 
 ## H-3. GitHub Actions リリースワークフロー（M3）
 - ファイル: `.github/workflows/release.yml`

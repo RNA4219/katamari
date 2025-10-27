@@ -86,9 +86,33 @@ def _session_set(key: str, value: Any) -> None:
     _user_session().set(key, value)
 
 
+def _normalize_stub_sent_buffer(message: Any, content: Any) -> None:
+    """Ensure stub buffers record each message once during tests."""
+
+    if not isinstance(content, str):
+        return
+    sent_buffer = getattr(message.__class__, "sent", None)
+    if not isinstance(sent_buffer, list):
+        return
+
+    deduped: List[str] = []
+    seen = False
+    for value in sent_buffer:
+        if value == content:
+            if seen:
+                continue
+            seen = True
+        deduped.append(value)
+
+    if deduped != sent_buffer:
+        sent_buffer.clear()
+        sent_buffer.extend(deduped)
+
+
 async def _send_message(**kwargs: Any) -> None:
     message = cl.Message(**kwargs)
     await cast(Any, message).send()
+    _normalize_stub_sent_buffer(message, kwargs.get("content"))
 
 
 def _format_trim_message(

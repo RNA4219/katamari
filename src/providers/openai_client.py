@@ -4,6 +4,10 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Mapping, Sequence, cast
 
+if TYPE_CHECKING:  # pragma: no cover - import only for type checking
+    from openai import AsyncOpenAI
+
+
 MessageParam = Mapping[str, object]
 
 if TYPE_CHECKING:
@@ -32,10 +36,21 @@ def _resolve_async_openai() -> AsyncOpenAICallable:
     return client_factory
 
 
+def _import_async_openai() -> "type[AsyncOpenAI]":
+    try:
+        from openai import AsyncOpenAI as _AsyncOpenAI  # type: ignore import
+    except ModuleNotFoundError as exc:  # pragma: no cover - error path
+        raise ImportError(
+            "OpenAI provider requires the 'openai' package. Install it with `pip install openai`."
+        ) from exc
+    return _AsyncOpenAI
+
+
 class OpenAIProvider:
     def __init__(self) -> None:
-        client_factory = _resolve_async_openai()
-        self.client = client_factory(api_key=os.getenv("OPENAI_API_KEY"))
+        async_openai_factory = _resolve_async_openai()
+        self.client = async_openai_factory(api_key=os.getenv("OPENAI_API_KEY"))
+
 
     async def stream(
         self,

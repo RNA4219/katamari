@@ -9,8 +9,8 @@ M0a-6,M0a,/healthz & /metrics endpoints with logging,0.5,,M0a-3
 M0b-1,M0b,Trim ratio display,0.5,,M0a-4
 M0b-2,M0b,Persona issues log,0.3,,M0a-4
 M1-1,M1,Prethought analyzer,1.0,,M0b-2
-M1-2,M1,Retention (embedding) metric,1.5,,M1-1
-M1-3,M1,/metrics dummy enrichment & healthz monitoring,0.8,,M0b-1
+M1-2,M1,Trim前後埋め込み保持率semantic_retentionの算出と/metrics公開,1.5,,M1-1
+M1-3,M1,/healthz運用監視（readiness/liveness判定とアラート整備）,0.8,,M0b-1
 M1-4,M1,Header Auth,0.8,,M0b-1
 M1.5-1,M1.5,OAuth enable,2.0,,M1-4
 M1.5-2,M1.5,Strict token counting,1.5,,M0b-1

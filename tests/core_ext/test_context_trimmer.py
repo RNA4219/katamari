@@ -63,6 +63,21 @@ def test_trim_messages_respects_min_turns() -> None:
     ]
 
 
+def test_trim_messages_min_turns_zero_keeps_latest_user_over_budget() -> None:
+    messages: List[Dict[str, str]] = [
+        {"role": "system", "content": "System"},
+        {"role": "user", "content": "small talk"},
+        {"role": "assistant", "content": "ack"},
+        {"role": "user", "content": "final" * 2000},
+    ]
+
+    trimmed, _ = trim_messages(messages, target_tokens=16, model="legacy-model", min_turns=0)
+
+    assert trimmed[-1] == {"role": "user", "content": "final" * 2000}
+    assert trimmed[0]["role"] == "system"
+    assert {"role": "user", "content": "small talk"} not in trimmed
+
+
 def test_trim_messages_defaults_preserve_behavior() -> None:
     messages: List[Dict[str, str]] = [
         {"role": "system", "content": "System"},

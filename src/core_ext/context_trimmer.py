@@ -160,14 +160,20 @@ def trim_messages(
             turns_kept += 1
         kept = [message for turn in reversed(kept_turns) for message in turn]
     else:
+        turns = _group_conversation_turns(conversation)
+        latest_turn = turns[-1] if turns else []
+        forced_ids = {id(message) for message in latest_turn}
         kept = []
         total = 0
         for message in reversed(conversation):
             tokens = counter.count(str(message.get("content", "")))
-            if total + tokens > budget:
+            should_force = id(message) in forced_ids
+            if not should_force and total + tokens > budget:
                 break
             kept.append(message)
             total += tokens
+            if should_force:
+                forced_ids.discard(id(message))
         kept.reverse()
 
     output_messages = kept_system_messages + kept

@@ -243,6 +243,47 @@ async def test_on_message_logs_defaults_when_trim_fails(
 
 
 @pytest.mark.anyio
+async def test_on_message_logs_failure_when_provider_init_errors(
+    monkeypatch, app_module, stub_chainlit
+):
+    metrics = {
+        "input_tokens": 10,
+        "output_tokens": 5,
+        "compress_ratio": 0.5,
+        "semantic_retention": None,
+    }
+
+    def _fake_trim(history, *_args: Any, **_kwargs: Any):
+        return list(history), dict(metrics)
+
+    async def _fake_ensure_retention(*_args: Any, **_kwargs: Any) -> None:
+        return None
+
+    error = RuntimeError("provider boom")
+
+    monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
+    monkeypatch.setattr(app_module, "_ensure_semantic_retention", _fake_ensure_retention)
+    monkeypatch.setattr(app_module.METRICS_REGISTRY, "observe_trim", lambda **_kwargs: None)
+    monkeypatch.setattr(app_module, "get_provider", Mock(side_effect=error))
+    monkeypatch.setattr(app_module, "get_chain_steps", lambda _chain_id: ["final"])
+
+    emitted: list[InferenceLogRecord] = []
+
+    def _capture(record: InferenceLogRecord) -> None:
+        emitted.append(record)
+
+    monkeypatch.setattr(app_module.REQUEST_LOGGER, "emit", _capture)
+
+    with pytest.raises(RuntimeError):
+        await app_module.on_message(_DummyMessage("hello"))
+
+    assert len(emitted) == 1
+    record = emitted[0]
+    assert record.status == "failure"
+    assert record.error == str(error)
+
+
+@pytest.mark.anyio
 async def test_on_message_uses_formatter_for_trim_message_when_debug_disabled(
     monkeypatch, app_module, stub_chainlit
 ):

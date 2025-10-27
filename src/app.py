@@ -608,8 +608,15 @@ async def on_message(message: cl.Message) -> None:
                 await _send_message(content=f"[trim][debug] {', '.join(debug_parts)}")
 
         # 3) Run chain
-        provider = get_provider(model)
-        steps = get_chain_steps(chain_id)
+        try:
+            provider = get_provider(model)
+            steps = get_chain_steps(chain_id)
+        except BaseException as exc:
+            status = "failure"
+            error_message = str(exc) or exc.__class__.__name__
+            retryable = _resolve_retryable(exc)
+            raise
+
         for idx, step_name in enumerate(steps, start=1):
             step_label = f"Step {idx}: {step_name}"
             step_start = perf_counter()
@@ -646,9 +653,10 @@ async def on_message(message: cl.Message) -> None:
                 elapsed_ms = (perf_counter() - step_start) * 1000.0
                 step_timings.append({"step": step_label, "latency_ms": elapsed_ms})
     except BaseException as exc:
-        status = "failure"
-        error_message = str(exc) or exc.__class__.__name__
-        retryable = _resolve_retryable(exc)
+        if status != "failure" or error_message is None:
+            status = "failure"
+            error_message = str(exc) or exc.__class__.__name__
+            retryable = _resolve_retryable(exc)
         raise
     finally:
         total_latency_ms = (perf_counter() - overall_start) * 1000.0

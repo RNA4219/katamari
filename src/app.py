@@ -550,60 +550,66 @@ async def on_message(message: cl.Message) -> None:
         hist.insert(0, _chat_message("system", system))
     hist.append(_chat_message("user", message.content))
 
-    trimmed_raw, metrics_raw = trim_messages(
-        hist,
-        target_tokens,
-        model,
-        min_turns=min_turns,
-    )
-    trimmed = cast(ChatHistory, list(trimmed_raw))
-    metrics: MetricsPayload = dict(metrics_raw)
-    semantic_retention_raw = await _ensure_semantic_retention(hist, trimmed, metrics)
-    token_in = _to_int(metrics.get("input_tokens"))
-    token_out = _to_int(metrics.get("output_tokens"))
-    compress_ratio = _to_float(metrics.get("compress_ratio"))
-    semantic_retention = (
-        _to_float(semantic_retention_raw)
-        if semantic_retention_raw is not None
-        else None
-    )
-    if isinstance(semantic_retention, float) and math.isnan(semantic_retention):
-        semantic_retention = None
-    metrics["semantic_retention"] = semantic_retention
-    METRICS_REGISTRY.observe_trim(
-        compress_ratio=compress_ratio,
-        semantic_retention=semantic_retention,
-    )
-    _session_set("history", trimmed)
-    _session_set("trim_metrics", metrics)
-    trim_message = _format_trim_message(
-        token_out=token_out,
-        token_in=token_in,
-        compress_ratio=compress_ratio,
-        show_retention=show_debug,
-        semantic_retention=semantic_retention,
-    )
-    if show_debug and intent:
-        await _send_message(content=f"[prethought]\n{intent}")
-    await _send_message(content=trim_message)
-
-    if show_debug:
-        debug_parts: list[str] = []
-        if semantic_retention is not None:
-            debug_parts.append(f"retention {semantic_retention}")
-        if debug_parts:
-            await _send_message(content=f"[trim][debug] {', '.join(debug_parts)}")
-
-
-    # 3) Run chain
-    provider = get_provider(model)
-    steps = get_chain_steps(chain_id)
+    trimmed: ChatHistory = []
+    metrics: MetricsPayload = {}
     step_timings: List[StepLatency] = []
-    overall_start = perf_counter()
     status: Literal["success", "failure"] = "success"
     error_message: str | None = None
     retryable: bool | None = None
+    token_in = 0
+    token_out = 0
+    compress_ratio = 1.0
+    semantic_retention: float | None = None
+    overall_start = perf_counter()
+
     try:
+        trimmed_raw, metrics_raw = trim_messages(
+            hist,
+            target_tokens,
+            model,
+            min_turns=min_turns,
+        )
+        trimmed = cast(ChatHistory, list(trimmed_raw))
+        metrics = dict(metrics_raw)
+        semantic_retention_raw = await _ensure_semantic_retention(hist, trimmed, metrics)
+        token_in = _to_int(metrics.get("input_tokens"))
+        token_out = _to_int(metrics.get("output_tokens"))
+        compress_ratio = _to_float(metrics.get("compress_ratio"), default=1.0)
+        semantic_retention = (
+            _to_float(semantic_retention_raw)
+            if semantic_retention_raw is not None
+            else None
+        )
+        if isinstance(semantic_retention, float) and math.isnan(semantic_retention):
+            semantic_retention = None
+        metrics["semantic_retention"] = semantic_retention
+        METRICS_REGISTRY.observe_trim(
+            compress_ratio=compress_ratio,
+            semantic_retention=semantic_retention,
+        )
+        _session_set("history", trimmed)
+        _session_set("trim_metrics", metrics)
+        trim_message = _format_trim_message(
+            token_out=token_out,
+            token_in=token_in,
+            compress_ratio=compress_ratio,
+            show_retention=show_debug,
+            semantic_retention=semantic_retention,
+        )
+        if show_debug and intent:
+            await _send_message(content=f"[prethought]\n{intent}")
+        await _send_message(content=trim_message)
+
+        if show_debug:
+            debug_parts: list[str] = []
+            if semantic_retention is not None:
+                debug_parts.append(f"retention {semantic_retention}")
+            if debug_parts:
+                await _send_message(content=f"[trim][debug] {', '.join(debug_parts)}")
+
+        # 3) Run chain
+        provider = get_provider(model)
+        steps = get_chain_steps(chain_id)
         for idx, step_name in enumerate(steps, start=1):
             step_label = f"Step {idx}: {step_name}"
             step_start = perf_counter()

@@ -195,6 +195,7 @@ def test_operations_endpoints_require_bearer_token(
         "  BeArEr {token}",
         "Bearer   {token}",
         "\tBEARER {token}",
+        "  bearer   {token}   ",
     ],
 )
 def test_operations_endpoints_accept_case_insensitive_bearer_headers(

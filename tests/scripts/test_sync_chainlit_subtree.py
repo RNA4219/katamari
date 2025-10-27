@@ -133,6 +133,35 @@ def test_subtree_failure_bubbles_up(
     assert any("git subtree pull" in line for line in log_lines)
 
 
+def test_remote_is_used_for_subtree_pull(
+    fake_repo: Path, subprocess_calls: List[List[str]], tmp_path: Path
+) -> None:
+    _ensure_bash_available()
+
+    git_bin, log_path = _write_git_stub(tmp_path, fail_on_subtree=False)
+    env = os.environ.copy()
+    env["GIT_BIN"] = str(git_bin)
+
+    subprocess.run(
+        [*_base_command(), "--remote", "origin"],
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=fake_repo,
+        env=env,
+    )
+
+    assert subprocess_calls[0][0].endswith("sync_chainlit_subtree.sh")
+    assert subprocess_calls[0][-1] == "origin"
+
+    log_lines = log_path.read_text(encoding="utf-8").strip().splitlines()
+    subtree_line = next(
+        (line for line in log_lines if "git subtree pull" in line),
+        "",
+    )
+    assert "git subtree pull --prefix upstream/chainlit origin v1.2.3" in subtree_line
+
+
 def test_skips_when_bash_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(shutil, "which", lambda _: None)
 

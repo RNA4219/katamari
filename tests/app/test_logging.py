@@ -241,6 +241,7 @@ async def test_on_message_uses_formatter_for_trim_message_when_debug_disabled(
     _StubOutboundMessage.sent.clear()
 
     observed_calls: list[dict[str, Any]] = []
+    formatted_messages: list[str] = []
 
     def _fake_format_trim_message(
         *,
@@ -259,9 +260,11 @@ async def test_on_message_uses_formatter_for_trim_message_when_debug_disabled(
                 "semantic_retention": semantic_retention,
             }
         )
-        return (
+        formatted = (
             f"[trim] tokens: {token_out}/{token_in} (ratio {compress_ratio})"
         )
+        formatted_messages.append(formatted)
+        return formatted
 
     monkeypatch.setattr(
         app_module,
@@ -270,6 +273,17 @@ async def test_on_message_uses_formatter_for_trim_message_when_debug_disabled(
     )
 
     await app_module.on_message(_DummyMessage("hello"))
+
+    assert observed_calls == [
+        {
+            "token_out": metrics["output_tokens"],
+            "token_in": metrics["input_tokens"],
+            "compress_ratio": metrics["compress_ratio"],
+            "show_retention": False,
+            "semantic_retention": metrics["semantic_retention"],
+        }
+    ]
+    assert formatted_messages == [_StubOutboundMessage.sent[0]]
 
 @pytest.mark.anyio
 async def test_on_message_emits_trim_and_streams_tokens_when_debug_enabled(

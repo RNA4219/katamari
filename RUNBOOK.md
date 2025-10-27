@@ -33,7 +33,7 @@ Guardrails の「準備→実行→検証」順で進める。
 1. `python -m venv .venv && source .venv/bin/activate`
 2. Python 依存はリポジトリルートで `make dev`（仮想環境内で `pip install -r requirements.txt` を含む）または `pip install -r requirements.txt` を実行して導入する。
 3. Node 依存が必要な変更を行う場合は対象ディレクトリへ移動し、例として `cd upstream/chainlit && pnpm install` を実行する。Node 領域を触らない場合はこの手順をスキップし、リポジトリ直下で誤って `npm install` を実行しないよう注意する。詳細は [CONTRIBUTING.md#開発環境セットアップ](CONTRIBUTING.md#開発環境セットアップ) を参照。
-4. `.env` を [`config/env.example`](config/env.example) からコピーし、[`README.md#環境変数一覧`](README.md#%E7%92%B0%E5%A2%83%E5%A4%89%E6%95%B0%E4%B8%80%E8%A6%A7) の表を基に Provider キーなどの環境変数を設定する（例: `cp config/env.example .env`）。
+4. リポジトリ直下に `.env` を作成し、[`README.md#環境変数一覧`](README.md#%E7%92%B0%E5%A2%83%E5%A4%89%E6%95%B0%E4%B8%80%E8%A6%A7) と同セクションで案内している [`config/env.example`](config/env.example) を基に Provider キーなどの環境変数を設定する。
 5. Birdseye index/caps を確認し、必要であれば `python scripts/birdseye_refresh.py --dry-run` で差分を確認してから `python scripts/birdseye_refresh.py` を実行する。単独作業の場合でも更新日時を共通化し、実行結果を Task Seed に記録する。
 
 ### 2. 実行

@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -27,12 +28,28 @@ def _load_json(path: Path) -> Dict[str, object]:
 def _run_cli(workspace: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
     script = Path("scripts/birdseye_refresh.py")
     completed = subprocess.run(
-        ["python", str(script), "--docs-dir", str(workspace), *args],
+        [sys.executable, str(script), "--docs-dir", str(workspace), *args],
         cwd=Path.cwd(),
         check=True,
         capture_output=True,
     )
     return completed
+
+
+def test_run_cli_uses_sys_executable(birdseye_workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    recorded_args: list[str] = []
+
+    def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        recorded_args.extend(args)
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout=b"", stderr=b"")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    completed = _run_cli(birdseye_workspace, "--dry-run")
+
+    assert recorded_args[0] == sys.executable
+    assert Path(recorded_args[1]) == Path("scripts/birdseye_refresh.py")
+    assert completed.returncode == 0
 
 
 def test_cli_handles_original_edges_without_typeerror(birdseye_workspace: Path) -> None:

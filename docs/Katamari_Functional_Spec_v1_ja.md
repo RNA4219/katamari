@@ -36,9 +36,9 @@
 - モデル未設定：`gpt-5-main` にフォールバック
 
 ## 4. 権限/認証
-- M1：Header Auth（`Authorization: Bearer <token>`）
-- M1.5：OAuth（Chainlit設定に準拠）
-- **注記（2025-10-19 現在）**：Header Auth/OAuth は未実装であり、現行リリースは Chainlit 既定の無認証挙動を採用している。導入計画は [`TASK.2025-10-19-0002.md`](../TASK.2025-10-19-0002.md) を参照。
+- M1：サービス系エンドポイント（`/healthz`・`/metrics`）は `CHAINLIT_AUTH_SECRET` を Bearer Token として必須化（`Authorization: Bearer <CHAINLIT_AUTH_SECRET>`）
+- M1.5：OAuth（Chainlit設定に準拠）で UI/対話フローを保護
+- **注記（2025-10-23 更新）**：現行リリースでは `/healthz`・`/metrics` の Bearer 認証のみが有効であり、Chainlit UI 本体は引き続き無認証です。M1.5 で OAuth を導入後、本注記を更新します。導入タスクは [`TASK.2025-10-19-0002.md`](../TASK.2025-10-19-0002.md) を参照。
 
 ## 5. ログ/メトリクス
 - ログ：`req_id, user_id?, model, chain_id, token_in/out, latency_ms, compress_ratio`

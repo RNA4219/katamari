@@ -12,6 +12,7 @@ import json
 import logging
 import math
 import os
+import re
 from pathlib import Path
 from threading import Lock
 from time import perf_counter
@@ -213,6 +214,7 @@ REQUEST_LOGGER = StructuredLogger()
 _RETENTION_LOGGER = logging.getLogger("katamari.retention")
 
 _BEARER_SCHEME = "bearer"
+_BEARER_SPLIT_PATTERN = re.compile(r"\s+")
 
 
 def _get_auth_secret() -> str | None:
@@ -231,15 +233,16 @@ def _extract_bearer_token(value: str | None) -> str | None:
     if not stripped:
         return None
 
-    parts = stripped.split(None, 1)
-    if len(parts) != 2:
+    separator = _BEARER_SPLIT_PATTERN.search(stripped)
+    if separator is None:
         return None
 
-    scheme, token = parts
-    if scheme.lower() != _BEARER_SCHEME:
+    scheme = stripped[:separator.start()].strip()
+    token = stripped[separator.end():].strip()
+
+    if not scheme or scheme.casefold() != _BEARER_SCHEME:
         return None
 
-    token = token.strip()
     return token or None
 
 

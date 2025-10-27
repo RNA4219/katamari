@@ -428,6 +428,7 @@ async def on_start() -> None:
     show_debug = bool(_session_get("show_debug"))
     persona_yaml_value = _session_get("persona_yaml")
     persona_yaml = persona_yaml_value if isinstance(persona_yaml_value, str) else ""
+    _session_set("persona_yaml", persona_yaml)
 
     chat_settings = cl.ChatSettings(
         inputs=[

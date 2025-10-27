@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import builtins
 import importlib
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable, Dict, Iterable, Iterator, List, TypeVar, TypedDict, cast
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Type, TypeVar, TypedDict, cast
 
 import pytest
 
@@ -92,7 +94,7 @@ def _install_stubbed_openai(monkeypatch: pytest.MonkeyPatch, payload: Dict[str, 
     def _factory(**kwargs: Any) -> _StubOpenAI:
         return _StubOpenAI(stream_events=payload["stream_events"], completion=payload["completion"], **kwargs)
 
-    monkeypatch.setattr(openai_client, "AsyncOpenAI", _factory)
+    monkeypatch.setattr(openai_client, "_import_async_openai", lambda: cast(Any, _factory))
     provider = provider_cls()
     completions = cast(_StubChatCompletions, provider.client.chat.completions)
     return cast(
@@ -103,6 +105,39 @@ def _install_stubbed_openai(monkeypatch: pytest.MonkeyPatch, payload: Dict[str, 
             "payload": payload,
         },
     )
+
+
+def _simulate_missing_openai(monkeypatch: pytest.MonkeyPatch) -> None:
+    module_name = "openai"
+    monkeypatch.delitem(sys.modules, module_name, raising=False)
+
+    original_import = builtins.__import__
+
+    def _missing_import(
+        name: str,
+        globals_: Dict[str, Any] | None = None,
+        locals_: Dict[str, Any] | None = None,
+        fromlist: Iterable[str] = (),
+        level: int = 0,
+    ) -> Any:
+        if name == module_name or name.startswith(f"{module_name}."):
+            raise ModuleNotFoundError(f"No module named '{module_name}'")
+        return original_import(name, globals_, locals_, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", _missing_import)
+
+
+def test_provider_raises_helpful_error_when_openai_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Provider should expose a clear error if the openai package is unavailable."""
+
+    _simulate_missing_openai(monkeypatch)
+    monkeypatch.delitem(sys.modules, "src.providers.openai_client", raising=False)
+
+    module = importlib.import_module("src.providers.openai_client")
+    provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
+
+    with pytest.raises(ImportError, match="requires the 'openai' package"):
+        provider_cls()
 
 
 @ANYIO_ASYNCIO

@@ -8,7 +8,7 @@
   - `chain`（single/reflect）
   - `trim_tokens`（1k–8k, step=256）
   - `persona_yaml`（複数行）
-  - `show_debug`（bool）
+  - `show_debug`（bool、ON 時は `[prethought]` および `[trim][debug]` メッセージで詳細を表示）
 - **キーバインド**：Enter送信 / Shift+Enter改行（Chainlit標準）
 
 ## 2. ユースケース詳細
@@ -25,7 +25,9 @@
 - Settings更新イベントでYAML→Systemにコンパイルし、セッション先頭に反映（禁則ログは別Message）
 
 ### UC-04 Trim
-- 目標トークンに収まるよう「最後Nターン保持」→圧縮率をMessage表示（保持率表示は未実装・計画中）
+- 目標トークンに収まるよう「最後Nターン保持」→`[trim]` メッセージで `tokens: 出力/入力 (ratio ...)` を表示
+- `show_debug` = ON かつ保持率推定が得られた場合は `[trim]` に `retention` を併記し、さらに `[trim][debug] retention <値>` を個別メッセージとして送出
+- `show_debug` = OFF または保持率推定が `None` の場合は `retention` を省略し圧縮率のみ表示
 
 ### UC-05 進化（M2）
 - 複数プロンプト候補を生成→BERTScore→ROUGE→ルールで評価→上位選抜→次世代生成 ※M2予定・現状未実装。

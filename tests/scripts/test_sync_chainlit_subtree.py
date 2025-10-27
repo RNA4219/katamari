@@ -12,8 +12,10 @@ import pytest
 _SCRIPT = Path("scripts/sync_chainlit_subtree.sh").resolve()
 
 
-if shutil.which("bash") is None:
-    pytest.skip("bash が必要なテストスイート", allow_module_level=True)
+def _ensure_bash_available() -> None:
+    """bash が検出できるかどうかを検証する。"""
+    if shutil.which("bash") is None:
+        pytest.skip("bash が必要なテストスイート")
 
 
 @pytest.fixture(name="fake_repo")
@@ -84,6 +86,8 @@ def _base_command() -> List[str]:
 def test_dry_run_prints_expected_commands(
     fake_repo: Path, subprocess_calls: List[List[str]], tmp_path: Path
 ) -> None:
+    _ensure_bash_available()
+
     git_bin, log_path = _write_git_stub(tmp_path, fail_on_subtree=False)
     env = os.environ.copy()
     env["GIT_BIN"] = str(git_bin)
@@ -106,6 +110,8 @@ def test_dry_run_prints_expected_commands(
 def test_subtree_failure_bubbles_up(
     fake_repo: Path, subprocess_calls: List[List[str]], tmp_path: Path
 ) -> None:
+    _ensure_bash_available()
+
     git_bin, log_path = _write_git_stub(tmp_path, fail_on_subtree=True)
     env = os.environ.copy()
     env["GIT_BIN"] = str(git_bin)
@@ -125,3 +131,10 @@ def test_subtree_failure_bubbles_up(
     log_lines = log_path.read_text(encoding="utf-8").strip().splitlines()
     assert any("git fetch" in line for line in log_lines)
     assert any("git subtree pull" in line for line in log_lines)
+
+
+def test_skips_when_bash_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(shutil, "which", lambda _: None)
+
+    with pytest.raises(pytest.skip.Exception):
+        _ensure_bash_available()

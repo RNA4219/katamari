@@ -305,6 +305,9 @@ async def _ensure_semantic_retention(
 ) -> float | None:
     existing = metrics.get("semantic_retention")
     if existing is not None:
+        if not isinstance(existing, (int, float, str)):
+            metrics["semantic_retention"] = None
+            return None
         value = _to_float(existing, default=math.nan)
         if isinstance(value, float) and math.isnan(value):
             metrics["semantic_retention"] = None

@@ -116,3 +116,30 @@ async def test_ensure_semantic_retention_normalizes_invalid_existing_metric(
 
     assert result is None
     assert metrics["semantic_retention"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.anyio
+async def test_ensure_semantic_retention_normalizes_non_numeric_existing_metric(
+    app_module: Any,
+) -> None:
+    metrics: Dict[str, Any] = {"semantic_retention": {"reason": "skipped"}}
+
+    result = await app_module._ensure_semantic_retention(
+        before=(
+            {
+                "role": "user",
+                "content": "hello",
+            },
+        ),
+        after=(
+            {
+                "role": "assistant",
+                "content": "hi",
+            },
+        ),
+        metrics=metrics,
+    )
+
+    assert result is None
+    assert metrics["semantic_retention"] is None

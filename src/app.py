@@ -522,6 +522,7 @@ async def on_start() -> None:
                 label="Persona YAML",
                 initial=persona_yaml,
                 description="name/style/forbid/notes",
+                multiline=True,
             ),
             Switch(
                 id="show_debug",

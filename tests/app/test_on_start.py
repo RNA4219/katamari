@@ -209,6 +209,18 @@ async def test_on_start_reuses_persona_yaml_from_session(app_module) -> None:
 
 
 @pytest.mark.anyio
+async def test_on_start_sets_persona_yaml_widget_multiline(app_module) -> None:
+    await app_module.on_start()
+
+    chat_settings = _StubChatSettings.instances[-1]
+    widgets = {widget.id: widget for widget in chat_settings.inputs}
+
+    persona_widget = widgets["persona_yaml"]
+
+    assert persona_widget.multiline is True
+
+
+@pytest.mark.anyio
 async def test_on_start_uses_saved_persona_yaml_after_settings_update(app_module) -> None:
     persona_yaml = "name: Persisted\nstyle: precise"
 

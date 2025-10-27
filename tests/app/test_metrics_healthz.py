@@ -186,3 +186,24 @@ def test_operations_endpoints_require_bearer_token(
         "/metrics", headers={"Authorization": f"Bearer {auth_secret}"}
     )
     assert authorized_metrics.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "raw_header",
+    [
+        "bearer {token}",
+        "  BeArEr {token}",
+        "Bearer   {token}",
+        "\tBEARER {token}",
+    ],
+)
+def test_operations_endpoints_accept_case_insensitive_bearer_headers(
+    app_context, auth_secret, raw_header
+) -> None:
+    chainlit_app, _ = app_context
+    client = TestClient(chainlit_app)
+    header_value = raw_header.format(token=auth_secret)
+
+    for path in ("/healthz", "/metrics"):
+        response = client.get(path, headers={"Authorization": header_value})
+        assert response.status_code == 200, path

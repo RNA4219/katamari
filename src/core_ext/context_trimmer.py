@@ -144,8 +144,10 @@ def trim_messages(
     budget = max(0, base_budget - system_tokens)
     required_turns = max(0, min_turns)
 
+    turns = _group_conversation_turns(conversation)
+    latest_turn = turns[-1] if turns else []
+
     if required_turns > 0:
-        turns = _group_conversation_turns(conversation)
         kept_turns: List[_MessageList] = []
         total = 0
         turns_kept = 0
@@ -153,15 +155,20 @@ def trim_messages(
             turn_tokens = sum(
                 counter.count(str(message.get("content", ""))) for message in turn
             )
-            if total + turn_tokens > budget and turns_kept >= required_turns:
+            is_latest_turn = turn is latest_turn
+            if (
+                not is_latest_turn
+                and total + turn_tokens > budget
+                and turns_kept >= required_turns
+            ):
                 break
             kept_turns.append(turn)
             total += turn_tokens
             turns_kept += 1
+        if latest_turn and all(turn is not latest_turn for turn in kept_turns):
+            kept_turns.append(latest_turn)
         kept = [message for turn in reversed(kept_turns) for message in turn]
     else:
-        turns = _group_conversation_turns(conversation)
-        latest_turn = turns[-1] if turns else []
         forced_ids = {id(message) for message in latest_turn}
         kept = []
         total = 0

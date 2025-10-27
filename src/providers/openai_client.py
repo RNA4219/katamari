@@ -10,21 +10,19 @@ if TYPE_CHECKING:  # pragma: no cover - import only for type checking
 MessageParam = Mapping[str, object]
 
 if TYPE_CHECKING:
-    from openai import AsyncOpenAI as _AsyncOpenAI
-
-    AsyncOpenAICallable = Callable[..., _AsyncOpenAI]
+    AsyncOpenAIFactory = Callable[..., AsyncOpenAI]
 else:
-    AsyncOpenAICallable = Callable[..., Any]
+    AsyncOpenAIFactory = Callable[..., Any]
 
 
-def _resolve_async_openai() -> AsyncOpenAICallable:
+def _resolve_async_openai() -> AsyncOpenAIFactory:
     try:
-        from openai import AsyncOpenAI as _AsyncOpenAI
+        from openai import AsyncOpenAI
     except ModuleNotFoundError as exc:  # pragma: no cover - tested via unit test
         raise ImportError(
             "OpenAI provider requires the 'openai' package. Install it with `pip install openai`."
         ) from exc
-    return cast(AsyncOpenAICallable, _AsyncOpenAI)
+    return cast(AsyncOpenAIFactory, AsyncOpenAI)
 
 
 class OpenAIProvider:

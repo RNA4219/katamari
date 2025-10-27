@@ -518,9 +518,10 @@ async def on_message(message: cl.Message) -> None:
     show_debug = bool(_session_get("show_debug"))
 
     # 1) Prethought (optional display as a step)
-    intent = analyze_intent(message.content)
-    if show_debug and intent:
-        await _send_message(content=f"[prethought]\n{intent}")
+    if show_debug:
+        intent = analyze_intent(message.content)
+        if intent:
+            await _send_message(content=f"[prethought]\n{intent}")
 
     # 2) Build/trim history
     hist_data = _session_get("history") or []

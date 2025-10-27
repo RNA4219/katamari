@@ -26,7 +26,7 @@ ENTRYPOINT ["chainlit","run"]
 CMD ["src/app.py","--host","0.0.0.0","--port","8787"]
 ```
 
-> **運用注意（2025-10-23 現在）**：`/healthz` `/metrics` は `Authorization: Bearer <CHAINLIT_AUTH_SECRET>` が必須。Chainlit UI は無認証のまま公開されるため、監視トークン配布と OAuth 導入タスク（[`TASK.2025-10-19-0002.md`](../../TASK.2025-10-19-0002.md)）の進捗を常時確認する。
+> **運用注意（2025-10-23 現在）**：`/healthz` `/metrics` は HTTP ヘッダー `Authorization: Bearer <CHAINLIT_AUTH_SECRET>` を必須とします。Chainlit UI 側は引き続き未認証のまま公開されるため、監視トークン配布と OAuth 導入タスク（[`TASK.2025-10-19-0002.md`](../../TASK.2025-10-19-0002.md)）の進捗を常時確認してください。
 
 ## H-3. GitHub Actions リリースワークフロー（M3）
 - ファイル: `.github/workflows/release.yml`

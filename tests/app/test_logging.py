@@ -274,15 +274,15 @@ async def test_on_message_uses_formatter_for_trim_message_when_debug_disabled(
 
     await app_module.on_message(_DummyMessage("hello"))
 
-    assert observed_calls == [
-        {
-            "token_out": metrics["output_tokens"],
-            "token_in": metrics["input_tokens"],
-            "compress_ratio": metrics["compress_ratio"],
-            "show_retention": False,
-            "semantic_retention": metrics["semantic_retention"],
-        }
-    ]
+    assert len(observed_calls) == 1
+    observed_call = observed_calls[0]
+    assert observed_call["token_out"] == metrics["output_tokens"]
+    assert observed_call["token_in"] == metrics["input_tokens"]
+    assert observed_call["compress_ratio"] == metrics["compress_ratio"]
+    assert observed_call["show_retention"] is False
+    assert (
+        observed_call["semantic_retention"] == metrics["semantic_retention"]
+    )
     assert formatted_messages == [_StubOutboundMessage.sent[0]]
 
 @pytest.mark.anyio

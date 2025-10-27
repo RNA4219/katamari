@@ -212,7 +212,7 @@ METRICS_REGISTRY = MetricsRegistry()
 REQUEST_LOGGER = StructuredLogger()
 _RETENTION_LOGGER = logging.getLogger("katamari.retention")
 
-_BEARER_PREFIX = "Bearer "
+_BEARER_SCHEME = "bearer"
 
 
 def _get_auth_secret() -> str | None:
@@ -226,9 +226,20 @@ def _get_auth_secret() -> str | None:
 def _extract_bearer_token(value: str | None) -> str | None:
     if value is None:
         return None
-    if not value.startswith(_BEARER_PREFIX):
+
+    stripped = value.strip()
+    if not stripped:
         return None
-    token = value[len(_BEARER_PREFIX) :].strip()
+
+    parts = stripped.split(None, 1)
+    if len(parts) != 2:
+        return None
+
+    scheme, token = parts
+    if scheme.lower() != _BEARER_SCHEME:
+        return None
+
+    token = token.strip()
     return token or None
 
 

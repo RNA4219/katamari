@@ -68,7 +68,7 @@ if [[ -n "$REMOTE" ]]; then
 fi
 
 FETCH_CMD=("$GIT_BIN" "fetch" "$FETCH_SOURCE" "refs/tags/$TAG:refs/tags/$TAG")
-PULL_CMD=("$GIT_BIN" "subtree" "pull" "--prefix" "$PREFIX" "$REPO" "$TAG")
+PULL_CMD=("$GIT_BIN" "subtree" "pull" "--prefix" "$PREFIX" "$FETCH_SOURCE" "$TAG")
 
 if [[ $DRY_RUN -eq 1 ]]; then
     printf "[DRY-RUN] %s\n" "${FETCH_CMD[*]}"

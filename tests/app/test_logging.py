@@ -287,6 +287,47 @@ async def test_on_message_uses_formatter_for_trim_message_when_debug_disabled(
     assert _StubOutboundMessage.sent.count(formatted_messages[0]) == 1
 
 @pytest.mark.anyio
+async def test_on_message_does_not_analyze_intent_when_debug_disabled(
+    monkeypatch, app_module, stub_chainlit
+):
+    metrics = {
+        "input_tokens": 10,
+        "output_tokens": 5,
+        "compress_ratio": 0.5,
+        "semantic_retention": None,
+    }
+
+    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+        return list(history), dict(metrics)
+
+    monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
+
+    provider = _StubProvider(["hi"])
+    monkeypatch.setattr(app_module, "get_provider", lambda model: provider)
+    monkeypatch.setattr(app_module, "get_chain_steps", lambda chain_id: ["final"])
+
+    monkeypatch.setenv("SEMANTIC_RETENTION_PROVIDER", "off")
+
+    captured_messages: list[str] = []
+
+    async def _capture_send_message(**kwargs: Any) -> None:
+        captured_messages.append(str(kwargs.get("content", "")))
+
+    monkeypatch.setattr(app_module, "_send_message", _capture_send_message)
+
+    mock_analyze = Mock(return_value="insight")
+    monkeypatch.setattr(app_module, "analyze_intent", mock_analyze)
+
+    stub_chainlit.set("history", [])
+    stub_chainlit.set("show_debug", False)
+
+    await app_module.on_message(_DummyMessage("hello"))
+
+    mock_analyze.assert_not_called()
+    assert all(not message.startswith("[prethought]") for message in captured_messages)
+
+
+@pytest.mark.anyio
 async def test_on_message_skips_intent_analysis_when_debug_disabled(
     monkeypatch, app_module, stub_chainlit
 ):

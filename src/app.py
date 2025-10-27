@@ -527,12 +527,11 @@ async def on_message(message: cl.Message) -> None:
         target_tokens = 4096
     min_turns = _to_int(_session_get("min_turns"))
     show_debug = bool(_session_get("show_debug"))
-
-    # 1) Prethought (optional display as a step)
+    intent: str | None = None
     if show_debug:
-        intent = analyze_intent(message.content)
-        if intent:
-            await _send_message(content=f"[prethought]\n{intent}")
+        potential_intent = analyze_intent(message.content)
+        if potential_intent:
+            intent = potential_intent
 
     # 2) Build/trim history
     hist_data = _session_get("history") or []
@@ -581,6 +580,8 @@ async def on_message(message: cl.Message) -> None:
         show_retention=show_debug,
         semantic_retention=semantic_retention,
     )
+    if show_debug and intent:
+        await _send_message(content=f"[prethought]\n{intent}")
     await _send_message(content=trim_message)
 
     if show_debug:

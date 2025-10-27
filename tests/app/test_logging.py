@@ -271,6 +271,15 @@ async def test_on_message_uses_formatter_for_trim_message_when_debug_disabled(
 
     await app_module.on_message(_DummyMessage("hello"))
 
+    assert len(observed_calls) == 1
+    assert observed_calls[0] == {
+        "token_out": metrics["output_tokens"],
+        "token_in": metrics["input_tokens"],
+        "compress_ratio": metrics["compress_ratio"],
+        "show_retention": False,
+        "semantic_retention": metrics["semantic_retention"],
+    }
+
 @pytest.mark.anyio
 async def test_on_message_emits_trim_and_streams_tokens_when_debug_enabled(
     monkeypatch, app_module, stub_chainlit

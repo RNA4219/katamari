@@ -410,12 +410,41 @@ async def on_start() -> None:
     selected_model = _resolve_choice("model", default_model, model_choices)
     selected_chain = _resolve_choice("chain", default_chain, chain_choices)
 
+    def _coerce_bool(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"true", "1", "yes", "on"}:
+                return True
+            if normalized in {"false", "0", "no", "off", ""}:
+                return False
+        if isinstance(value, (int, float)):
+            return bool(value)
+        return False
+
+    existing_trim = _to_int(_session_get("trim_tokens"))
+    trim_tokens = existing_trim if existing_trim > 0 else 4096
+
+    existing_min_turns = _to_int(_session_get("min_turns"))
+    min_turns = existing_min_turns if existing_min_turns >= 0 else 0
+
+    existing_show_debug = _session_get("show_debug")
+    show_debug = _coerce_bool(existing_show_debug)
+
+    existing_system = _session_get("system")
+    system_prompt = (
+        existing_system
+        if isinstance(existing_system, str) and existing_system.strip()
+        else DEFAULT_SYSTEM_PROMPT
+    )
+
     _session_set("model", selected_model)
     _session_set("chain", selected_chain)
-    _session_set("trim_tokens", 4096)
-    _session_set("min_turns", 0)
-    _session_set("system", DEFAULT_SYSTEM_PROMPT)
-    _session_set("show_debug", False)
+    _session_set("trim_tokens", trim_tokens)
+    _session_set("min_turns", min_turns)
+    _session_set("system", system_prompt)
+    _session_set("show_debug", show_debug)
 
     def _resolve_initial_index(values: Sequence[str], selected: str) -> int:
         try:
@@ -423,9 +452,17 @@ async def on_start() -> None:
         except ValueError:
             return 0
 
-    trim_tokens = _to_int(_session_get("trim_tokens")) or 4096
-    min_turns = _to_int(_session_get("min_turns"))
-    show_debug = bool(_session_get("show_debug"))
+    trim_tokens = _session_get("trim_tokens")
+    if not isinstance(trim_tokens, int):
+        trim_tokens = _to_int(trim_tokens)
+    trim_tokens = trim_tokens if isinstance(trim_tokens, int) and trim_tokens > 0 else 4096
+
+    min_turns_value = _session_get("min_turns")
+    if not isinstance(min_turns_value, int):
+        min_turns_value = _to_int(min_turns_value)
+    min_turns = min_turns_value if isinstance(min_turns_value, int) and min_turns_value >= 0 else 0
+
+    show_debug = _coerce_bool(_session_get("show_debug"))
     persona_yaml_value = _session_get("persona_yaml")
     persona_yaml = persona_yaml_value if isinstance(persona_yaml_value, str) else ""
     _session_set("persona_yaml", persona_yaml)

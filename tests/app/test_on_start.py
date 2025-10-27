@@ -156,6 +156,40 @@ async def test_on_start_preserves_existing_session_values(monkeypatch, app_modul
 
 
 @pytest.mark.anyio
+async def test_on_start_reuses_existing_advanced_session_values(app_module) -> None:
+    app_module._session_set("trim_tokens", 2048)
+    app_module._session_set("show_debug", True)
+    app_module._session_set("system", "custom prompt")
+
+    _StubChatSettings.value_factory = lambda: {
+        **_session_snapshot(app_module),
+        "system": app_module._session_get("system"),
+    }
+
+    await app_module.on_start()
+
+    session = app_module.cl.user_session
+    assert session.get("trim_tokens") == 2048
+    assert session.get("show_debug") is True
+    assert session.get("system") == "custom prompt"
+
+    chat_settings = _StubChatSettings.instances[-1]
+    widgets = {widget.id: widget for widget in chat_settings.inputs}
+
+    assert widgets["trim_tokens"].initial == 2048
+    assert widgets["show_debug"].initial is True
+
+    assert chat_settings.last_payload == {
+        "trim_tokens": 2048,
+        "min_turns": 0,
+        "show_debug": True,
+        "model": app_module._session_get("model"),
+        "chain": app_module._session_get("chain"),
+        "system": "custom prompt",
+    }
+
+
+@pytest.mark.anyio
 async def test_on_start_reuses_persona_yaml_from_session(app_module) -> None:
     persona_yaml = "name: Tester\nstyle: friendly"
 

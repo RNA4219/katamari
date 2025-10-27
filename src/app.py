@@ -426,6 +426,8 @@ async def on_start() -> None:
     trim_tokens = _to_int(_session_get("trim_tokens")) or 4096
     min_turns = _to_int(_session_get("min_turns"))
     show_debug = bool(_session_get("show_debug"))
+    persona_yaml_value = _session_get("persona_yaml")
+    persona_yaml = persona_yaml_value if isinstance(persona_yaml_value, str) else ""
 
     chat_settings = cl.ChatSettings(
         inputs=[
@@ -460,7 +462,7 @@ async def on_start() -> None:
             TextInput(
                 id="persona_yaml",
                 label="Persona YAML",
-                initial="",
+                initial=persona_yaml,
                 description="name/style/forbid/notes",
             ),
             Switch(
@@ -504,6 +506,7 @@ async def apply_settings(settings: Mapping[str, Any]) -> None:
     if "persona_yaml" in settings:
         yaml_raw = settings.get("persona_yaml", "")
         yaml_str = yaml_raw if isinstance(yaml_raw, str) else ""
+        _session_set("persona_yaml", yaml_str)
         if yaml_str.strip() == "":
             previous = _session_get("system") or DEFAULT_SYSTEM_PROMPT
             _session_set("system", DEFAULT_SYSTEM_PROMPT)

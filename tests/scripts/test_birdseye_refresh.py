@@ -27,8 +27,15 @@ def _load_json(path: Path) -> Dict[str, object]:
 
 def _run_cli(workspace: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
     script = Path("scripts/birdseye_refresh.py")
+    command: list[str] = [
+        sys.executable,
+        str(script),
+        "--docs-dir",
+        str(workspace),
+        *args,
+    ]
     completed = subprocess.run(
-        [sys.executable, str(script), "--docs-dir", str(workspace), *args],
+        command,
         cwd=Path.cwd(),
         check=True,
         capture_output=True,
@@ -37,6 +44,9 @@ def _run_cli(workspace: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
 
 
 def test_run_cli_uses_sys_executable(birdseye_workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    custom_python = "/opt/custom/python"
+    monkeypatch.setattr(sys, "executable", custom_python)
+
     recorded_args: list[str] = []
 
     def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
@@ -47,7 +57,7 @@ def test_run_cli_uses_sys_executable(birdseye_workspace: Path, monkeypatch: pyte
 
     completed = _run_cli(birdseye_workspace, "--dry-run")
 
-    assert recorded_args[0] == sys.executable
+    assert recorded_args[0] == custom_python
     assert Path(recorded_args[1]) == Path("scripts/birdseye_refresh.py")
     assert completed.returncode == 0
 

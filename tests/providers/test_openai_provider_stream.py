@@ -5,6 +5,7 @@ from __future__ import annotations
 import builtins
 import importlib
 import json
+import re
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -94,7 +95,8 @@ def _install_stubbed_openai(monkeypatch: pytest.MonkeyPatch, payload: Dict[str, 
     def _factory(**kwargs: Any) -> _StubOpenAI:
         return _StubOpenAI(stream_events=payload["stream_events"], completion=payload["completion"], **kwargs)
 
-    monkeypatch.setattr(openai_client, "_import_async_openai", lambda: cast(Any, _factory))
+    monkeypatch.setattr(openai_client, "_resolve_async_openai", lambda: cast(Any, _factory))
+
     provider = provider_cls()
     completions = cast(_StubChatCompletions, provider.client.chat.completions)
     return cast(
@@ -182,3 +184,23 @@ async def test_complete_uses_recorded_final_message(monkeypatch: pytest.MonkeyPa
     result = await provider.complete("gpt-4o-mini", payload["messages"], temperature=0.0)
 
     assert result == payload["completion"]["choices"][0]["message"]["content"]
+
+
+def test_openai_dependency_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Import succeeds without openai, but instantiating raises a helpful error."""
+
+    monkeypatch.delitem(sys.modules, "src.providers.openai_client", raising=False)
+
+    original_import = builtins.__import__
+
+    def _raising_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "openai":
+            raise ModuleNotFoundError("No module named 'openai'")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _raising_import)
+    module = importlib.import_module("src.providers.openai_client")
+    provider_cls = cast(Any, getattr(module, "OpenAIProvider"))
+
+    with pytest.raises(RuntimeError, match=re.compile(r"openai.*install", re.IGNORECASE)):
+        provider_cls()

@@ -2,12 +2,38 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, AsyncIterator, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Mapping, Sequence, cast
 
 if TYPE_CHECKING:  # pragma: no cover - import only for type checking
     from openai import AsyncOpenAI
 
+
 MessageParam = Mapping[str, object]
+
+if TYPE_CHECKING:
+    from openai import AsyncOpenAI as _AsyncOpenAI
+
+    AsyncOpenAICallable = Callable[..., _AsyncOpenAI]
+else:
+    AsyncOpenAICallable = Callable[..., Any]
+
+AsyncOpenAI: AsyncOpenAICallable | None = None
+
+
+def _resolve_async_openai() -> AsyncOpenAICallable:
+    global AsyncOpenAI
+    if AsyncOpenAI is not None:
+        return AsyncOpenAI
+
+    try:
+        from openai import AsyncOpenAI as _AsyncOpenAI
+    except ModuleNotFoundError as exc:  # pragma: no cover - tested via unit test
+        raise RuntimeError(
+            "OpenAI client dependency 'openai' is not installed. Install the 'openai' package to use OpenAIProvider."
+        ) from exc
+    client_factory: AsyncOpenAICallable = _AsyncOpenAI
+    AsyncOpenAI = client_factory
+    return client_factory
 
 
 def _import_async_openai() -> "type[AsyncOpenAI]":
@@ -22,8 +48,9 @@ def _import_async_openai() -> "type[AsyncOpenAI]":
 
 class OpenAIProvider:
     def __init__(self) -> None:
-        async_openai_cls = _import_async_openai()
-        self.client = async_openai_cls(api_key=os.getenv("OPENAI_API_KEY"))
+        async_openai_factory = _resolve_async_openai()
+        self.client = async_openai_factory(api_key=os.getenv("OPENAI_API_KEY"))
+
 
     async def stream(
         self,

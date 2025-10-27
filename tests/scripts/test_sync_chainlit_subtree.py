@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 from typing import List, Sequence
@@ -9,6 +10,10 @@ from typing import List, Sequence
 import pytest
 
 _SCRIPT = Path("scripts/sync_chainlit_subtree.sh").resolve()
+
+
+if shutil.which("bash") is None:
+    pytest.skip("bash が必要なテストスイート", allow_module_level=True)
 
 
 @pytest.fixture(name="fake_repo")

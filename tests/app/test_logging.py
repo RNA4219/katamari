@@ -15,6 +15,8 @@ from unittest.mock import Mock
 
 import pytest
 
+from core_ext.logging import InferenceLogRecord
+
 
 @dataclass
 class _DummyMessage:
@@ -207,6 +209,37 @@ async def test_on_message_computes_semantic_retention(
     assert len(caplog.records) == 1
     payload = json.loads(caplog.records[0].msg)
     assert payload["semantic_retention"] == pytest.approx(0.8)
+
+
+@pytest.mark.anyio
+async def test_on_message_logs_defaults_when_trim_fails(
+    monkeypatch, app_module, stub_chainlit
+):
+    class TrimFailure(RuntimeError):
+        pass
+
+    def _boom(*_args: Any, **_kwargs: Any) -> None:
+        raise TrimFailure("trim exploded")
+
+    monkeypatch.setattr(app_module, "trim_messages", _boom)
+
+    emitted: dict[str, InferenceLogRecord] = {}
+
+    def _capture(record: InferenceLogRecord) -> None:
+        emitted["record"] = record
+
+    monkeypatch.setattr(app_module.REQUEST_LOGGER, "emit", _capture)
+
+    with pytest.raises(TrimFailure):
+        await app_module.on_message(_DummyMessage("boom"))
+
+    assert "record" in emitted
+    record = emitted["record"]
+    assert record.status == "failure"
+    assert record.token_in == 0
+    assert record.token_out == 0
+    assert record.compress_ratio == 1.0
+    assert record.semantic_retention is None
 
 
 @pytest.mark.anyio

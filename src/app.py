@@ -110,6 +110,20 @@ def _normalize_stub_sent_buffer(message: Any, content: Any) -> None:
         sent_buffer.extend(deduped)
 
 
+def _coerce_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "off", ""}:
+            return False
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return False
+
+
 async def _send_message(**kwargs: Any) -> None:
     message = cl.Message(**kwargs)
     await cast(Any, message).send()
@@ -413,19 +427,6 @@ async def on_start() -> None:
     selected_model = _resolve_choice("model", default_model, model_choices)
     selected_chain = _resolve_choice("chain", default_chain, chain_choices)
 
-    def _coerce_bool(value: Any) -> bool:
-        if isinstance(value, bool):
-            return value
-        if isinstance(value, str):
-            normalized = value.strip().lower()
-            if normalized in {"true", "1", "yes", "on"}:
-                return True
-            if normalized in {"false", "0", "no", "off", ""}:
-                return False
-        if isinstance(value, (int, float)):
-            return bool(value)
-        return False
-
     existing_trim_raw = _session_get("trim_tokens")
     existing_trim = _to_int(existing_trim_raw)
     if existing_trim > 0:
@@ -565,8 +566,13 @@ async def apply_settings(settings: Mapping[str, Any]) -> None:
             system_override = raw_system
 
     for key in ("model", "chain", "trim_tokens", "min_turns", "show_debug"):
-        if key in settings:
-            _session_set(key, settings.get(key))
+        if key not in settings:
+            continue
+        value = settings.get(key)
+        if key == "show_debug":
+            _session_set(key, _coerce_bool(value))
+        else:
+            _session_set(key, value)
 
     if "persona_yaml" in settings:
         yaml_raw = settings.get("persona_yaml", "")
@@ -602,7 +608,7 @@ async def on_message(message: cl.Message) -> None:
     if target_tokens <= 0:
         target_tokens = 4096
     min_turns = _to_int(_session_get("min_turns"))
-    show_debug = bool(_session_get("show_debug"))
+    show_debug = _coerce_bool(_session_get("show_debug"))
     intent: str | None = None
     if show_debug:
         potential_intent = analyze_intent(message.content)

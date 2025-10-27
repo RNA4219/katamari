@@ -398,6 +398,52 @@ async def test_on_message_does_not_analyze_intent_when_debug_disabled(
     await app_module.on_message(_DummyMessage("hello"))
 
     mock_analyze.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_on_message_skips_debug_when_false_string(
+    monkeypatch, app_module, stub_chainlit
+):
+    metrics = {
+        "input_tokens": 120,
+        "output_tokens": 60,
+        "compress_ratio": 0.5,
+    }
+    trimmed_messages = [
+        {"role": "system", "content": "system prompt"},
+        {"role": "user", "content": "hello"},
+    ]
+
+    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+        return list(trimmed_messages), dict(metrics)
+
+    async def _fake_ensure_retention(*_args: Any, **_kwargs: Any) -> float:
+        return 0.9
+
+    provider = _StubProvider(["hi"])
+
+    captured_messages: list[str] = []
+
+    async def _capture_send_message(**kwargs: Any) -> None:
+        captured_messages.append(str(kwargs.get("content", "")))
+
+    monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
+    monkeypatch.setattr(
+        app_module, "_ensure_semantic_retention", _fake_ensure_retention
+    )
+    monkeypatch.setattr(app_module, "get_provider", lambda model: provider)
+    monkeypatch.setattr(app_module, "get_chain_steps", lambda _chain_id: ["final"])
+    monkeypatch.setattr(app_module, "_send_message", _capture_send_message)
+
+    stub_chainlit.set("history", [])
+    stub_chainlit.set("show_debug", True)
+
+    await app_module.apply_settings({"show_debug": "false"})
+    await app_module.on_message(_DummyMessage("hello"))
+
+    assert all(
+        not message.startswith("[trim][debug]") for message in captured_messages
+    )
     assert all(not message.startswith("[prethought]") for message in captured_messages)
 
 

@@ -95,7 +95,9 @@ def _install_stubbed_openai(monkeypatch: pytest.MonkeyPatch, payload: Dict[str, 
     def _factory(**kwargs: Any) -> _StubOpenAI:
         return _StubOpenAI(stream_events=payload["stream_events"], completion=payload["completion"], **kwargs)
 
-    monkeypatch.setattr(openai_client, "_resolve_async_openai", lambda: cast(Any, _factory))
+    stub_factory = lambda: cast(Any, _factory)
+    monkeypatch.setattr(provider_module, "_resolve_async_openai", stub_factory)
+    monkeypatch.setattr(openai_client, "_resolve_async_openai", stub_factory)
 
     provider = provider_cls()
     completions = cast(_StubChatCompletions, provider.client.chat.completions)
@@ -137,6 +139,22 @@ def test_provider_raises_helpful_error_when_openai_missing(monkeypatch: pytest.M
 
     module = importlib.import_module("src.providers.openai_client")
     provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
+
+    with pytest.raises(ImportError, match="requires the 'openai' package"):
+        provider_cls()
+
+
+def test_module_import_succeeds_without_openai(monkeypatch: pytest.MonkeyPatch) -> None:
+    """openai_client module should import even if openai is absent."""
+
+    _simulate_missing_openai(monkeypatch)
+    monkeypatch.delitem(sys.modules, "openai", raising=False)
+    monkeypatch.delitem(sys.modules, "src.providers.openai_client", raising=False)
+
+    module = importlib.import_module("src.providers.openai_client")
+    provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
+
+    assert getattr(module, "AsyncOpenAI", None) is None
 
     with pytest.raises(ImportError, match="requires the 'openai' package"):
         provider_cls()
@@ -202,5 +220,5 @@ def test_openai_dependency_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     module = importlib.import_module("src.providers.openai_client")
     provider_cls = cast(Any, getattr(module, "OpenAIProvider"))
 
-    with pytest.raises(RuntimeError, match=re.compile(r"openai.*install", re.IGNORECASE)):
+    with pytest.raises(ImportError, match=re.compile(r"openai.*install", re.IGNORECASE)):
         provider_cls()

@@ -9,7 +9,7 @@ MessageParam = Mapping[str, object]
 if TYPE_CHECKING:
     from openai import AsyncOpenAI as _AsyncOpenAI
 
-    AsyncOpenAICallable = type[_AsyncOpenAI]
+    AsyncOpenAICallable = Callable[..., _AsyncOpenAI]
 else:
     AsyncOpenAICallable = Callable[..., Any]
 
@@ -19,17 +19,17 @@ AsyncOpenAI: AsyncOpenAICallable | None = None
 def _resolve_async_openai() -> AsyncOpenAICallable:
     global AsyncOpenAI
     if AsyncOpenAI is not None:
-        return cast(AsyncOpenAICallable, AsyncOpenAI)
+        return AsyncOpenAI
 
     try:
-        from openai import AsyncOpenAI as _AsyncOpenAI  # type: ignore import-not-found
+        from openai import AsyncOpenAI as _AsyncOpenAI
     except ModuleNotFoundError as exc:  # pragma: no cover - tested via unit test
         raise RuntimeError(
             "OpenAI client dependency 'openai' is not installed. Install the 'openai' package to use OpenAIProvider."
         ) from exc
-
-    AsyncOpenAI = cast(AsyncOpenAICallable, _AsyncOpenAI)
-    return AsyncOpenAI
+    client_factory: AsyncOpenAICallable = _AsyncOpenAI
+    AsyncOpenAI = client_factory
+    return client_factory
 
 
 class OpenAIProvider:

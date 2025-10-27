@@ -393,7 +393,12 @@ async def test_on_message_records_trim_message_in_sent_buffer_when_debug_disable
     assert trim_messages, "[trim] message should be emitted"
     assert all(message == expected_message for message in trim_messages)
 
-    assert not any(message.startswith("[trim][debug]") for message in trim_messages)
+    debug_messages = [
+        message
+        for message in _StubOutboundMessage.sent
+        if message.startswith("[trim][debug]")
+    ]
+    assert not debug_messages, "[trim][debug] message must not be emitted when show_debug=False"
 
 
 @pytest.mark.anyio

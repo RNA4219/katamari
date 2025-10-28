@@ -160,7 +160,9 @@ def test_export_prometheus_outputs_nan_for_missing_retention(
 
     payload = registry.export_prometheus()
 
-    assert "semantic_retention nan" in payload
+    assert any(
+        marker in payload for marker in ("semantic_retention nan", "semantic_retention NaN")
+    )
     parsed = _parse_prometheus(payload)
     assert math.isnan(parsed["semantic_retention"])
 

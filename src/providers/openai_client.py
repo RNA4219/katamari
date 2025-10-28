@@ -38,6 +38,10 @@ else:
 
 def _resolve_async_openai() -> AsyncOpenAIFactory:
     global AsyncOpenAI, _async_openai_factory, _openai_module
+    if AsyncOpenAI is not None and callable(AsyncOpenAI):
+        if _async_openai_factory is not AsyncOpenAI:
+            _async_openai_factory = AsyncOpenAI
+        return AsyncOpenAI
     if _async_openai_factory is not None:
         return _async_openai_factory
     try:

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Mapping, Optiona
 MessageParam = Mapping[str, object]
 
 _MISSING_OPENAI_MESSAGE = (
-    "OpenAI provider requires the 'openai' package. Install it with `pip install openai`."
+    'OpenAI provider requires openai>=1.30.0. Install it with `pip install --upgrade "openai>=1.30.0"`.'
 )
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ else:
 
 try:  # pragma: no cover - import only when available
     from openai import AsyncOpenAI as _AsyncOpenAI
-except ModuleNotFoundError:  # pragma: no cover - tested via unit test
+except (ModuleNotFoundError, ImportError):  # pragma: no cover - tested via unit test
     _AsyncOpenAI = None  # type: ignore[assignment]
 
 AsyncOpenAI: Optional[AsyncOpenAIFactory]
@@ -34,10 +34,8 @@ def _resolve_async_openai() -> AsyncOpenAIFactory:
         return cast(AsyncOpenAIFactory, AsyncOpenAI)
     try:
         from openai import AsyncOpenAI as runtime_async_openai
-    except ModuleNotFoundError as exc:  # pragma: no cover - tested via unit test
-        raise ImportError(
-            "OpenAI provider requires the 'openai' package. Install it with `pip install openai`."
-        ) from exc
+    except (ModuleNotFoundError, ImportError) as exc:  # pragma: no cover - tested via unit test
+        raise ImportError(_MISSING_OPENAI_MESSAGE) from exc
     AsyncOpenAI = cast(AsyncOpenAIFactory, runtime_async_openai)
     return cast(AsyncOpenAIFactory, AsyncOpenAI)
 

@@ -208,14 +208,15 @@ class MetricsRegistry:
 
         def _format(value: float | None) -> str:
             if value is None:
-                return "NaN"
+                return "nan"
             if isinstance(value, numbers.Real):
                 try:
-                    if math.isnan(float(value)):
-                        return "NaN"
+                    numeric = float(value)
                 except (OverflowError, ValueError):
-                    return "NaN"
-                return f"{value}"
+                    return "nan"
+                if math.isnan(numeric):
+                    return "nan"
+                return f"{numeric}"
             return f"{value}"
 
         lines = [

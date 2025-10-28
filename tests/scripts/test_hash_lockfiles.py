@@ -52,3 +52,19 @@ def test_existing_paths_expands_home_directory(tmp_path, monkeypatch) -> None:
     existing = hash_lockfiles._existing_paths(["~/requirements.lock"])
 
     assert existing == [lockfile.resolve()]
+
+
+def test_existing_paths_deduplicates_home_and_absolute(tmp_path, monkeypatch) -> None:
+    home_dir = tmp_path / "home"
+    home_dir.mkdir()
+    lockfile = home_dir / "requirements.lock"
+    lockfile.write_text("dep==1.0\n", encoding="utf-8")
+
+    monkeypatch.setenv("HOME", str(home_dir))
+
+    absolute_path = lockfile.resolve()
+    existing = hash_lockfiles._existing_paths(
+        [str(absolute_path), "~/requirements.lock", str(absolute_path)]
+    )
+
+    assert existing == [absolute_path]

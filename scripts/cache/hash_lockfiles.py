@@ -14,11 +14,11 @@ def _existing_paths(raw_paths: Iterable[str]) -> list[Path]:
     resolved_paths: dict[Path, None] = {}
     for raw in raw_paths:
         candidate = Path(raw).expanduser()
-        if candidate.exists() and candidate.is_file():
-            resolved = candidate.resolve()
-            if resolved not in resolved_paths:
-                resolved_paths[resolved] = None
-    return list(resolved_paths.keys())
+        if not candidate.exists() or not candidate.is_file():
+            continue
+        resolved = candidate.resolve()
+        resolved_paths.setdefault(resolved, None)
+    return list(resolved_paths)
 
 
 def _digest(paths: Iterable[Path]) -> str:

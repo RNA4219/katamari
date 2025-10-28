@@ -10,6 +10,9 @@ from pathlib import Path
 from typing import Iterable, List
 
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
 def _existing_paths(raw_paths: Iterable[str]) -> list[Path]:
     resolved_paths: dict[Path, None] = {}
     for raw in raw_paths:
@@ -21,13 +24,21 @@ def _existing_paths(raw_paths: Iterable[str]) -> list[Path]:
     return list(resolved_paths.keys())
 
 
+def _stable_path_for_hash(resolved_path: Path) -> str:
+    try:
+        return resolved_path.relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return resolved_path.name or resolved_path.as_posix()
+
+
 def _digest(paths: Iterable[Path]) -> str:
     files: List[Path] = sorted(paths)
     if not files:
         return ""
     hasher = hashlib.sha256()
     for file_path in files:
-        hasher.update(file_path.as_posix().encode("utf-8"))
+        stable_path = _stable_path_for_hash(file_path)
+        hasher.update(stable_path.encode("utf-8"))
         hasher.update(b"\0")
         hasher.update(file_path.read_bytes())
     return hasher.hexdigest()

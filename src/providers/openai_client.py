@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import importlib
+
 from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Mapping, Optional, Sequence, cast
 
 MessageParam = Mapping[str, object]
@@ -31,7 +33,7 @@ def _register_async_openai(factory: AsyncOpenAIFactory) -> AsyncOpenAIFactory:
     return factory
 
 try:  # pragma: no cover - import only when available
-    import openai as _imported_openai  # type: ignore[import-not-found]
+    _imported_openai = importlib.import_module("openai")
 except ModuleNotFoundError:  # pragma: no cover - tested via unit test
     pass
 except ImportError:
@@ -45,22 +47,40 @@ else:
 
 def _resolve_async_openai() -> AsyncOpenAIFactory:
     global _async_openai_factory, _openai_module
-    if AsyncOpenAI is not None and callable(AsyncOpenAI):
-        _async_openai_factory = cast(AsyncOpenAIFactory, AsyncOpenAI)
+    alias = AsyncOpenAI
+    if alias is not None and callable(alias):
+        if _async_openai_factory is not alias:
+            _async_openai_factory = alias
         return _async_openai_factory
-    if _async_openai_factory is not None:
-        return _async_openai_factory
-    try:
-        if _openai_module is None:
-            import openai as runtime_openai  # type: ignore[import-not-found]
+
+    cached_factory = _async_openai_factory
+    module = _openai_module
+    if module is not None:
+        module_alias = getattr(module, "AsyncOpenAI", None)
+        if callable(module_alias):
+            if cached_factory is module_alias:
+                return cached_factory
+            _async_openai_factory = None
+            cached_factory = None
         else:
-            runtime_openai = _openai_module
+            _async_openai_factory = None
+            cached_factory = None
+
+    if cached_factory is not None:
+        return cached_factory
+
+    try:
+        if module is None:
+            runtime_openai = importlib.import_module("openai")
+        else:
+            runtime_openai = module
     except ModuleNotFoundError as exc:  # pragma: no cover - tested via unit test
         raise ImportError(_MISSING_OPENAI_MESSAGE) from exc
     except ImportError:  # pragma: no cover - tested via unit test
         raise
     candidate = getattr(runtime_openai, "AsyncOpenAI", None)
     if not callable(candidate):
+        _async_openai_factory = None
         raise ImportError(_MISSING_OPENAI_MESSAGE)
     _openai_module = runtime_openai
     return _register_async_openai(cast(AsyncOpenAIFactory, candidate))

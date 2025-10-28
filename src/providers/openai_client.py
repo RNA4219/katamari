@@ -21,9 +21,12 @@ AsyncOpenAIFactory = Callable[..., AsyncOpenAIClient]
 
 _async_openai_factory: Optional[AsyncOpenAIFactory] = None
 try:  # pragma: no cover - import only when available
-    import openai
-except (ModuleNotFoundError, ImportError):  # pragma: no cover - tested via unit test
+    from openai import AsyncOpenAI as _imported_async_openai
+except ModuleNotFoundError:  # pragma: no cover - tested via unit test
     pass
+except ImportError as exc:  # pragma: no cover - tested via unit test
+    if "AsyncOpenAI" not in str(exc):
+        raise
 else:
     if hasattr(openai, "AsyncOpenAI"):
         _async_openai_factory = cast(AsyncOpenAIFactory, openai.AsyncOpenAI)
@@ -35,7 +38,11 @@ def _resolve_async_openai() -> AsyncOpenAIFactory:
         return _async_openai_factory
     try:
         from openai import AsyncOpenAI as runtime_async_openai
-    except (ModuleNotFoundError, ImportError) as exc:  # pragma: no cover - tested via unit test
+    except ModuleNotFoundError as exc:  # pragma: no cover - tested via unit test
+        raise ImportError(_MISSING_OPENAI_MESSAGE) from exc
+    except ImportError as exc:  # pragma: no cover - tested via unit test
+        if "AsyncOpenAI" not in str(exc):
+            raise
         raise ImportError(_MISSING_OPENAI_MESSAGE) from exc
     _async_openai_factory = cast(AsyncOpenAIFactory, runtime_async_openai)
     return _async_openai_factory

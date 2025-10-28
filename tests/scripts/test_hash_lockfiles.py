@@ -39,3 +39,16 @@ def test_digest_is_stable_with_equivalent_paths(tmp_path) -> None:
     )
 
     assert equivalent_digest == single_digest
+
+
+def test_existing_paths_expands_home_directory(tmp_path, monkeypatch) -> None:
+    home_dir = tmp_path / "home"
+    home_dir.mkdir()
+    lockfile = home_dir / "requirements.lock"
+    lockfile.write_text("dep==1.0\n", encoding="utf-8")
+
+    monkeypatch.setenv("HOME", str(home_dir))
+
+    existing = hash_lockfiles._existing_paths(["~/requirements.lock"])
+
+    assert existing == [lockfile.resolve()]

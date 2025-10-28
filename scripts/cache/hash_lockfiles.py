@@ -12,10 +12,14 @@ from typing import Iterable, List
 
 def _existing_paths(raw_paths: Iterable[str]) -> list[Path]:
     paths: list[Path] = []
+    seen: set[Path] = set()
     for raw in raw_paths:
         candidate = Path(raw)
         if candidate.exists() and candidate.is_file():
-            paths.append(candidate.resolve())
+            resolved = candidate.resolve()
+            if resolved not in seen:
+                paths.append(resolved)
+                seen.add(resolved)
     return paths
 
 

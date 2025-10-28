@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Mapping, Optiona
 MessageParam = Mapping[str, object]
 
 _MISSING_OPENAI_MESSAGE = (
-    'OpenAI provider requires openai>=1.30.0. Install it with `pip install --upgrade "openai>=1.30.0"`.'
+    'OpenAI provider requires openai>=1.30.0. Upgrade via `pip install --upgrade "openai>=1.30.0"`.'
 )
 
 if TYPE_CHECKING:
@@ -28,7 +28,8 @@ except ImportError as exc:  # pragma: no cover - tested via unit test
     if "AsyncOpenAI" not in str(exc):
         raise
 else:
-    _async_openai_factory = cast(AsyncOpenAIFactory, _imported_async_openai)
+    if hasattr(openai, "AsyncOpenAI"):
+        _async_openai_factory = cast(AsyncOpenAIFactory, openai.AsyncOpenAI)
 
 
 def _resolve_async_openai() -> AsyncOpenAIFactory:

@@ -56,18 +56,20 @@ else:
 def _resolve_async_openai() -> AsyncOpenAIFactory:
     global _async_openai_factory, _openai_module
     if AsyncOpenAI is not _MISSING_ASYNC_OPENAI_FACTORY:
-        _async_openai_factory = AsyncOpenAI
-        return _async_openai_factory
-    if _async_openai_factory is not None:
-        return _async_openai_factory
+        factory: AsyncOpenAIFactory = AsyncOpenAI
+        _async_openai_factory = factory
+        return factory
 
     cached_factory = _async_openai_factory
+    if cached_factory is not None:
+        return cached_factory
+
     module = _openai_module
     if module is not None:
         module_alias = getattr(module, "AsyncOpenAI", None)
         if callable(module_alias):
             if cached_factory is module_alias:
-                return cached_factory
+                return cast(AsyncOpenAIFactory, cached_factory)
             _async_openai_factory = None
             cached_factory = None
         else:
@@ -81,6 +83,7 @@ def _resolve_async_openai() -> AsyncOpenAIFactory:
         if _openai_module is None:
             runtime_openai = import_module("openai")
         else:
+            assert module is not None
             runtime_openai = module
     except ModuleNotFoundError as exc:  # pragma: no cover - tested via unit test
         raise ImportError(_MISSING_OPENAI_MESSAGE) from exc

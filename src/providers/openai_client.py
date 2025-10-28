@@ -22,7 +22,7 @@ AsyncOpenAIFactory = Callable[..., AsyncOpenAIClient]
 _async_openai_factory: Optional[AsyncOpenAIFactory] = None
 _openai_module: Any | None = None
 try:  # pragma: no cover - import only when available
-    import openai as _imported_openai  # type: ignore[import-not-found]
+    import openai as _imported_openai
 except ModuleNotFoundError:  # pragma: no cover - tested via unit test
     pass
 except ImportError:
@@ -40,7 +40,7 @@ def _resolve_async_openai() -> AsyncOpenAIFactory:
         return _async_openai_factory
     try:
         if _openai_module is None:
-            import openai as runtime_openai  # type: ignore[import-not-found]
+            import openai as runtime_openai
         else:
             runtime_openai = _openai_module
     except ModuleNotFoundError as exc:  # pragma: no cover - tested via unit test

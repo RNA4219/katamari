@@ -108,3 +108,21 @@ def test_init_configures_with_google_api_key_env(monkeypatch: pytest.MonkeyPatch
     GoogleGeminiProvider(genai_module=module)
 
     assert module.configure_kwargs == [{"api_key": "final-fallback"}]
+
+
+@pytest.mark.parametrize(
+    "env_name",
+    ["GOOGLE_GEMINI_API_KEY", "GEMINI_API_KEY"],
+)
+@pytest.mark.parametrize("api_key_value", ["", "   "])
+def test_google_gemini_provider_ignores_blank_api_key(
+    env_name: str, api_key_value: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for variable in ("GOOGLE_GEMINI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"):
+        monkeypatch.delenv(variable, raising=False)
+    monkeypatch.setenv(env_name, api_key_value)
+    module = StubGenerativeAIModule(stream_chunks=[], response_text="unused")
+
+    GoogleGeminiProvider(genai_module=module)
+
+    assert module.configure_kwargs == []

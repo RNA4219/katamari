@@ -239,3 +239,25 @@ def test_provider_prompts_upgrade_when_async_client_missing(
 
     with pytest.raises(ImportError, match=r"openai>=1\.30\.0"):
         provider_cls()
+
+
+def test_module_exposes_async_openai_factory(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Module should publish the AsyncOpenAI factory when available at import time."""
+
+    calls: Dict[str, Any] = {}
+
+    def _factory(**kwargs: Any) -> Any:
+        calls["kwargs"] = kwargs
+        return SimpleNamespace(**kwargs)
+
+    dummy_openai = ModuleType("openai")
+    dummy_openai.AsyncOpenAI = _factory  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "openai", dummy_openai)
+    monkeypatch.delitem(sys.modules, "src.providers.openai_client", raising=False)
+
+    module = importlib.import_module("src.providers.openai_client")
+
+    exported = getattr(module, "AsyncOpenAI")
+    assert callable(exported)
+    exported(api_key="test-key")
+    assert calls == {"kwargs": {"api_key": "test-key"}}

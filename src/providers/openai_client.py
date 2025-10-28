@@ -10,34 +10,37 @@ _MISSING_OPENAI_MESSAGE = (
 )
 
 if TYPE_CHECKING:
-    from openai import AsyncOpenAI
+    from openai import AsyncOpenAI as _TypedAsyncOpenAI
 
-    AsyncOpenAIFactory = Callable[..., AsyncOpenAI]
+    AsyncOpenAIFactory = Callable[..., _TypedAsyncOpenAI]
 else:
     AsyncOpenAIFactory = Callable[..., Any]
 
+_ImportedAsyncOpenAICallable: Optional[AsyncOpenAIFactory]
 try:  # pragma: no cover - import only when available
-    from openai import AsyncOpenAI as _AsyncOpenAI
+    from openai import AsyncOpenAI as _ImportedAsyncOpenAI
 except (ModuleNotFoundError, ImportError):  # pragma: no cover - tested via unit test
-    _AsyncOpenAI = None  # type: ignore[assignment]
-
-AsyncOpenAI: Optional[AsyncOpenAIFactory]
-if _AsyncOpenAI is not None:
-    AsyncOpenAI = cast(AsyncOpenAIFactory, _AsyncOpenAI)
+    _ImportedAsyncOpenAICallable = None
 else:
-    AsyncOpenAI = None
+    _ImportedAsyncOpenAICallable = cast(AsyncOpenAIFactory, _ImportedAsyncOpenAI)
+
+_async_openai_factory: Optional[AsyncOpenAIFactory] = _ImportedAsyncOpenAICallable
+
+AsyncOpenAI: Optional[AsyncOpenAIFactory] = _async_openai_factory
 
 
 def _resolve_async_openai() -> AsyncOpenAIFactory:
     global AsyncOpenAI
-    if AsyncOpenAI is not None:
-        return cast(AsyncOpenAIFactory, AsyncOpenAI)
+    global _async_openai_factory
+    if _async_openai_factory is not None:
+        return _async_openai_factory
     try:
         from openai import AsyncOpenAI as runtime_async_openai
     except (ModuleNotFoundError, ImportError) as exc:  # pragma: no cover - tested via unit test
         raise ImportError(_MISSING_OPENAI_MESSAGE) from exc
-    AsyncOpenAI = cast(AsyncOpenAIFactory, runtime_async_openai)
-    return cast(AsyncOpenAIFactory, AsyncOpenAI)
+    _async_openai_factory = cast(AsyncOpenAIFactory, runtime_async_openai)
+    AsyncOpenAI = _async_openai_factory
+    return _async_openai_factory
 
 
 class OpenAIProvider:

@@ -8,7 +8,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Type, TypeVar, TypedDict, cast
 
 import pytest
@@ -141,7 +141,7 @@ def test_provider_raises_helpful_error_when_openai_missing(monkeypatch: pytest.M
     module = importlib.import_module("src.providers.openai_client")
     provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
 
-    with pytest.raises(ImportError, match="requires the 'openai' package"):
+    with pytest.raises(ImportError, match=r"openai>=1\.30\.0"):
         provider_cls()
 
 
@@ -157,7 +157,7 @@ def test_module_import_succeeds_without_openai(monkeypatch: pytest.MonkeyPatch) 
 
     assert getattr(module, "AsyncOpenAI", None) is None
 
-    with pytest.raises(ImportError, match="requires the 'openai' package"):
+    with pytest.raises(ImportError, match=r"openai>=1\.30\.0"):
         provider_cls()
 
 
@@ -221,5 +221,21 @@ def test_openai_dependency_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     module = importlib.import_module("src.providers.openai_client")
     provider_cls = cast(Any, getattr(module, "OpenAIProvider"))
 
-    with pytest.raises(ImportError, match=re.compile(r"openai.*install", re.IGNORECASE)):
+    with pytest.raises(ImportError, match=re.compile(r"openai>=1\.30\.0", re.IGNORECASE)):
+        provider_cls()
+
+
+def test_provider_prompts_upgrade_when_async_client_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Provide guidance to upgrade openai when AsyncOpenAI is unavailable."""
+
+    dummy_openai = ModuleType("openai")
+    monkeypatch.setitem(sys.modules, "openai", dummy_openai)
+    monkeypatch.delitem(sys.modules, "src.providers.openai_client", raising=False)
+
+    module = importlib.import_module("src.providers.openai_client")
+    provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
+
+    with pytest.raises(ImportError, match=r"openai>=1\.30\.0"):
         provider_cls()

@@ -3,14 +3,14 @@
 
 ## H-1. 開発
 ```bash
-pip install chainlit google-generativeai numpy openai pyyaml tiktoken plotly
+pip install --upgrade "openai>=1.30.0" chainlit google-generativeai numpy pyyaml tiktoken plotly
 export OPENAI_API_KEY=sk-...
 export GOOGLE_GEMINI_API_KEY=...
 # 旧称 `GEMINI_API_KEY` も読み取り互換としてサポートされています。
 chainlit run src/app.py --host 0.0.0.0 --port 8787
 ```
 
-`google-generativeai` は Gemini 利用時に、`openai` は OpenAI 利用時に必須です。
+`google-generativeai` は Gemini 利用時に、`openai` は OpenAI 利用時に必須です。特に `openai` は旧版が残っていると AsyncOpenAI が提供されず失敗するため、最低でも 1.30.0 へアップグレードしてください。
 
 上記パッケージ構成は `requirements.txt` と同一です。`plotly` についても `plotly>=5.18.0,<6.0.0` を指定しています。
 

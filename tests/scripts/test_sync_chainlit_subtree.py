@@ -45,18 +45,41 @@ def fixture_subprocess_calls(monkeypatch: pytest.MonkeyPatch) -> List[List[str]]
 
 
 def _write_git_stub(
-    base_dir: Path, *, fail_on_subtree: bool, require_force_fetch: bool = False
+    base_dir: Path,
+    *,
+    fail_on_subtree: bool,
+    require_force_fetch: bool = False,
+    require_tag_cleanup: Path | None = None,
 ) -> tuple[Path, Path]:
     bin_dir = base_dir / "bin"
     bin_dir.mkdir(exist_ok=True)
     log_path = base_dir / "git_stub.log"
     fail_flag = "1" if fail_on_subtree else "0"
     script_path = bin_dir / "git"
+    cleanup_path = require_tag_cleanup
+    cleanup_file = cleanup_path if cleanup_path is not None else ""
+
     script_path.write_text(
         """#!/usr/bin/env bash
 set -euo pipefail
 
 printf "%s\\n" "$0 $*" >> "{log_path}"
+
+if [[ "$1" == "show-ref" ]]; then
+    if [[ "{cleanup_file}" != "" && "$4" == "refs/tags/{tag_name}" ]]; then
+        if [[ -e "{cleanup_file}" ]]; then
+            exit 0
+        fi
+    fi
+    exit 1
+fi
+
+if [[ "$1" == "update-ref" && "$2" == "-d" ]]; then
+    if [[ "{cleanup_file}" != "" && "$3" == "refs/tags/{tag_name}" ]]; then
+        rm -f "{cleanup_file}"
+    fi
+    exit 0
+fi
 
 if [[ "$1" == "fetch" ]]; then
     if [[ "{require_force_fetch_flag}" == "1" ]]; then
@@ -64,6 +87,14 @@ if [[ "$1" == "fetch" ]]; then
             printf "existing tag prevents fetch without force-update\\n" >&2
             exit 43
         fi
+    fi
+    if [[ "{cleanup_file}" != "" ]]; then
+        if [[ -e "{cleanup_file}" ]]; then
+            printf "existing tag was not cleaned before fetch\\n" >&2
+            exit 44
+        fi
+        mkdir -p "$(dirname "{cleanup_file}")"
+        printf "new-tag-object" > "{cleanup_file}"
     fi
 fi
 
@@ -79,6 +110,8 @@ exit 0
             log_path=log_path,
             fail_flag=fail_flag,
             require_force_fetch_flag="1" if require_force_fetch else "0",
+            cleanup_file=str(cleanup_file),
+            tag_name=(cleanup_path.name if cleanup_path is not None else ""),
         ),
         encoding="utf-8",
     )
@@ -206,6 +239,51 @@ def test_fetch_force_updates_existing_tag(
     log_lines = log_path.read_text(encoding="utf-8").strip().splitlines()
     fetch_line = next((line for line in log_lines if "git fetch" in line), "")
     assert "+refs/tags/v1.2.3:refs/tags/v1.2.3" in fetch_line
+
+
+def test_rerun_cleans_existing_tag_before_fetch(
+    fake_repo: Path, subprocess_calls: List[List[str]], tmp_path: Path
+) -> None:
+    _ensure_bash_available()
+
+    tag_path = fake_repo / ".git" / "refs" / "tags" / "v1.2.3"
+    tag_path.parent.mkdir(parents=True, exist_ok=True)
+    tag_path.write_text("old-tag-object", encoding="utf-8")
+
+    git_bin, log_path = _write_git_stub(
+        tmp_path,
+        fail_on_subtree=False,
+        require_force_fetch=True,
+        require_tag_cleanup=tag_path,
+    )
+    env = os.environ.copy()
+    env["GIT_BIN"] = str(git_bin)
+
+    subprocess.run(
+        _base_command(),
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=fake_repo,
+        env=env,
+    )
+
+    assert subprocess_calls[0][0].endswith("sync_chainlit_subtree.sh")
+
+    log_lines = log_path.read_text(encoding="utf-8").strip().splitlines()
+    delete_index = next(
+        (idx for idx, line in enumerate(log_lines) if "git update-ref -d refs/tags/v1.2.3" in line),
+        -1,
+    )
+    fetch_index = next(
+        (idx for idx, line in enumerate(log_lines) if "git fetch" in line),
+        -1,
+    )
+
+    assert delete_index != -1, "既存タグ削除コマンドが実行されていない"
+    assert fetch_index != -1, "fetch コマンドが実行されていない"
+    assert delete_index < fetch_index, "fetch より前にタグ削除が行われていない"
+    assert tag_path.read_text(encoding="utf-8") == "new-tag-object"
 
 
 def test_dry_run_outputs_remote_for_subtree_pull(

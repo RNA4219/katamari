@@ -141,8 +141,12 @@ def test_provider_raises_helpful_error_when_openai_missing(monkeypatch: pytest.M
     module = importlib.import_module("src.providers.openai_client")
     provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
 
-    with pytest.raises(ImportError, match=r"openai>=1\.30\.0"):
+    with pytest.raises(ImportError) as excinfo:
         provider_cls()
+
+    message = str(excinfo.value)
+    assert "openai>=1.30.0" in message
+    assert 'pip install --upgrade "openai>=1.30.0"' in message
 
 
 def test_module_import_succeeds_without_openai(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -157,8 +161,12 @@ def test_module_import_succeeds_without_openai(monkeypatch: pytest.MonkeyPatch) 
 
     assert getattr(module, "AsyncOpenAI", None) is None
 
-    with pytest.raises(ImportError, match=r"openai>=1\.30\.0"):
+    with pytest.raises(ImportError) as excinfo:
         provider_cls()
+
+    message = str(excinfo.value)
+    assert "openai>=1.30.0" in message
+    assert 'pip install --upgrade "openai>=1.30.0"' in message
 
 
 @ANYIO_ASYNCIO

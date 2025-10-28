@@ -19,6 +19,7 @@ else:  # pragma: no cover - used only for typing fallbacks at runtime
 
 AsyncOpenAIFactory = Callable[..., AsyncOpenAIClient]
 
+AsyncOpenAI: Optional[AsyncOpenAIFactory] = None
 _async_openai_factory: Optional[AsyncOpenAIFactory] = None
 _openai_module: Any | None = None
 AsyncOpenAI: Optional[AsyncOpenAIFactory] = None

@@ -95,7 +95,8 @@ def _install_stubbed_openai(monkeypatch: pytest.MonkeyPatch, payload: Dict[str, 
     def _factory(**kwargs: Any) -> _StubOpenAI:
         return _StubOpenAI(stream_events=payload["stream_events"], completion=payload["completion"], **kwargs)
 
-    stub_factory = lambda: cast(Any, _factory)
+    def stub_factory() -> Any:
+        return cast(Any, _factory)
     monkeypatch.setattr(provider_module, "_resolve_async_openai", stub_factory)
     monkeypatch.setattr(openai_client, "_resolve_async_openai", stub_factory)
 

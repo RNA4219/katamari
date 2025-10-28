@@ -65,16 +65,34 @@ def stub_openai(monkeypatch):
             )
 
     monkeypatch.setattr(openai_client, "AsyncOpenAI", _StubOpenAI)
+    assert openai_client.AsyncOpenAI is _StubOpenAI
 
 
-def test_openai_client_exposes_async_openai_for_monkeypatch(monkeypatch):
+def test_openai_client_exposes_async_openai_for_monkeypatch(app_module, monkeypatch):
     from providers import openai_client
+    from providers.openai_client import OpenAIProvider
 
     class _StubOpenAI:
-        ...
+        def __init__(self, **_):
+            self.chat = SimpleNamespace(
+                completions=SimpleNamespace(
+                    create=lambda **__: SimpleNamespace(
+                        choices=[
+                            SimpleNamespace(
+                                delta=SimpleNamespace(content=""),
+                                message=SimpleNamespace(content=""),
+                            )
+                        ]
+                    )
+                )
+            )
 
     monkeypatch.setattr(openai_client, "AsyncOpenAI", _StubOpenAI)
-    assert openai_client.AsyncOpenAI is _StubOpenAI
+
+    provider = app_module.get_provider("gpt-4o-mini")
+
+    assert isinstance(provider, OpenAIProvider)
+    assert isinstance(provider.client, _StubOpenAI)
 
 
 def test_monkeypatched_async_openai_replaces_cached_factory(

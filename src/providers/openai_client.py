@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import os
-import importlib
-
+from importlib import import_module
 from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Mapping, Optional, Sequence, cast
 
 MessageParam = Mapping[str, object]
@@ -10,6 +9,8 @@ MessageParam = Mapping[str, object]
 _MISSING_OPENAI_MESSAGE = (
     'OpenAI provider requires openai>=1.30.0. Upgrade via `pip install --upgrade "openai>=1.30.0"`.'
 )
+
+__all__ = ["AsyncOpenAI", "OpenAIProvider"]
 
 if TYPE_CHECKING:
     from openai import AsyncOpenAI as AsyncOpenAIClient
@@ -21,7 +22,14 @@ else:  # pragma: no cover - used only for typing fallbacks at runtime
 
 AsyncOpenAIFactory = Callable[..., AsyncOpenAIClient]
 
-AsyncOpenAI: Optional[AsyncOpenAIFactory] = None
+
+def _missing_async_openai_factory(*_: Any, **__: Any) -> AsyncOpenAIClient:
+    raise ImportError(_MISSING_OPENAI_MESSAGE)
+
+
+_MISSING_ASYNC_OPENAI_FACTORY: AsyncOpenAIFactory = _missing_async_openai_factory
+
+AsyncOpenAI: AsyncOpenAIFactory = _MISSING_ASYNC_OPENAI_FACTORY
 _async_openai_factory: Optional[AsyncOpenAIFactory] = None
 _openai_module: Any | None = None
 
@@ -33,7 +41,7 @@ def _register_async_openai(factory: AsyncOpenAIFactory) -> AsyncOpenAIFactory:
     return factory
 
 try:  # pragma: no cover - import only when available
-    _imported_openai = importlib.import_module("openai")
+    _imported_openai = import_module("openai")
 except ModuleNotFoundError:  # pragma: no cover - tested via unit test
     pass
 except ImportError:
@@ -47,10 +55,10 @@ else:
 
 def _resolve_async_openai() -> AsyncOpenAIFactory:
     global _async_openai_factory, _openai_module
-    alias = AsyncOpenAI
-    if alias is not None and callable(alias):
-        if _async_openai_factory is not alias:
-            _async_openai_factory = alias
+    if AsyncOpenAI is not _MISSING_ASYNC_OPENAI_FACTORY:
+        _async_openai_factory = AsyncOpenAI
+        return _async_openai_factory
+    if _async_openai_factory is not None:
         return _async_openai_factory
 
     cached_factory = _async_openai_factory
@@ -70,8 +78,8 @@ def _resolve_async_openai() -> AsyncOpenAIFactory:
         return cached_factory
 
     try:
-        if module is None:
-            runtime_openai = importlib.import_module("openai")
+        if _openai_module is None:
+            runtime_openai = import_module("openai")
         else:
             runtime_openai = module
     except ModuleNotFoundError as exc:  # pragma: no cover - tested via unit test

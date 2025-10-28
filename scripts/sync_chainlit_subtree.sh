@@ -65,7 +65,7 @@ GIT_BIN="${GIT_BIN:-git}"
 FETCH_SOURCE="${REMOTE:-$REPO}"
 PULL_SOURCE="$FETCH_SOURCE"
 
-FETCH_CMD=("$GIT_BIN" "fetch" "$FETCH_SOURCE" "refs/tags/$TAG:refs/tags/$TAG")
+FETCH_CMD=("$GIT_BIN" "fetch" "$FETCH_SOURCE" "+refs/tags/$TAG:refs/tags/$TAG")
 PULL_CMD=("$GIT_BIN" "subtree" "pull" "--prefix" "$PREFIX" "$PULL_SOURCE" "$TAG")
 
 if [[ $DRY_RUN -eq 1 ]]; then

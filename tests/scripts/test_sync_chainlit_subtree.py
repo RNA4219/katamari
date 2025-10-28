@@ -44,7 +44,9 @@ def fixture_subprocess_calls(monkeypatch: pytest.MonkeyPatch) -> List[List[str]]
     return recorded
 
 
-def _write_git_stub(base_dir: Path, *, fail_on_subtree: bool) -> tuple[Path, Path]:
+def _write_git_stub(
+    base_dir: Path, *, fail_on_subtree: bool, require_force_fetch: bool = False
+) -> tuple[Path, Path]:
     bin_dir = base_dir / "bin"
     bin_dir.mkdir(exist_ok=True)
     log_path = base_dir / "git_stub.log"
@@ -56,6 +58,15 @@ set -euo pipefail
 
 printf "%s\\n" "$0 $*" >> "{log_path}"
 
+if [[ "$1" == "fetch" ]]; then
+    if [[ "{require_force_fetch_flag}" == "1" ]]; then
+        if [[ "$3" != +refs/tags/* ]]; then
+            printf "existing tag prevents fetch without force-update\\n" >&2
+            exit 43
+        fi
+    fi
+fi
+
 if [[ "$1" == "subtree" && "$2" == "pull" ]]; then
     if [[ "{fail_flag}" == "1" ]]; then
         printf "forced subtree failure\\n" >&2
@@ -64,7 +75,11 @@ if [[ "$1" == "subtree" && "$2" == "pull" ]]; then
 fi
 
 exit 0
-""".format(log_path=log_path, fail_flag=fail_flag),
+""".format(
+            log_path=log_path,
+            fail_flag=fail_flag,
+            require_force_fetch_flag="1" if require_force_fetch else "0",
+        ),
         encoding="utf-8",
     )
     script_path.chmod(0o755)
@@ -102,7 +117,7 @@ def test_dry_run_prints_expected_commands(
     )
 
     assert subprocess_calls[0][0].endswith("sync_chainlit_subtree.sh")
-    assert "git fetch https://example.com/chainlit.git refs/tags/v1.2.3:refs/tags/v1.2.3" in completed.stdout
+    assert "git fetch https://example.com/chainlit.git +refs/tags/v1.2.3:refs/tags/v1.2.3" in completed.stdout
     assert "git subtree pull --prefix upstream/chainlit https://example.com/chainlit.git v1.2.3" in completed.stdout
     assert not log_path.exists()
 
@@ -160,6 +175,37 @@ def test_remote_is_used_for_subtree_pull(
         "",
     )
     assert "git subtree pull --prefix upstream/chainlit origin v1.2.3" in subtree_line
+
+
+def test_fetch_force_updates_existing_tag(
+    fake_repo: Path, subprocess_calls: List[List[str]], tmp_path: Path
+) -> None:
+    _ensure_bash_available()
+
+    git_bin, log_path = _write_git_stub(
+        tmp_path, fail_on_subtree=False, require_force_fetch=True
+    )
+    env = os.environ.copy()
+    env["GIT_BIN"] = str(git_bin)
+
+    tag_dir = fake_repo / ".git" / "refs" / "tags"
+    tag_dir.mkdir(parents=True, exist_ok=True)
+    (tag_dir / "v1.2.3").write_text("deadbeef", encoding="utf-8")
+
+    subprocess.run(
+        _base_command(),
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=fake_repo,
+        env=env,
+    )
+
+    assert subprocess_calls[0][0].endswith("sync_chainlit_subtree.sh")
+
+    log_lines = log_path.read_text(encoding="utf-8").strip().splitlines()
+    fetch_line = next((line for line in log_lines if "git fetch" in line), "")
+    assert "+refs/tags/v1.2.3:refs/tags/v1.2.3" in fetch_line
 
 
 def test_dry_run_outputs_remote_for_subtree_pull(

@@ -7,7 +7,20 @@ import argparse
 import hashlib
 import os
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable
+
+
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _normalized_path(path: Path) -> tuple[str, Path]:
+    resolved = path.resolve()
+    try:
+        relative = resolved.relative_to(_REPOSITORY_ROOT)
+        normalized = relative.as_posix()
+    except ValueError:
+        normalized = resolved.as_posix()
+    return normalized, resolved
 
 
 def _existing_paths(raw_paths: Iterable[str]) -> list[Path]:
@@ -15,21 +28,27 @@ def _existing_paths(raw_paths: Iterable[str]) -> list[Path]:
     for raw in raw_paths:
         candidate = Path(raw).expanduser()
         if candidate.exists() and candidate.is_file():
-            resolved = candidate.resolve()
+            _, resolved = _normalized_path(candidate)
             if resolved not in resolved_paths:
                 resolved_paths[resolved] = None
-    return list(resolved_paths.keys())
+    ordered_paths = list(resolved_paths.keys())
+    ordered_paths.sort(key=lambda path: _normalized_path(path)[0])
+    return ordered_paths
 
 
 def _digest(paths: Iterable[Path]) -> str:
-    files: List[Path] = sorted(paths)
+    files: list[tuple[str, Path]] = []
+    for path in paths:
+        normalized, resolved = _normalized_path(path)
+        files.append((normalized, resolved))
     if not files:
         return ""
+    files.sort(key=lambda item: item[0])
     hasher = hashlib.sha256()
-    for file_path in files:
-        hasher.update(file_path.as_posix().encode("utf-8"))
+    for normalized, resolved in files:
+        hasher.update(normalized.encode("utf-8"))
         hasher.update(b"\0")
-        hasher.update(file_path.read_bytes())
+        hasher.update(resolved.read_bytes())
     return hasher.hexdigest()
 
 

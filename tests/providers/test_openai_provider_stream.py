@@ -132,6 +132,22 @@ def _simulate_missing_openai(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(builtins, "__import__", _missing_import)
 
 
+def _install_legacy_openai(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+    module = ModuleType("openai")
+
+    class _LegacyChatCompletion:
+        @staticmethod
+        async def acreate(*_args: Any, **_kwargs: Any) -> None:
+            raise RuntimeError("legacy openai stub")
+
+    module.ChatCompletion = _LegacyChatCompletion
+    module.Completion = SimpleNamespace(create=lambda *_args, **_kwargs: None)
+    module.error = SimpleNamespace(OpenAIError=Exception)
+
+    monkeypatch.setitem(sys.modules, "openai", module)
+    return module
+
+
 def test_provider_raises_helpful_error_when_openai_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     """Provider should expose a clear error if the openai package is unavailable."""
 
@@ -172,8 +188,7 @@ def test_module_import_succeeds_without_openai(monkeypatch: pytest.MonkeyPatch) 
 def test_module_import_with_legacy_openai(monkeypatch: pytest.MonkeyPatch) -> None:
     """Module import tolerates legacy openai packages missing AsyncOpenAI."""
 
-    legacy_openai = ModuleType("openai")
-    monkeypatch.setitem(sys.modules, "openai", legacy_openai)
+    _install_legacy_openai(monkeypatch)
     monkeypatch.delitem(sys.modules, "src.providers.openai_client", raising=False)
 
     module = importlib.import_module("src.providers.openai_client")
@@ -253,8 +268,7 @@ def test_provider_prompts_upgrade_when_async_client_missing(
 ) -> None:
     """Provide guidance to upgrade openai when AsyncOpenAI is unavailable."""
 
-    dummy_openai = ModuleType("openai")
-    monkeypatch.setitem(sys.modules, "openai", dummy_openai)
+    _install_legacy_openai(monkeypatch)
     monkeypatch.delitem(sys.modules, "src.providers.openai_client", raising=False)
 
     module = importlib.import_module("src.providers.openai_client")
@@ -262,3 +276,19 @@ def test_provider_prompts_upgrade_when_async_client_missing(
 
     with pytest.raises(ImportError, match=r"openai>=1\.30\.0"):
         provider_cls()
+
+
+def test_provider_raises_missing_async_client_message(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Import succeeds but instantiation raises the shared missing AsyncOpenAI message."""
+
+    _install_legacy_openai(monkeypatch)
+    monkeypatch.delitem(sys.modules, "src.providers.openai_client", raising=False)
+
+    module = importlib.import_module("src.providers.openai_client")
+    provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
+    missing_message = cast(str, getattr(module, "_MISSING_OPENAI_MESSAGE"))
+
+    with pytest.raises(ImportError) as excinfo:
+        provider_cls()
+
+    assert missing_message in str(excinfo.value)

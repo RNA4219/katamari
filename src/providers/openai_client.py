@@ -28,8 +28,8 @@ except ImportError as exc:  # pragma: no cover - tested via unit test
     if "AsyncOpenAI" not in str(exc):
         raise
 else:
-    if hasattr(openai, "AsyncOpenAI"):
-        _async_openai_factory = cast(AsyncOpenAIFactory, openai.AsyncOpenAI)
+    if callable(_imported_async_openai):
+        _async_openai_factory = cast(AsyncOpenAIFactory, _imported_async_openai)
 
 
 def _resolve_async_openai() -> AsyncOpenAIFactory:
@@ -44,6 +44,8 @@ def _resolve_async_openai() -> AsyncOpenAIFactory:
         if "AsyncOpenAI" not in str(exc):
             raise
         raise ImportError(_MISSING_OPENAI_MESSAGE) from exc
+    if not callable(runtime_async_openai):
+        raise ImportError(_MISSING_OPENAI_MESSAGE)
     _async_openai_factory = cast(AsyncOpenAIFactory, runtime_async_openai)
     return _async_openai_factory
 

@@ -7,25 +7,45 @@ import argparse
 import hashlib
 import os
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable
+
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _existing_paths(raw_paths: Iterable[str]) -> list[Path]:
     paths: list[Path] = []
+    seen: set[Path] = set()
     for raw in raw_paths:
         candidate = Path(raw)
-        if candidate.exists() and candidate.is_file():
-            paths.append(candidate.resolve())
+        try:
+            resolved = candidate.resolve(strict=True)
+        except FileNotFoundError:
+            continue
+        if not resolved.is_file() or resolved in seen:
+            continue
+        seen.add(resolved)
+        paths.append(resolved)
     return paths
 
 
+def _normalize_for_digest(path: Path) -> str:
+    try:
+        relative = path.resolve().relative_to(_REPO_ROOT)
+    except ValueError:
+        relative = path.resolve()
+    return relative.as_posix()
+
+
 def _digest(paths: Iterable[Path]) -> str:
-    files: List[Path] = sorted(paths)
+    files = list(paths)
     if not files:
         return ""
     hasher = hashlib.sha256()
+    files.sort(key=_normalize_for_digest)
     for file_path in files:
-        hasher.update(file_path.as_posix().encode("utf-8"))
+        normalized_path = _normalize_for_digest(file_path)
+        hasher.update(normalized_path.encode("utf-8"))
         hasher.update(b"\0")
         hasher.update(file_path.read_bytes())
     return hasher.hexdigest()

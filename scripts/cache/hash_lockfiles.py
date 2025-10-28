@@ -11,12 +11,14 @@ from typing import Iterable, List
 
 
 def _existing_paths(raw_paths: Iterable[str]) -> list[Path]:
-    resolved_paths: set[Path] = set()
+    resolved_paths: dict[Path, None] = {}
     for raw in raw_paths:
         candidate = Path(raw)
         if candidate.exists() and candidate.is_file():
-            resolved_paths.add(candidate.resolve())
-    return list(resolved_paths)
+            resolved = candidate.resolve()
+            if resolved not in resolved_paths:
+                resolved_paths[resolved] = None
+    return list(resolved_paths.keys())
 
 
 def _digest(paths: Iterable[Path]) -> str:

@@ -32,13 +32,20 @@ class GoogleGeminiProvider:
             )
         self._genai: Any = module
         self._model_factory = model_factory or (lambda mod, name: mod.GenerativeModel(name))
-        api_key_value = (
-            api_key
-            or os.getenv("GOOGLE_GEMINI_API_KEY")
-            or os.getenv("GEMINI_API_KEY")
-            or os.getenv("GOOGLE_API_KEY")
-        )
-        if api_key_value:
+        api_key_value: Optional[str] = None
+        for candidate in (
+            api_key,
+            os.getenv("GOOGLE_GEMINI_API_KEY"),
+            os.getenv("GEMINI_API_KEY"),
+            os.getenv("GOOGLE_API_KEY"),
+        ):
+            if candidate is None:
+                continue
+            stripped = candidate.strip()
+            if stripped:
+                api_key_value = stripped
+                break
+        if api_key_value is not None:
             self._genai.configure(api_key=api_key_value)
 
     async def stream(

@@ -45,7 +45,7 @@ def _resolve_async_openai() -> AsyncOpenAIFactory:
             runtime_openai = _openai_module
     except ModuleNotFoundError as exc:  # pragma: no cover - tested via unit test
         raise ImportError(_MISSING_OPENAI_MESSAGE) from exc
-    except ImportError as exc:  # pragma: no cover - tested via unit test
+    except ImportError:  # pragma: no cover - tested via unit test
         raise
     candidate = getattr(runtime_openai, "AsyncOpenAI", None)
     if not callable(candidate):

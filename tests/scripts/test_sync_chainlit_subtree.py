@@ -162,6 +162,37 @@ def test_remote_is_used_for_subtree_pull(
     assert "git subtree pull --prefix upstream/chainlit origin v1.2.3" in subtree_line
 
 
+def test_dry_run_outputs_remote_for_subtree_pull(
+    fake_repo: Path, tmp_path: Path
+) -> None:
+    _ensure_bash_available()
+
+    git_bin, log_path = _write_git_stub(tmp_path, fail_on_subtree=False)
+    env = os.environ.copy()
+    env["GIT_BIN"] = str(git_bin)
+
+    completed = subprocess.run(
+        [*_base_command(), "--remote", "origin", "--dry-run"],
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=fake_repo,
+        env=env,
+    )
+
+    subtree_line = next(
+        (line for line in completed.stdout.splitlines() if "git subtree pull" in line),
+        "",
+    )
+    assert subtree_line, "dry-run 出力に subtree pull コマンドが含まれていない"
+
+    tokens = subtree_line.split()
+    assert tokens[0] == "[DRY-RUN]"
+    assert tokens[6] == "origin"
+    assert "https://example.com/chainlit.git" not in subtree_line
+    assert not log_path.exists()
+
+
 def test_skips_when_bash_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(shutil, "which", lambda _: None)
 

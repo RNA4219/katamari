@@ -161,6 +161,21 @@ def test_module_import_succeeds_without_openai(monkeypatch: pytest.MonkeyPatch) 
         provider_cls()
 
 
+def test_module_import_with_legacy_openai(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Module import tolerates legacy openai packages missing AsyncOpenAI."""
+
+    legacy_openai = ModuleType("openai")
+    monkeypatch.setitem(sys.modules, "openai", legacy_openai)
+    monkeypatch.delitem(sys.modules, "src.providers.openai_client", raising=False)
+
+    module = importlib.import_module("src.providers.openai_client")
+
+    provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
+
+    with pytest.raises(ImportError, match=r"openai>=1\.30\.0"):
+        provider_cls()
+
+
 @ANYIO_ASYNCIO
 async def test_stream_uses_recorded_sse(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure streaming yields the recorded reflect SSE tokens and logs the request."""

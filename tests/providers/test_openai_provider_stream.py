@@ -262,3 +262,20 @@ def test_provider_prompts_upgrade_when_async_client_missing(
 
     with pytest.raises(ImportError, match=r"openai>=1\.30\.0"):
         provider_cls()
+
+
+def test_provider_prompts_upgrade_when_async_client_not_callable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Provide guidance when AsyncOpenAI attribute exists but is not callable."""
+
+    dummy_openai = ModuleType("openai")
+    dummy_openai.AsyncOpenAI = object()  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "openai", dummy_openai)
+    monkeypatch.delitem(sys.modules, "src.providers.openai_client", raising=False)
+
+    module = importlib.import_module("src.providers.openai_client")
+    provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
+
+    with pytest.raises(ImportError, match=r"openai>=1\.30\.0"):
+        provider_cls()

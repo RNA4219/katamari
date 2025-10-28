@@ -20,31 +20,38 @@ else:  # pragma: no cover - used only for typing fallbacks at runtime
 AsyncOpenAIFactory = Callable[..., AsyncOpenAIClient]
 
 _async_openai_factory: Optional[AsyncOpenAIFactory] = None
+_openai_module: Any | None = None
 try:  # pragma: no cover - import only when available
-    from openai import AsyncOpenAI as _imported_async_openai
+    import openai as _imported_openai  # type: ignore[import-not-found]
 except ModuleNotFoundError:  # pragma: no cover - tested via unit test
     pass
-except ImportError as exc:  # pragma: no cover - tested via unit test
-    if "AsyncOpenAI" not in str(exc):
-        raise
+except ImportError:
+    raise
 else:
-    if hasattr(openai, "AsyncOpenAI"):
-        _async_openai_factory = cast(AsyncOpenAIFactory, openai.AsyncOpenAI)
+    _openai_module = _imported_openai
+    candidate = getattr(_imported_openai, "AsyncOpenAI", None)
+    if callable(candidate):
+        _async_openai_factory = cast(AsyncOpenAIFactory, candidate)
 
 
 def _resolve_async_openai() -> AsyncOpenAIFactory:
-    global _async_openai_factory
+    global _async_openai_factory, _openai_module
     if _async_openai_factory is not None:
         return _async_openai_factory
     try:
-        from openai import AsyncOpenAI as runtime_async_openai
+        if _openai_module is None:
+            import openai as runtime_openai  # type: ignore[import-not-found]
+        else:
+            runtime_openai = _openai_module
     except ModuleNotFoundError as exc:  # pragma: no cover - tested via unit test
         raise ImportError(_MISSING_OPENAI_MESSAGE) from exc
     except ImportError as exc:  # pragma: no cover - tested via unit test
-        if "AsyncOpenAI" not in str(exc):
-            raise
-        raise ImportError(_MISSING_OPENAI_MESSAGE) from exc
-    _async_openai_factory = cast(AsyncOpenAIFactory, runtime_async_openai)
+        raise
+    candidate = getattr(runtime_openai, "AsyncOpenAI", None)
+    if not callable(candidate):
+        raise ImportError(_MISSING_OPENAI_MESSAGE)
+    _openai_module = runtime_openai
+    _async_openai_factory = cast(AsyncOpenAIFactory, candidate)
     return _async_openai_factory
 
 

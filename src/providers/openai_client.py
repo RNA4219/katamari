@@ -9,6 +9,10 @@ if TYPE_CHECKING:  # pragma: no cover - import only for type checking
 
 MessageParam = Mapping[str, object]
 
+_MISSING_OPENAI_MESSAGE = (
+    "OpenAI provider requires the 'openai' package. Install it with `pip install openai`."
+)
+
 if TYPE_CHECKING:
     AsyncOpenAIFactory = Callable[..., AsyncOpenAI]
 else:
@@ -18,10 +22,8 @@ else:
 def _resolve_async_openai() -> AsyncOpenAIFactory:
     try:
         from openai import AsyncOpenAI
-    except ModuleNotFoundError as exc:  # pragma: no cover - tested via unit test
-        raise ImportError(
-            "OpenAI provider requires the 'openai' package. Install it with `pip install openai`."
-        ) from exc
+    except ModuleNotFoundError as exc:
+        raise ImportError(_MISSING_OPENAI_MESSAGE) from exc
     return cast(AsyncOpenAIFactory, AsyncOpenAI)
 
 

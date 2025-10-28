@@ -7,25 +7,38 @@ import argparse
 import hashlib
 import os
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def _existing_paths(raw_paths: Iterable[str]) -> list[Path]:
-    resolved_paths: set[Path] = set()
+def _normalize_path_for_hash(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        relative = resolved.relative_to(_REPO_ROOT)
+    except ValueError:
+        return resolved.as_posix()
+    return relative.as_posix()
+
+
+def _existing_paths(raw_paths: Iterable[str]) -> list[tuple[Path, str]]:
+    resolved_paths: dict[str, Path] = {}
     for raw in raw_paths:
         candidate = Path(raw)
         if candidate.exists() and candidate.is_file():
-            resolved_paths.add(candidate.resolve())
-    return list(resolved_paths)
+            resolved = candidate.resolve()
+            normalized = _normalize_path_for_hash(resolved)
+            resolved_paths[normalized] = resolved
+    return [(resolved_paths[key], key) for key in sorted(resolved_paths)]
 
 
-def _digest(paths: Iterable[Path]) -> str:
-    files: List[Path] = sorted(paths)
+def _digest(paths: Iterable[tuple[Path, str]]) -> str:
+    files = list(paths)
     if not files:
         return ""
     hasher = hashlib.sha256()
-    for file_path in files:
-        hasher.update(file_path.as_posix().encode("utf-8"))
+    for file_path, normalized in files:
+        hasher.update(normalized.encode("utf-8"))
         hasher.update(b"\0")
         hasher.update(file_path.read_bytes())
     return hasher.hexdigest()

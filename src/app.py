@@ -207,9 +207,9 @@ class MetricsRegistry:
 
         def _format(value: float | None) -> str:
             if value is None:
-                return "nan"
+                return "NaN"
             if isinstance(value, float) and math.isnan(value):
-                return "nan"
+                return "NaN"
             return f"{value}"
 
         lines = [

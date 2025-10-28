@@ -13,7 +13,7 @@ from typing import Iterable, List
 def _existing_paths(raw_paths: Iterable[str]) -> list[Path]:
     resolved_paths: dict[Path, None] = {}
     for raw in raw_paths:
-        candidate = Path(raw)
+        candidate = Path(raw).expanduser()
         if candidate.exists() and candidate.is_file():
             resolved = candidate.resolve()
             if resolved not in resolved_paths:

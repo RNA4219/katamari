@@ -1,27 +1,40 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Mapping, Sequence, cast
-
-if TYPE_CHECKING:  # pragma: no cover - import only for type checking
-    from openai import AsyncOpenAI
-
+from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Mapping, Optional, Sequence, cast
 
 MessageParam = Mapping[str, object]
 
 if TYPE_CHECKING:
+    from openai import AsyncOpenAI
+
     AsyncOpenAIFactory = Callable[..., AsyncOpenAI]
 else:
     AsyncOpenAIFactory = Callable[..., Any]
 
+try:  # pragma: no cover - import only when available
+    from openai import AsyncOpenAI as _AsyncOpenAI
+except ModuleNotFoundError:  # pragma: no cover - tested via unit test
+    _AsyncOpenAI = None  # type: ignore[assignment]
+
+AsyncOpenAI: Optional[AsyncOpenAIFactory]
+if _AsyncOpenAI is not None:
+    AsyncOpenAI = cast(AsyncOpenAIFactory, _AsyncOpenAI)
+else:
+    AsyncOpenAI = None
+
 
 def _resolve_async_openai() -> AsyncOpenAIFactory:
+    global AsyncOpenAI
+    if AsyncOpenAI is not None:
+        return cast(AsyncOpenAIFactory, AsyncOpenAI)
     try:
-        from openai import AsyncOpenAI
+        from openai import AsyncOpenAI as runtime_async_openai
     except ModuleNotFoundError as exc:  # pragma: no cover - tested via unit test
         raise ImportError(
             "OpenAI provider requires the 'openai' package. Install it with `pip install openai`."
         ) from exc
+    AsyncOpenAI = cast(AsyncOpenAIFactory, runtime_async_openai)
     return cast(AsyncOpenAIFactory, AsyncOpenAI)
 
 

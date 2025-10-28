@@ -5,6 +5,10 @@ from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Mapping, Optiona
 
 MessageParam = Mapping[str, object]
 
+_MISSING_OPENAI_MESSAGE = (
+    "OpenAI provider requires the 'openai' package. Install it with `pip install openai`."
+)
+
 if TYPE_CHECKING:
     from openai import AsyncOpenAI
 

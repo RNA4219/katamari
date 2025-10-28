@@ -62,13 +62,11 @@ if [[ -z "$PREFIX" || -z "$REPO" || -z "$TAG" ]]; then
 fi
 
 GIT_BIN="${GIT_BIN:-git}"
-FETCH_SOURCE="$REPO"
-if [[ -n "$REMOTE" ]]; then
-    FETCH_SOURCE="$REMOTE"
-fi
+FETCH_SOURCE="${REMOTE:-$REPO}"
+PULL_SOURCE="$FETCH_SOURCE"
 
 FETCH_CMD=("$GIT_BIN" "fetch" "$FETCH_SOURCE" "refs/tags/$TAG:refs/tags/$TAG")
-PULL_CMD=("$GIT_BIN" "subtree" "pull" "--prefix" "$PREFIX" "$FETCH_SOURCE" "$TAG")
+PULL_CMD=("$GIT_BIN" "subtree" "pull" "--prefix" "$PREFIX" "$PULL_SOURCE" "$TAG")
 
 if [[ $DRY_RUN -eq 1 ]]; then
     printf "[DRY-RUN] %s\n" "${FETCH_CMD[*]}"

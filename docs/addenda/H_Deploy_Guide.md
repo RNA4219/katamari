@@ -12,7 +12,7 @@ chainlit run src/app.py --host 0.0.0.0 --port 8787
 
 `google-generativeai` は Gemini 利用時に、`openai` は OpenAI 利用時に必須です。
 
-上記パッケージ構成は `requirements.txt` と同一です（`plotly` を含む）。
+上記パッケージ構成は `requirements.txt` と同一です。`plotly` についても `plotly>=5.18.0,<6.0.0` を指定しています。
 
 ## H-2. Docker（M3）
 ```Dockerfile

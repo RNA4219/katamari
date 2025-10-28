@@ -64,14 +64,19 @@ fi
 GIT_BIN="${GIT_BIN:-git}"
 FETCH_SOURCE="${REMOTE:-$REPO}"
 PULL_SOURCE="$FETCH_SOURCE"
+TAG_REF="refs/tags/$TAG"
 
-FETCH_CMD=("$GIT_BIN" "fetch" "$FETCH_SOURCE" "+refs/tags/$TAG:refs/tags/$TAG")
+FETCH_CMD=("$GIT_BIN" "fetch" "$FETCH_SOURCE" "+${TAG_REF}:${TAG_REF}")
 PULL_CMD=("$GIT_BIN" "subtree" "pull" "--prefix" "$PREFIX" "$PULL_SOURCE" "$TAG")
 
 if [[ $DRY_RUN -eq 1 ]]; then
     printf "[DRY-RUN] %s\n" "${FETCH_CMD[*]}"
     printf "[DRY-RUN] %s\n" "${PULL_CMD[*]}"
     exit 0
+fi
+
+if "$GIT_BIN" show-ref --verify --quiet "$TAG_REF"; then
+    "$GIT_BIN" update-ref -d "$TAG_REF"
 fi
 
 "${FETCH_CMD[@]}"

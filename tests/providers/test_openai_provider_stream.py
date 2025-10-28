@@ -117,6 +117,7 @@ def _simulate_missing_openai(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delitem(sys.modules, module_name, raising=False)
 
     original_import = builtins.__import__
+    original_import_module = importlib.import_module
 
     def _missing_import(
         name: str,
@@ -130,6 +131,13 @@ def _simulate_missing_openai(monkeypatch: pytest.MonkeyPatch) -> None:
         return original_import(name, globals_, locals_, fromlist, level)
 
     monkeypatch.setattr(builtins, "__import__", _missing_import)
+
+    def _missing_import_module(name: str, package: str | None = None) -> ModuleType:
+        if name == module_name or name.startswith(f"{module_name}."):
+            raise ModuleNotFoundError(f"No module named '{module_name}'")
+        return original_import_module(name, package)
+
+    monkeypatch.setattr(importlib, "import_module", _missing_import_module)
 
 
 def test_provider_raises_helpful_error_when_openai_missing(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -159,7 +167,9 @@ def test_module_import_succeeds_without_openai(monkeypatch: pytest.MonkeyPatch) 
     module = importlib.import_module("src.providers.openai_client")
     provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
 
-    assert getattr(module, "AsyncOpenAI", None) is None
+    async_factory = getattr(module, "AsyncOpenAI", None)
+    sentinel = getattr(module, "_MISSING_ASYNC_OPENAI_FACTORY", None)
+    assert async_factory is None or async_factory is sentinel
 
     with pytest.raises(ImportError) as excinfo:
         provider_cls()
@@ -234,6 +244,7 @@ def test_openai_dependency_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delitem(sys.modules, "src.providers.openai_client", raising=False)
 
     original_import = builtins.__import__
+    original_import_module = importlib.import_module
 
     def _raising_import(name: str, *args: Any, **kwargs: Any) -> Any:
         if name == "openai":
@@ -241,6 +252,14 @@ def test_openai_dependency_missing(monkeypatch: pytest.MonkeyPatch) -> None:
         return original_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", _raising_import)
+    monkeypatch.setattr(
+        importlib,
+        "import_module",
+        lambda name, package=None: (_raise_module_not_found(name) if name == "openai" or name.startswith("openai.") else original_import_module(name, package)),
+    )
+
+    def _raise_module_not_found(name: str) -> ModuleType:
+        raise ModuleNotFoundError(f"No module named '{name}'")
     module = importlib.import_module("src.providers.openai_client")
     provider_cls = cast(Any, getattr(module, "OpenAIProvider"))
 
@@ -279,3 +298,47 @@ def test_provider_prompts_upgrade_when_async_client_not_callable(
 
     with pytest.raises(ImportError, match=r"openai>=1\.30\.0"):
         provider_cls()
+
+
+def test_provider_reports_missing_key_when_env_blank(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Blank OPENAI_API_KEY values should surface as missing key guidance."""
+
+    module = importlib.import_module("src.providers.openai_client")
+    provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
+
+    captured: List[Any] = []
+
+    def _factory(*, api_key: Any, **_: Any) -> Any:
+        captured.append(api_key)
+        raise ValueError("missing api key")
+
+    monkeypatch.setattr(module, "_resolve_async_openai", lambda: cast(Any, _factory))
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+
+    with pytest.raises(ValueError, match="OPENAI_API_KEY を設定してください"):
+        provider_cls()
+
+    assert captured == [None]
+
+
+def test_provider_reports_missing_key_when_env_whitespace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Whitespace-only OPENAI_API_KEY values should surface missing key guidance."""
+
+    module = importlib.import_module("src.providers.openai_client")
+    provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
+
+    captured: List[Any] = []
+
+    def _factory(*, api_key: Any, **_: Any) -> Any:
+        captured.append(api_key)
+        raise ValueError("missing api key")
+
+    monkeypatch.setattr(module, "_resolve_async_openai", lambda: cast(Any, _factory))
+    monkeypatch.setenv("OPENAI_API_KEY", "  ")
+
+    with pytest.raises(ValueError, match="OPENAI_API_KEY を設定してください"):
+        provider_cls()
+
+    assert captured == [None]

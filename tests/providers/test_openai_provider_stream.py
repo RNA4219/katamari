@@ -184,6 +184,29 @@ def test_module_import_with_legacy_openai(monkeypatch: pytest.MonkeyPatch) -> No
         provider_cls()
 
 
+def test_module_import_with_stub_async_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Import should succeed when a stub AsyncOpenAI client is provided."""
+
+    class _StubAsyncOpenAI:
+        def __init__(self, **_: Any) -> None:
+            self.chat = SimpleNamespace(completions=SimpleNamespace(create=lambda *a, **k: None))
+
+    stub_openai = ModuleType("openai")
+    stub_openai.AsyncOpenAI = _StubAsyncOpenAI  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "openai", stub_openai)
+    monkeypatch.delitem(sys.modules, "src.providers.openai_client", raising=False)
+
+    module = importlib.import_module("src.providers.openai_client")
+
+    provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
+
+    assert getattr(module, "AsyncOpenAI") is _StubAsyncOpenAI
+
+    provider = provider_cls()
+
+    assert isinstance(provider.client, _StubAsyncOpenAI)
+
+
 @ANYIO_ASYNCIO
 async def test_stream_uses_recorded_sse(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure streaming yields the recorded reflect SSE tokens and logs the request."""

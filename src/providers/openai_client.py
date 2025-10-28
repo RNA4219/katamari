@@ -60,17 +60,35 @@ def _resolve_async_openai() -> AsyncOpenAIFactory:
         return _async_openai_factory
     if _async_openai_factory is not None:
         return _async_openai_factory
+
+    cached_factory = _async_openai_factory
+    module = _openai_module
+    if module is not None:
+        module_alias = getattr(module, "AsyncOpenAI", None)
+        if callable(module_alias):
+            if cached_factory is module_alias:
+                return cached_factory
+            _async_openai_factory = None
+            cached_factory = None
+        else:
+            _async_openai_factory = None
+            cached_factory = None
+
+    if cached_factory is not None:
+        return cached_factory
+
     try:
         if _openai_module is None:
             runtime_openai = import_module("openai")
         else:
-            runtime_openai = _openai_module
+            runtime_openai = module
     except ModuleNotFoundError as exc:  # pragma: no cover - tested via unit test
         raise ImportError(_MISSING_OPENAI_MESSAGE) from exc
     except ImportError:  # pragma: no cover - tested via unit test
         raise
     candidate = getattr(runtime_openai, "AsyncOpenAI", None)
     if not callable(candidate):
+        _async_openai_factory = None
         raise ImportError(_MISSING_OPENAI_MESSAGE)
     _openai_module = runtime_openai
     return _register_async_openai(cast(AsyncOpenAIFactory, candidate))

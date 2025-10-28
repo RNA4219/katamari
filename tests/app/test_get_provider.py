@@ -95,6 +95,38 @@ def test_openai_client_exposes_async_openai_for_monkeypatch(app_module, monkeypa
     assert isinstance(provider.client, _StubOpenAI)
 
 
+def test_monkeypatched_async_openai_replaces_cached_factory(
+    app_module, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from providers import openai_client
+
+    class _StubOpenAI:
+        def __init__(self, **_: object) -> None:
+            self.chat = SimpleNamespace(
+                completions=SimpleNamespace(
+                    create=lambda **__: SimpleNamespace(
+                        choices=[SimpleNamespace(message=SimpleNamespace(content=""))]
+                    )
+                )
+            )
+
+    stale_client = SimpleNamespace()
+
+    def _stale_factory(**_: object) -> SimpleNamespace:
+        return stale_client
+
+    fake_module = SimpleNamespace(AsyncOpenAI=_StubOpenAI)
+
+    monkeypatch.setattr(openai_client, "_async_openai_factory", _stale_factory, raising=False)
+    monkeypatch.setattr(openai_client, "AsyncOpenAI", None, raising=False)
+    monkeypatch.setattr(openai_client, "_openai_module", fake_module, raising=False)
+
+    provider = app_module.get_provider("gpt-4o-mini")
+
+    assert isinstance(provider.client, _StubOpenAI)
+    assert openai_client._async_openai_factory is _StubOpenAI
+
+
 @pytest.fixture(name="stub_genai")
 def fixture_stub_genai(monkeypatch):
     """Provide a stubbed google generative AI module."""

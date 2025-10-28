@@ -11,6 +11,7 @@ import hmac
 import json
 import logging
 import math
+import numbers
 import os
 import re
 from pathlib import Path
@@ -208,8 +209,13 @@ class MetricsRegistry:
         def _format(value: float | None) -> str:
             if value is None:
                 return "NaN"
-            if isinstance(value, float) and math.isnan(value):
-                return "NaN"
+            if isinstance(value, numbers.Real):
+                try:
+                    if math.isnan(float(value)):
+                        return "NaN"
+                except (OverflowError, ValueError):
+                    return "NaN"
+                return f"{value}"
             return f"{value}"
 
         lines = [

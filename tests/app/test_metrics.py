@@ -49,4 +49,17 @@ def test_export_prometheus_reports_nan_when_retention_unset(app_module: object) 
 
     payload = registry.export_prometheus()
 
-    assert "semantic_retention NaN" in payload
+    lines = payload.strip().splitlines()
+
+    assert lines[-1] == "semantic_retention NaN"
+    assert lines.count("semantic_retention NaN") == 1
+
+
+def test_export_prometheus_formats_nan_for_missing_retention(app_module: object) -> None:
+    registry = app_module.MetricsRegistry()  # type: ignore[attr-defined]
+
+    registry.observe_trim(compress_ratio=0.5, semantic_retention=None)
+
+    payload = registry.export_prometheus()
+
+    assert payload.endswith("semantic_retention NaN\n")

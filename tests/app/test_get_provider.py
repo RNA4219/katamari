@@ -67,6 +67,16 @@ def stub_openai(monkeypatch):
     monkeypatch.setattr(openai_client, "AsyncOpenAI", _StubOpenAI)
 
 
+def test_openai_client_exposes_async_openai_for_monkeypatch(monkeypatch):
+    from providers import openai_client
+
+    class _StubOpenAI:
+        ...
+
+    monkeypatch.setattr(openai_client, "AsyncOpenAI", _StubOpenAI)
+    assert openai_client.AsyncOpenAI is _StubOpenAI
+
+
 @pytest.fixture(name="stub_genai")
 def fixture_stub_genai(monkeypatch):
     """Provide a stubbed google generative AI module."""

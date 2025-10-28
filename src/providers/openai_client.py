@@ -1,7 +1,17 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Mapping, Optional, Sequence, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncIterator,
+    Callable,
+    Mapping,
+    Optional,
+    Sequence,
+    TypeGuard,
+    cast,
+)
 
 MessageParam = Mapping[str, object]
 
@@ -21,6 +31,10 @@ AsyncOpenAIFactory = Callable[..., AsyncOpenAIClient]
 
 _async_openai_factory: Optional[AsyncOpenAIFactory] = None
 _openai_module: Any | None = None
+
+
+def _is_async_openai_factory(candidate: object) -> TypeGuard[AsyncOpenAIFactory]:
+    return callable(candidate)
 try:  # pragma: no cover - import only when available
     import openai as _imported_openai
 except ModuleNotFoundError:  # pragma: no cover - tested via unit test
@@ -30,8 +44,8 @@ except ImportError:
 else:
     _openai_module = _imported_openai
     candidate = getattr(_imported_openai, "AsyncOpenAI", None)
-    if callable(candidate):
-        _async_openai_factory = cast(AsyncOpenAIFactory, candidate)
+    if _is_async_openai_factory(candidate):
+        _async_openai_factory = candidate
 
 
 def _resolve_async_openai() -> AsyncOpenAIFactory:
@@ -48,10 +62,10 @@ def _resolve_async_openai() -> AsyncOpenAIFactory:
     except ImportError:  # pragma: no cover - tested via unit test
         raise
     candidate = getattr(runtime_openai, "AsyncOpenAI", None)
-    if not callable(candidate):
+    if not _is_async_openai_factory(candidate):
         raise ImportError(_MISSING_OPENAI_MESSAGE)
     _openai_module = runtime_openai
-    _async_openai_factory = cast(AsyncOpenAIFactory, candidate)
+    _async_openai_factory = candidate
     return _async_openai_factory
 
 

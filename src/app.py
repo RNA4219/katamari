@@ -565,14 +565,14 @@ async def apply_settings(settings: Mapping[str, Any]) -> None:
         if isinstance(raw_system, str) and raw_system.strip():
             system_override = raw_system
 
-    for key in ("model", "chain", "trim_tokens", "min_turns", "show_debug"):
+    for key in ("model", "chain", "trim_tokens", "min_turns"):
         if key not in settings:
             continue
-        value = settings.get(key)
-        if key == "show_debug":
-            _session_set(key, _coerce_bool(value))
-        else:
-            _session_set(key, value)
+        _session_set(key, settings.get(key))
+
+    if "show_debug" in settings:
+        show_debug_value = settings.get("show_debug")
+        _session_set("show_debug", _coerce_bool(show_debug_value))
 
     if "persona_yaml" in settings:
         yaml_raw = settings.get("persona_yaml", "")
@@ -608,7 +608,10 @@ async def on_message(message: cl.Message) -> None:
     if target_tokens <= 0:
         target_tokens = 4096
     min_turns = _to_int(_session_get("min_turns"))
-    show_debug = _coerce_bool(_session_get("show_debug"))
+    raw_show_debug = _session_get("show_debug")
+    show_debug = _coerce_bool(raw_show_debug)
+    if not isinstance(raw_show_debug, bool):
+        _session_set("show_debug", show_debug)
     intent: str | None = None
     if show_debug:
         potential_intent = analyze_intent(message.content)

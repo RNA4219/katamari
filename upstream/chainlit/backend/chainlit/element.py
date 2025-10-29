@@ -205,11 +205,14 @@ class Element:
 
     async def _create(self, persist=True) -> bool:
         if self.persisted and not self.updatable:
-            return True
+            return False
+
+        created = False
 
         if (data_layer := get_data_layer()) and persist:
             try:
                 asyncio.create_task(data_layer.create_element(self))
+                created = True
             except Exception as e:
                 logger.error(f"Failed to create element: {e!s}")
         if not self.url and (not self.chainlit_key or self.updatable):
@@ -220,10 +223,11 @@ class Element:
                 mime=self.mime or "",
             )
             self.chainlit_key = file_dict["id"]
+            created = True
 
         self.persisted = True
 
-        return True
+        return created
 
     async def remove(self):
         data_layer = get_data_layer()

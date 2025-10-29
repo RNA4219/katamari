@@ -88,6 +88,8 @@ class MemoryDataLayer(cl_data.BaseDataLayer):
         pass
 
     async def create_step(self):
+        # The Cypress resume scenario doesn't rely on persisted steps, so this
+        # in-memory stub intentionally skips the implementation.
         pass
 
     async def delete_element(self):

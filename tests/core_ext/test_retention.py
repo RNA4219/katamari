@@ -304,3 +304,29 @@ def test_openai_embedder_rebuilds_when_env_changes(
     assert second is not None
     assert second is not first
     assert created_keys == ["first", "second"]
+
+
+def test_openai_embedder_ignores_blank_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "   ")
+
+    class _FailingOpenAI:
+        def __init__(self, api_key: str) -> None:  # pragma: no cover - defensive
+            raise AssertionError("embedder should not initialize with blank key")
+
+    module = types.ModuleType("openai")
+    setattr(module, "OpenAI", _FailingOpenAI)
+    monkeypatch.setitem(sys.modules, "openai", module)
+
+    assert retention.get_embedder("openai") is None
+
+
+def test_gemini_embedder_ignores_blank_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    dummy = _DummyGenAI()
+    _install_dummy_genai(monkeypatch, dummy)
+    monkeypatch.setenv("SEMANTIC_RETENTION_PROVIDER", "gemini")
+    monkeypatch.setenv("GOOGLE_GEMINI_API_KEY", "   ")
+    monkeypatch.setenv("GEMINI_API_KEY", "\t")
+    monkeypatch.setenv("GOOGLE_API_KEY", "\n")
+
+    assert retention.get_embedder("gemini") is None
+    assert dummy.configured_keys == []

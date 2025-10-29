@@ -424,11 +424,21 @@ async def on_start() -> None:
     def _resolve_choice(
         key: str, default_value: str, values: Sequence[str]
     ) -> str:
-        current = _session_get(key)
-        if isinstance(current, str) and current in values:
-            return current
-        if default_value in values:
-            return default_value
+        lookup = {candidate.casefold(): candidate for candidate in values}
+
+        def _normalize(value: Any) -> str | None:
+            if not isinstance(value, str):
+                return None
+            return value.strip().casefold()
+
+        current = _normalize(_session_get(key))
+        if current is not None and current in lookup:
+            return lookup[current]
+
+        default_normalized = _normalize(default_value)
+        if default_normalized is not None and default_normalized in lookup:
+            return lookup[default_normalized]
+
         return values[0]
 
     selected_model = _resolve_choice("model", default_model, model_choices)

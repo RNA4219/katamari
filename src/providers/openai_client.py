@@ -84,16 +84,14 @@ class OpenAIProvider:
     def __init__(self) -> None:
         async_openai_factory = _resolve_async_openai()
         raw_key = os.getenv("OPENAI_API_KEY")
-        api_key = raw_key.strip() if raw_key is not None else None
-        if api_key == "":
-            api_key = None
+        if raw_key is None:
+            raise ValueError("OPENAI_API_KEY is required")
 
-        try:
-            self.client = async_openai_factory(api_key=api_key)
-        except ValueError as exc:
-            if api_key is None:
-                raise ValueError("OPENAI_API_KEY を設定してください") from exc
-            raise
+        api_key = raw_key.strip()
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY is required")
+
+        self.client = async_openai_factory(api_key=api_key)
 
 
     async def stream(

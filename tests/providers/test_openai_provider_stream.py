@@ -99,6 +99,7 @@ def _install_stubbed_openai(monkeypatch: pytest.MonkeyPatch, payload: Dict[str, 
         return cast(Any, _factory)
     monkeypatch.setattr(provider_module, "_resolve_async_openai", stub_factory)
     monkeypatch.setattr(openai_client, "_resolve_async_openai", stub_factory)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
 
     provider = provider_cls()
     completions = cast(_StubChatCompletions, provider.client.chat.completions)
@@ -300,45 +301,20 @@ def test_provider_prompts_upgrade_when_async_client_not_callable(
         provider_cls()
 
 
-def test_provider_reports_missing_key_when_env_blank(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Blank OPENAI_API_KEY values should surface as missing key guidance."""
-
-    module = importlib.import_module("src.providers.openai_client")
-    provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
-
-    captured: List[Any] = []
-
-    def _factory(*, api_key: Any, **_: Any) -> Any:
-        captured.append(api_key)
-        raise ValueError("missing api key")
-
-    monkeypatch.setattr(module, "_resolve_async_openai", lambda: cast(Any, _factory))
-    monkeypatch.setenv("OPENAI_API_KEY", "")
-
-    with pytest.raises(ValueError, match="OPENAI_API_KEY を設定してください"):
-        provider_cls()
-
-    assert captured == [None]
-
-
-def test_provider_reports_missing_key_when_env_whitespace(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("env_value", ["", "  "])
+def test_provider_reports_missing_key_for_blank_env(
+    monkeypatch: pytest.MonkeyPatch, env_value: str
 ) -> None:
-    """Whitespace-only OPENAI_API_KEY values should surface missing key guidance."""
+    """Blank OPENAI_API_KEY values should raise an explicit ValueError."""
 
     module = importlib.import_module("src.providers.openai_client")
     provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
 
-    captured: List[Any] = []
-
-    def _factory(*, api_key: Any, **_: Any) -> Any:
-        captured.append(api_key)
-        raise ValueError("missing api key")
+    def _factory(*args: Any, **kwargs: Any) -> Any:  # pragma: no cover - defensive guard
+        pytest.fail("AsyncOpenAI factory should not be invoked when the API key is missing")
 
     monkeypatch.setattr(module, "_resolve_async_openai", lambda: cast(Any, _factory))
-    monkeypatch.setenv("OPENAI_API_KEY", "  ")
+    monkeypatch.setenv("OPENAI_API_KEY", env_value)
 
-    with pytest.raises(ValueError, match="OPENAI_API_KEY を設定してください"):
+    with pytest.raises(ValueError, match=r"OPENAI_API_KEY is required"):
         provider_cls()
-
-    assert captured == [None]

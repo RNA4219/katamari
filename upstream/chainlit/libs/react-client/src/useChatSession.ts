@@ -453,9 +453,23 @@ const useChatSession = () => {
       });
 
       socket.on('window_message', (data: any) => {
-        if (window.parent) {
-          window.parent.postMessage(data, '*');
+        if (!window.parent) {
+          return;
         }
+
+        const resolveParentOrigin = () => {
+          if (typeof document !== 'undefined' && document.referrer) {
+            try {
+              return new URL(document.referrer).origin;
+            } catch (error) {
+              console.warn('Invalid document.referrer for postMessage.', error);
+            }
+          }
+
+          return window.location.origin;
+        };
+
+        window.parent.postMessage(data, resolveParentOrigin());
       });
 
       socket.on('toast', (data: { message: string; type: string }) => {

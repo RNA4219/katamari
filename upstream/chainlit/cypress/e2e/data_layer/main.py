@@ -188,6 +188,8 @@ class TestDataLayer(cl_data.BaseDataLayer):
 
     @queue_until_user_message()
     async def update_step(self, step_dict: "StepDict"):
+        # NOTE: Cypress の E2E テストではステップの更新を検証しておらず、
+        #       インターフェースの整合性だけを担保すれば十分なため未実装。
         pass
 
     @queue_until_user_message()

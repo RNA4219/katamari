@@ -118,10 +118,7 @@ def test_metrics_endpoint_reports_nan_for_missing_retention(
     parsed = _parse_prometheus(body)
     assert "semantic_retention" in parsed
     assert math.isnan(parsed["semantic_retention"])
-    assert any(
-        marker in body
-        for marker in ("semantic_retention nan", "semantic_retention NaN")
-    )
+    assert "semantic_retention NaN" in body
 
 
 def test_metrics_endpoint_does_not_report_one_for_missing_retention(
@@ -144,10 +141,7 @@ def test_metrics_endpoint_does_not_report_one_for_missing_retention(
     parsed = _parse_prometheus(body)
     assert "semantic_retention" in parsed
     assert math.isnan(parsed["semantic_retention"])
-    assert any(
-        marker in body
-        for marker in ("semantic_retention nan", "semantic_retention NaN")
-    )
+    assert "semantic_retention NaN" in body
     assert "semantic_retention 1.0" not in body
 
 
@@ -160,7 +154,7 @@ def test_export_prometheus_outputs_nan_for_missing_retention(
 
     payload = registry.export_prometheus()
 
-    assert "semantic_retention nan" in payload
+    assert "semantic_retention NaN" in payload
     parsed = _parse_prometheus(payload)
     assert math.isnan(parsed["semantic_retention"])
 

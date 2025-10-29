@@ -30,10 +30,10 @@ def _existing_paths(raw_paths: Iterable[str]) -> list[Path]:
     missing_paths: dict[Path, None] = {}
     for raw in raw_paths:
         candidate = Path(raw).expanduser()
-        if not candidate.exists() or not candidate.is_file():
+        resolved = candidate.resolve(strict=False)
+        if not resolved.exists() or not resolved.is_file():
             missing_paths.setdefault(candidate, None)
             continue
-        resolved = candidate.resolve()
         resolved_paths.setdefault(resolved, None)
     if missing_paths:
         missing = ", ".join(str(path) for path in missing_paths)

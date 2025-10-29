@@ -59,6 +59,11 @@ def _resolve_async_openai() -> AsyncOpenAIFactory:
 
     cached_factory = _async_openai_factory
     if cached_factory is not None:
+        module = _openai_module
+        if module is not None:
+            candidate = getattr(module, "AsyncOpenAI", None)
+            if callable(candidate) and candidate is not cached_factory:
+                return _register_async_openai(cast(AsyncOpenAIFactory, candidate))
         return cached_factory
 
     module = _openai_module

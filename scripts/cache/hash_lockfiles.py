@@ -24,27 +24,25 @@ def _normalized_path(path: Path) -> tuple[str, Path]:
     return normalized, resolved
 
 
-def _existing_paths(raw_paths: Iterable[str]) -> list[Path]:
-    resolved_paths: dict[Path, None] = {}
+def _existing_paths(raw_paths: Iterable[str]) -> list[tuple[str, Path]]:
+    normalized_paths: dict[str, Path] = {}
     missing_paths: dict[Path, None] = {}
     for raw in raw_paths:
         candidate = Path(raw).expanduser()
-        if not candidate.exists() or not candidate.is_file():
+        resolved = candidate.resolve()
+        if not resolved.exists() or not resolved.is_file():
             missing_paths.setdefault(candidate, None)
             continue
-        resolved = candidate.resolve()
-        resolved_paths.setdefault(resolved, None)
+        normalized, resolved = _normalized_path(resolved)
+        normalized_paths.setdefault(normalized, resolved)
     if missing_paths:
         missing = ", ".join(str(path) for path in missing_paths)
         raise FileNotFoundError(f"Lockfile(s) not found: {missing}")
-    return list(resolved_paths)
+    return [(normalized, normalized_paths[normalized]) for normalized in normalized_paths]
 
 
-def _digest(paths: Iterable[Path]) -> str:
-    files: list[tuple[str, Path]] = []
-    for path in paths:
-        normalized, resolved = _normalized_path(path)
-        files.append((normalized, resolved))
+def _digest(paths: Iterable[tuple[str, Path]]) -> str:
+    files = list(paths)
     if not files:
         return ""
     files.sort(key=lambda item: item[0])

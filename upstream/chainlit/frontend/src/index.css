@@ -109,7 +109,6 @@ code {
 }
 
 .loading-shimmer {
-  background-position: -100% top;
   text-fill-color: transparent;
   -webkit-text-fill-color: transparent;
   animation-delay: 0s;
@@ -130,6 +129,7 @@ code {
   -webkit-background-clip: text;
   background-repeat: no-repeat;
   background-size: 50% 200%;
+  background-position: -100% top;
 }
 
 /* Custom scrollbar styles for command lists */

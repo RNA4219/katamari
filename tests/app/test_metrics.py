@@ -51,9 +51,8 @@ def test_export_prometheus_reports_nan_when_retention_unset(app_module: object) 
 
     lines = payload.strip().splitlines()
 
-    normalized = [line.lower() for line in lines]
-    assert normalized[-1] == "semantic_retention nan"
-    assert normalized.count("semantic_retention nan") == 1
+    assert lines[-1] == "semantic_retention NaN"
+    assert lines.count("semantic_retention NaN") == 1
 
 
 def test_export_prometheus_formats_nan_for_missing_retention(app_module: object) -> None:
@@ -63,4 +62,4 @@ def test_export_prometheus_formats_nan_for_missing_retention(app_module: object)
 
     payload = registry.export_prometheus()
 
-    assert payload.rstrip().lower().endswith("semantic_retention nan")
+    assert payload.rstrip().endswith("semantic_retention NaN")

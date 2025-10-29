@@ -169,8 +169,7 @@ def test_module_import_succeeds_without_openai(monkeypatch: pytest.MonkeyPatch) 
     provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
 
     async_factory = getattr(module, "AsyncOpenAI", None)
-    sentinel = getattr(module, "_MISSING_ASYNC_OPENAI_FACTORY", None)
-    assert async_factory is None or async_factory is sentinel
+    assert async_factory is None
 
     with pytest.raises(ImportError) as excinfo:
         provider_cls()
@@ -178,6 +177,45 @@ def test_module_import_succeeds_without_openai(monkeypatch: pytest.MonkeyPatch) 
     message = str(excinfo.value)
     assert "openai>=1.30.0" in message
     assert 'pip install --upgrade "openai>=1.30.0"' in message
+
+
+def test_module_reimport_allows_stub_registration(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Missing openai import should still allow injecting a stub factory after re-import."""
+
+    _simulate_missing_openai(monkeypatch)
+    monkeypatch.delitem(sys.modules, "openai", raising=False)
+    monkeypatch.delitem(sys.modules, "src.providers.openai_client", raising=False)
+
+    # Initial import without openai should leave the factory unset.
+    module = importlib.import_module("src.providers.openai_client")
+    assert getattr(module, "AsyncOpenAI") is None
+
+    # Re-import to mimic fresh module load when tests swap in stubs.
+    monkeypatch.delitem(sys.modules, "src.providers.openai_client", raising=False)
+    module = importlib.import_module("src.providers.openai_client")
+
+    assert getattr(module, "AsyncOpenAI") is None
+
+    provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
+
+    class _DummyClient:
+        def __init__(self, **kwargs: Any) -> None:
+            self.kwargs = kwargs
+            self.chat = SimpleNamespace(
+                completions=SimpleNamespace(create=lambda **_: SimpleNamespace())
+            )
+
+    dummy_client = _DummyClient()
+
+    def stub_factory(**kwargs: Any) -> _DummyClient:
+        dummy_client.kwargs = kwargs
+        return dummy_client
+
+    module._register_async_openai(stub_factory)
+
+    provider = provider_cls()
+    assert isinstance(provider.client, _DummyClient)
+    assert provider.client is dummy_client
 
 
 def test_module_import_with_legacy_openai(monkeypatch: pytest.MonkeyPatch) -> None:

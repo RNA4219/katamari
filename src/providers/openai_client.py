@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Mapping, Optional, Sequence, cast
+from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Mapping, Sequence, cast
 
 MessageParam = Mapping[str, object]
 
@@ -23,15 +23,21 @@ else:  # pragma: no cover - used only for typing fallbacks at runtime
 AsyncOpenAIFactory = Callable[..., AsyncOpenAIClient]
 
 
+def _missing_async_openai_factory(*_: Any, **__: Any) -> AsyncOpenAIClient:
+    raise ImportError(_MISSING_OPENAI_MESSAGE)
+
+
 AsyncOpenAI: AsyncOpenAIFactory | None = None
-_async_openai_factory: Optional[AsyncOpenAIFactory] = None
+_async_openai_factory: AsyncOpenAIFactory | None = None
 _openai_module: Any | None = sys.modules.get("openai")
 
 
-def _register_async_openai(factory: AsyncOpenAIFactory) -> AsyncOpenAIFactory:
+def _register_async_openai(factory: AsyncOpenAIFactory | None) -> AsyncOpenAIFactory:
     global AsyncOpenAI, _async_openai_factory
-    _async_openai_factory = factory
     AsyncOpenAI = factory
+    _async_openai_factory = factory
+    if factory is None:
+        return _missing_async_openai_factory
     return factory
 
 if _openai_module is not None:
@@ -40,18 +46,19 @@ if _openai_module is not None:
         _register_async_openai(cast(AsyncOpenAIFactory, candidate))
     else:
         _openai_module = None
+        _register_async_openai(None)
 
 
 def _resolve_async_openai() -> AsyncOpenAIFactory:
     global AsyncOpenAI, _async_openai_factory, _openai_module
 
-    if callable(AsyncOpenAI):
-        factory = cast(AsyncOpenAIFactory, AsyncOpenAI)
+    if AsyncOpenAI is not None:
+        factory = AsyncOpenAI
         _async_openai_factory = factory
         return factory
 
     cached_factory = _async_openai_factory
-    if callable(cached_factory) and cached_factory is AsyncOpenAI:
+    if cached_factory is not None:
         return cached_factory
 
     module = _openai_module
@@ -59,21 +66,23 @@ def _resolve_async_openai() -> AsyncOpenAIFactory:
         candidate = getattr(module, "AsyncOpenAI", None)
         if callable(candidate):
             return _register_async_openai(cast(AsyncOpenAIFactory, candidate))
-        _async_openai_factory = None
-        AsyncOpenAI = None
+        _openai_module = None
+        _register_async_openai(None)
+        return _missing_async_openai_factory
 
     try:
         runtime_openai = __import__("openai") if module is None else module
     except ModuleNotFoundError as exc:  # pragma: no cover - tested via unit test
+        _register_async_openai(None)
         raise ImportError(_MISSING_OPENAI_MESSAGE) from exc
     except ImportError:  # pragma: no cover - tested via unit test
+        _register_async_openai(None)
         raise
 
     candidate = getattr(runtime_openai, "AsyncOpenAI", None)
     if not callable(candidate):
         _openai_module = None
-        _async_openai_factory = None
-        AsyncOpenAI = None
+        _register_async_openai(None)
         raise ImportError(_MISSING_OPENAI_MESSAGE)
 
     _openai_module = runtime_openai

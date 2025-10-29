@@ -129,6 +129,7 @@
   background-position: -100% top;
   background-clip: text;
   -webkit-background-clip: text;
+  background-position: -100% top;
   background-repeat: no-repeat;
   background-size: 50% 200%;
 }

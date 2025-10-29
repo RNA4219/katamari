@@ -110,7 +110,6 @@
 }
 
 #cl-shadow-root .loading-shimmer {
-  background-position: -100% top;
   text-fill-color: transparent;
   -webkit-text-fill-color: transparent;
   animation-delay: 0s;
@@ -129,6 +128,7 @@
   background: hsl(var(--muted)) -webkit-gradient(linear, 100% 0, 0 0, from(hsl(var(--muted))), color-stop(0.5, hsl(var(--foreground))), to(hsl(var(--muted))));
   background-clip: text;
   -webkit-background-clip: text;
+  background-position: -100% top;
   background-repeat: no-repeat;
   background-size: 50% 200%;
 }

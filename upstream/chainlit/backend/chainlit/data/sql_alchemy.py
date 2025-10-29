@@ -52,6 +52,7 @@ class SQLAlchemyDataLayer(BaseDataLayer):
         if ssl_require:
             # Create an SSL context to require an SSL connection
             ssl_context = ssl.create_default_context()
+            ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
             ssl_context.check_hostname = True
             ssl_context.verify_mode = ssl.CERT_REQUIRED
             connect_args["ssl"] = ssl_context

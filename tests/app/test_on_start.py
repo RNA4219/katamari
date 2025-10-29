@@ -122,6 +122,29 @@ async def test_on_start_respects_env_defaults(monkeypatch, app_module) -> None:
 
 
 @pytest.mark.anyio
+async def test_on_start_normalizes_env_choice(monkeypatch, app_module) -> None:
+    monkeypatch.setenv("DEFAULT_MODEL", "  GPT-5-THINKING  ")
+    monkeypatch.setenv("DEFAULT_CHAIN", "  REFLECT  ")
+
+    _StubChatSettings.value_factory = lambda: _session_snapshot(app_module)
+
+    await app_module.on_start()
+
+    session = app_module.cl.user_session
+    assert session.get("model") == "gpt-5-thinking"
+    assert session.get("chain") == "reflect"
+
+    chat_settings = _StubChatSettings.instances[-1]
+    widgets = {widget.id: widget for widget in chat_settings.inputs}
+
+    model_widget = widgets["model"]
+    assert model_widget.values[model_widget.initial_index] == "gpt-5-thinking"
+
+    chain_widget = widgets["chain"]
+    assert chain_widget.values[chain_widget.initial_index] == "reflect"
+
+
+@pytest.mark.anyio
 async def test_on_start_preserves_existing_session_values(monkeypatch, app_module) -> None:
     monkeypatch.setenv("DEFAULT_MODEL", "gpt-5-main")
     monkeypatch.setenv("DEFAULT_CHAIN", "single")

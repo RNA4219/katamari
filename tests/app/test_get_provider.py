@@ -19,7 +19,9 @@ def app_module(tmp_path) -> Iterator[object]:
     app_root = tmp_path / "app"
     app_root.mkdir()
     previous_root = os.environ.get("CHAINLIT_APP_ROOT")
+    previous_openai_key = os.environ.get("OPENAI_API_KEY")
     os.environ["CHAINLIT_APP_ROOT"] = str(app_root)
+    os.environ["OPENAI_API_KEY"] = "test-openai-key"
     project_root = Path(__file__).resolve().parents[2]
     added_paths: list[str] = []
     for path in [project_root, project_root / "src"]:
@@ -41,6 +43,10 @@ def app_module(tmp_path) -> Iterator[object]:
         os.environ.pop("CHAINLIT_APP_ROOT", None)
     else:
         os.environ["CHAINLIT_APP_ROOT"] = previous_root
+    if previous_openai_key is None:
+        os.environ.pop("OPENAI_API_KEY", None)
+    else:
+        os.environ["OPENAI_API_KEY"] = previous_openai_key
 
 
 @pytest.fixture()

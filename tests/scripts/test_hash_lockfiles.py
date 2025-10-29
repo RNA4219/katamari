@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from scripts.cache import hash_lockfiles
 
 
@@ -89,3 +91,12 @@ def test_existing_paths_deduplicates_home_and_absolute(tmp_path, monkeypatch) ->
     )
 
     assert existing == [absolute_path]
+
+
+def test_missing_path_raises_error(tmp_path) -> None:
+    missing = tmp_path / "requirements.lock"
+
+    with pytest.raises(FileNotFoundError) as excinfo:
+        hash_lockfiles._existing_paths([str(missing)])
+
+    assert str(missing) in str(excinfo.value)

@@ -37,13 +37,19 @@ def _aggregate(messages: Iterable[Message]) -> str:
 
 def _build_openai_embedder() -> Optional[Embedder]:
     api_key = os.getenv("OPENAI_API_KEY")
+    if api_key is not None:
+        api_key = api_key.strip()
     if not api_key:
         return None
     try:
         from openai import OpenAI
     except ImportError:
         return None
-    model = os.getenv("SEMANTIC_RETENTION_OPENAI_MODEL", "text-embedding-3-large")
+    model = os.getenv("SEMANTIC_RETENTION_OPENAI_MODEL")
+    if model is not None:
+        model = model.strip()
+    if not model:
+        model = "text-embedding-3-large"
     client = OpenAI(api_key=api_key)
 
     def _embed(text: str) -> Sequence[float]:
@@ -57,18 +63,27 @@ def _build_gemini_embedder() -> Optional[Embedder]:
     api_key = None
     for env_var in ("GOOGLE_GEMINI_API_KEY", "GEMINI_API_KEY"):
         value = os.getenv(env_var)
+        if value is not None:
+            value = value.strip()
         if value:
             api_key = value
             break
     if not api_key:
-        api_key = os.getenv("GOOGLE_API_KEY")
+        fallback = os.getenv("GOOGLE_API_KEY")
+        if fallback is not None:
+            fallback = fallback.strip()
+        api_key = fallback or None
     if not api_key:
         return None
     try:
         import google.generativeai as genai
     except ImportError:
         return None
-    model = os.getenv("SEMANTIC_RETENTION_GEMINI_MODEL", "text-embedding-004")
+    model = os.getenv("SEMANTIC_RETENTION_GEMINI_MODEL")
+    if model is not None:
+        model = model.strip()
+    if not model:
+        model = "text-embedding-004"
     configure = getattr(genai, "configure", None)
     if callable(configure):
         configure(api_key=api_key)
@@ -101,7 +116,10 @@ def _provider_signature(provider: str) -> _Signature:
         )
     else:
         env_vars = ()
-    return tuple((name, os.getenv(name, "") or "") for name in env_vars)
+    signature: Tuple[Tuple[str, str], ...] = tuple(
+        (name, (os.getenv(name, "") or "").strip()) for name in env_vars
+    )
+    return signature
 
 
 def get_embedder(provider: str) -> Optional[Embedder]:

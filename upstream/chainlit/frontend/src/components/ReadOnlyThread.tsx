@@ -66,26 +66,51 @@ const ReadOnlyThread = ({ id }: Props) => {
     }
   }, [threadError]);
 
+  const applyFeedbackUpdate = useCallback(
+    (messageId: string, feedback: IFeedback, feedbackId: string) => {
+      setSteps((prev) =>
+        prev.map((step) => {
+          if (step.id !== messageId) {
+            return step;
+          }
+
+          return {
+            ...step,
+            feedback: {
+              ...feedback,
+              id: feedbackId
+            }
+          };
+        })
+      );
+    },
+    [setSteps]
+  );
+
+  const applyFeedbackDeletion = useCallback(
+    (messageId: string) => {
+      setSteps((prev) =>
+        prev.map((step) => {
+          if (step.id !== messageId) {
+            return step;
+          }
+
+          return {
+            ...step,
+            feedback: undefined
+          };
+        })
+      );
+    },
+    [setSteps]
+  );
+
   const onFeedbackUpdated = useCallback(
     async (message: IStep, onSuccess: () => void, feedback: IFeedback) => {
       toast.promise(apiClient.setFeedback(feedback, sessionId), {
         loading: 'Updating',
         success: (res) => {
-          setSteps((prev) =>
-            prev.map((step) => {
-              if (step.id === message.id) {
-                return {
-                  ...step,
-                  feedback: {
-                    ...feedback,
-                    id: res.feedbackId
-                  }
-                };
-              }
-              return step;
-            })
-          );
-
+          applyFeedbackUpdate(message.id, feedback, res.feedbackId);
           onSuccess();
           return 'Feedback updated!';
         },
@@ -94,7 +119,7 @@ const ReadOnlyThread = ({ id }: Props) => {
         }
       });
     },
-    [setSteps]
+    [applyFeedbackUpdate]
   );
 
   const onFeedbackDeleted = useCallback(
@@ -102,18 +127,7 @@ const ReadOnlyThread = ({ id }: Props) => {
       toast.promise(apiClient.deleteFeedback(feedbackId), {
         loading: t('chat.messages.feedback.status.updating'),
         success: () => {
-          setSteps((prev) =>
-            prev.map((step) => {
-              if (step.id === message.id) {
-                return {
-                  ...step,
-                  feedback: undefined
-                };
-              }
-              return step;
-            })
-          );
-
+          applyFeedbackDeletion(message.id);
           onSuccess();
           return t('chat.messages.feedback.status.updated');
         },
@@ -122,7 +136,7 @@ const ReadOnlyThread = ({ id }: Props) => {
         }
       });
     },
-    [setSteps]
+    [applyFeedbackDeletion, t]
   );
 
   const onElementRefClick = useCallback(

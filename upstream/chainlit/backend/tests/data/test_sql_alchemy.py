@@ -1,3 +1,4 @@
+import ssl
 import uuid
 from pathlib import Path
 
@@ -153,6 +154,41 @@ async def test_get_current_timestamp(data_layer: SQLAlchemyDataLayer):
     assert isinstance(timestamp, str)
 
 
+def test_sqlalchemy_data_layer_ssl_context(monkeypatch):
+    captured_connect_args: dict[str, object] = {}
+
+    def fake_create_async_engine(conninfo: str, **kwargs: object):
+        captured_connect_args.update(kwargs)
+
+        class _DummyEngine:
+            pass
+
+        return _DummyEngine()
+
+    def fake_sessionmaker(*args: object, **kwargs: object):
+        return object()
+
+    monkeypatch.setattr(
+        "chainlit.data.sql_alchemy.create_async_engine", fake_create_async_engine
+    )
+    monkeypatch.setattr("chainlit.data.sql_alchemy.sessionmaker", fake_sessionmaker)
+
+    SQLAlchemyDataLayer(
+        "postgresql+asyncpg://user:pass@example.com/db", ssl_require=True
+    )
+
+    assert "connect_args" in captured_connect_args
+
+    connect_args = captured_connect_args["connect_args"]
+    assert isinstance(connect_args, dict)
+    assert "ssl" in connect_args
+
+    ssl_context = connect_args["ssl"]
+    assert isinstance(ssl_context, ssl.SSLContext)
+    assert ssl_context.check_hostname is True
+    assert ssl_context.verify_mode == ssl.CERT_REQUIRED
+
+
 async def test_get_user(test_user: User, data_layer: SQLAlchemyDataLayer):
     persisted_user = await data_layer.create_user(test_user)
     assert persisted_user
@@ -216,3 +252,33 @@ async def test_delete_thread(test_user: User, data_layer: SQLAlchemyDataLayer):
     await data_layer.delete_thread("test_thread")
     thread = await data_layer.get_thread("test_thread")
     assert thread is None
+
+
+async def test_sqlalchemy_ssl_context_enforces_verification(monkeypatch):
+    captured_connect_args: dict[str, object] = {}
+
+    class DummyEngine:  # pragma: no cover - simple placeholder
+        pass
+
+    def fake_create_async_engine(conninfo: str, **kwargs):
+        captured_connect_args.update(kwargs.get("connect_args") or {})
+        return DummyEngine()
+
+    def fake_sessionmaker(*args, **kwargs):
+        return object()
+
+    monkeypatch.setattr(
+        "chainlit.data.sql_alchemy.create_async_engine", fake_create_async_engine
+    )
+    monkeypatch.setattr(
+        "chainlit.data.sql_alchemy.sessionmaker", fake_sessionmaker
+    )
+
+    data_layer = SQLAlchemyDataLayer("postgresql+asyncpg://", ssl_require=True)
+    assert isinstance(data_layer, SQLAlchemyDataLayer)
+
+    ssl_context = captured_connect_args.get("ssl")
+    assert isinstance(ssl_context, ssl.SSLContext)
+    assert ssl_context.check_hostname
+    assert ssl_context.verify_mode == ssl.CERT_REQUIRED
+    assert ssl_context.minimum_version >= ssl.TLSVersion.TLSv1_2

@@ -119,7 +119,7 @@ def test_cli_writes_null_for_nan_semantic_retention(tmp_path: Path) -> None:
         "compress_ratio 0.42\n"
         "# HELP semantic_retention Semantic retention score for trimmed context.\n"
         "# TYPE semantic_retention gauge\n"
-        "semantic_retention nan"
+        "semantic_retention NaN"
     )
     url, shutdown = _serve_metrics(payload)
     try:
@@ -205,7 +205,7 @@ def test_cli_writes_null_when_log_reports_null_and_http_missing_semantic(
         "compress_ratio 0.61\n"
         "# HELP semantic_retention Semantic retention score for trimmed context.\n"
         "# TYPE semantic_retention gauge\n"
-        "semantic_retention nan"
+        "semantic_retention NaN"
     )
     url, shutdown = _serve_metrics(http_payload)
     log_path = tmp_path / "chainlit_null_semantic.log"
@@ -238,7 +238,7 @@ def test_prefers_chainlit_log_over_nan_http_metric(tmp_path: Path) -> None:
     payload = (
         "# HELP semantic_retention Semantic retention score for trimmed context.\n"
         "# TYPE semantic_retention gauge\n"
-        "semantic_retention nan"
+        "semantic_retention NaN"
     )
     url, shutdown = _serve_metrics(payload)
     log_path = tmp_path / "chainlit.log"
@@ -361,7 +361,7 @@ def test_replaces_nan_http_metric_with_log_value(tmp_path: Path) -> None:
         "compress_ratio 0.42\n"
         "# HELP semantic_retention Semantic retention score for trimmed context.\n"
         "# TYPE semantic_retention gauge\n"
-        "semantic_retention nan"
+        "semantic_retention NaN"
     )
     url, shutdown = _serve_metrics(payload)
     log_path = tmp_path / "chainlit_nan_override.log"

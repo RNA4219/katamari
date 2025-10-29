@@ -431,7 +431,6 @@ class Step:
             name=self.name,
             id=self.id,
             parent_id=self.parent_id,
-            thread_id=self.thread_id,
         )
 
     # Handle Context Manager Protocol

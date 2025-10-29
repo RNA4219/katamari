@@ -81,55 +81,63 @@ const Chat = () => {
     uploadFileRef.current = uploadFile;
   }, [uploadFile]);
 
+  const updateAttachment = useCallback(
+    (id: string, updates: Partial<IAttachment>) => {
+      setAttachments((prev) =>
+        prev.map((attachment) =>
+          attachment.id === id ? { ...attachment, ...updates } : attachment
+        )
+      );
+    },
+    [setAttachments]
+  );
+
+  const removeAttachment = useCallback(
+    (id: string) => {
+      setAttachments((prev) =>
+        prev.filter((attachment) => attachment.id !== id)
+      );
+    },
+    [setAttachments]
+  );
+
   const onFileUpload = useCallback(
     (payloads: File[]) => {
       const attachements: IAttachment[] = payloads.map((file) => {
         const id = uuidv4();
 
-        const { xhr, promise } = uploadFileRef.current(file, (progress) => {
-          setAttachments((prev) =>
-            prev.map((attachment) => {
-              if (attachment.id === id) {
-                return {
-                  ...attachment,
-                  uploadProgress: progress
-                };
-              }
-              return attachment;
-            })
-          );
-        });
+        const handleProgress = (progress: number) =>
+          updateAttachment(id, { uploadProgress: progress });
 
-        promise
-          .then((res) => {
-            setAttachments((prev) =>
-              prev.map((attachment) => {
-                if (attachment.id === id) {
-                  return {
-                    ...attachment,
-                    // Update with the server ID
-                    serverId: res.id,
-                    uploaded: true,
-                    uploadProgress: 100,
-                    cancel: undefined
-                  };
-                }
-                return attachment;
-              })
-            );
-          })
-          .catch((error) => {
-            toast.error(
-              `${t('chat.fileUpload.errors.failed')} ${file.name}: ${
-                typeof error === 'object' && error !== null
-                  ? error.message ?? error
-                  : error
-              }`
-            );
-            setAttachments((prev) =>
-              prev.filter((attachment) => attachment.id !== id)
-            );
+        const { xhr, promise } = uploadFileRef.current(file, handleProgress);
+
+        const handleSuccess = (res: { id: string }) => {
+          updateAttachment(id, {
+            serverId: res.id,
+            uploaded: true,
+            uploadProgress: 100,
+            cancel: undefined
           });
+        };
+
+        const handleFailure = (uploadError: unknown) => {
+          const errorMessage =
+            uploadError instanceof Error
+              ? uploadError.message
+              : String(uploadError);
+          toast.error(
+            `${t('chat.fileUpload.errors.failed')} ${file.name}: ${errorMessage}`
+          );
+          removeAttachment(id);
+        };
+
+        promise.then(handleSuccess).catch(handleFailure);
+
+        const cancelUpload = () => {
+          toast.info(`${t('chat.fileUpload.errors.cancelled')} ${file.name}`);
+          xhr.abort();
+          removeAttachment(id);
+        };
 
         return {
           id,
@@ -137,23 +145,15 @@ const Chat = () => {
           name: file.name,
           size: file.size,
           uploadProgress: 0,
-          cancel: () => {
-            toast.info(`${t('chat.fileUpload.errors.cancelled')} ${file.name}`);
-            xhr.abort();
-            setAttachments((prev) =>
-              prev.filter((attachment) => attachment.id !== id)
-            );
-          },
+          cancel: cancelUpload,
           remove: () => {
-            setAttachments((prev) =>
-              prev.filter((attachment) => attachment.id !== id)
-            );
+            removeAttachment(id);
           }
         };
       });
       setAttachments((prev) => prev.concat(attachements));
     },
-    [uploadFile]
+    [removeAttachment, t, updateAttachment, uploadFile]
   );
 
   const onFileUploadError = useCallback(

@@ -98,7 +98,21 @@ def _get_token_from_cookie(environ: WSGIEnvironment) -> Optional[str]:
 
 def _get_token(environ: WSGIEnvironment, auth: dict) -> Optional[str]:
     """Take WSGI environ, return access token."""
-    return _get_token_from_cookie(environ)
+    if token := _get_token_from_cookie(environ):
+        return token
+
+    if authorization := environ.get("HTTP_AUTHORIZATION"):
+        scheme, _, credentials = authorization.partition(" ")
+        if scheme.lower() == "bearer" and credentials:
+            return credentials.strip()
+
+    if isinstance(auth, dict):
+        for key in ("token", "access_token", "accessToken"):
+            value = auth.get(key)
+            if isinstance(value, str) and value:
+                return value
+
+    return None
 
 
 async def _authenticate_connection(

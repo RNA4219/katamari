@@ -15,8 +15,9 @@ _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 def _normalized_path(path: Path) -> tuple[str, Path]:
     resolved = path.resolve()
+    repo_root = Path(_REPOSITORY_ROOT).resolve()
     try:
-        relative = resolved.relative_to(_REPOSITORY_ROOT)
+        relative = resolved.relative_to(repo_root)
         normalized = relative.as_posix()
     except ValueError:
         normalized = resolved.as_posix()
@@ -28,12 +29,10 @@ def _existing_paths(raw_paths: Iterable[str]) -> list[Path]:
     for raw in raw_paths:
         candidate = Path(raw).expanduser()
         if candidate.exists() and candidate.is_file():
-            _, resolved = _normalized_path(candidate)
+            resolved = candidate.resolve()
             if resolved not in resolved_paths:
                 resolved_paths[resolved] = None
-    ordered_paths = list(resolved_paths.keys())
-    ordered_paths.sort(key=lambda path: _normalized_path(path)[0])
-    return ordered_paths
+    return list(resolved_paths.keys())
 
 
 def _digest(paths: Iterable[Path]) -> str:

@@ -38,7 +38,7 @@ interface DataframeData {
   data: (string | number)[][];
 }
 
-const _DataframeElement = ({ data }: { data: DataframeData }) => {
+const DataframeContent = ({ data }: { data: DataframeData }) => {
   const { index, columns, data: rowData } = data;
 
   const tableColumns: ColumnDef<Record<string, string | number>>[] = useMemo(
@@ -193,7 +193,11 @@ function DataframeElement({ element }: { element: IDataframeElement }) {
     return <Alert variant="error">{error.message}</Alert>;
   }
 
-  return <_DataframeElement data={jsonData} />;
+  if (!jsonData) {
+    return null;
+  }
+
+  return <DataframeContent data={jsonData} />;
 }
 
 export default DataframeElement;

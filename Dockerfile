@@ -4,6 +4,9 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
+RUN groupadd -r app && useradd --no-log-init -r -g app app \
+    && chown -R app:app /app
+USER app
 ENV PORT=8787
 EXPOSE 8787
 # デフォルトで Chainlit CLI をエントリポイントとして公開

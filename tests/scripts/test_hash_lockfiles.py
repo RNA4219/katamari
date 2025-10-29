@@ -41,6 +41,27 @@ def test_digest_is_stable_with_equivalent_paths(tmp_path) -> None:
     assert equivalent_digest == single_digest
 
 
+def test_digest_is_stable_across_repository_roots(tmp_path, monkeypatch) -> None:
+    repo_a = tmp_path / "repo_a"
+    repo_b = tmp_path / "repo_b"
+
+    for repo in (repo_a, repo_b):
+        repo.mkdir()
+        lockfile = repo / "requirements.lock"
+        lockfile.write_text("dep==1.0\n", encoding="utf-8")
+
+    monkeypatch.setattr(hash_lockfiles, "_REPOSITORY_ROOT", repo_a)
+    digest_a = hash_lockfiles._digest(
+        hash_lockfiles._existing_paths([str(repo_a / "requirements.lock")])
+    )
+    monkeypatch.setattr(hash_lockfiles, "_REPOSITORY_ROOT", repo_b)
+    digest_b = hash_lockfiles._digest(
+        hash_lockfiles._existing_paths([str(repo_b / "requirements.lock")])
+    )
+
+    assert digest_a == digest_b
+
+
 def test_existing_paths_expands_home_directory(tmp_path, monkeypatch) -> None:
     home_dir = tmp_path / "home"
     home_dir.mkdir()

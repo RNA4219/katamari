@@ -7,7 +7,19 @@ import argparse
 import hashlib
 import os
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable
+
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _stable_path_representation(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        relative = resolved.relative_to(_REPO_ROOT)
+    except ValueError:
+        return resolved.as_posix()
+    return relative.as_posix()
 
 
 def _existing_paths(raw_paths: Iterable[str]) -> list[Path]:
@@ -22,12 +34,17 @@ def _existing_paths(raw_paths: Iterable[str]) -> list[Path]:
 
 
 def _digest(paths: Iterable[Path]) -> str:
-    files: List[Path] = sorted(paths)
-    if not files:
+    normalized: list[tuple[str, Path]] = []
+    for file_path in paths:
+        normalized.append((_stable_path_representation(file_path), file_path))
+
+    if not normalized:
         return ""
+
+    normalized.sort(key=lambda item: item[0])
     hasher = hashlib.sha256()
-    for file_path in files:
-        hasher.update(file_path.as_posix().encode("utf-8"))
+    for stable_path, file_path in normalized:
+        hasher.update(stable_path.encode("utf-8"))
         hasher.update(b"\0")
         hasher.update(file_path.read_bytes())
     return hasher.hexdigest()

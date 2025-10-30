@@ -110,7 +110,7 @@ export const runChainlit = async (
     });
 
     chainlit.stderr.on('data', (data) => {
-      console.error(`[Chainlit stderr] ${data}`);
+      console.error('[Chainlit stderr] %s', data.toString());
     });
 
     chainlit.on('error', (error) => {

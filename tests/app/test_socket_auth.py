@@ -5,29 +5,33 @@ from importlib import util
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
+import pytest
 
-def _load_socket_module():
+
+def _load_socket_module(temp_root: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     module_path = Path(__file__).resolve().parents[2]
     backend_root = module_path / "upstream" / "chainlit" / "backend"
-    temp_root = Path(tempfile.mkdtemp(prefix="chainlit_app_root_"))
     fake_config_dir = temp_root / ".chainlit"
     fake_config_dir.mkdir(parents=True, exist_ok=True)
     (fake_config_dir / "config.toml").write_text(
         """[meta]\ngenerated_by = \"0.3.1\"\n\n[project]\nuser_env = []\n\n[features]\n\n[UI]\nname = \"Test\"\n""",
         encoding="utf-8",
     )
-    os.environ.setdefault("CHAINLIT_APP_ROOT", str(temp_root))
-    sys.path.insert(0, str(backend_root))
+    monkeypatch.setenv("CHAINLIT_APP_ROOT", str(temp_root))
+    monkeypatch.syspath_prepend(str(backend_root))
 
     chainlit_pkg = ModuleType("chainlit")
     chainlit_pkg.__path__ = []  # type: ignore[attr-defined]
-    sys.modules["chainlit"] = chainlit_pkg
+    monkeypatch.setitem(sys.modules, "chainlit", chainlit_pkg)
+
+    stubbed_modules: list[str] = []
 
     def stub_module(name: str, attrs: dict[str, object]) -> ModuleType:
         module = ModuleType(name)
         for attr_name, attr_value in attrs.items():
             setattr(module, attr_name, attr_value)
-        sys.modules[name] = module
+        monkeypatch.setitem(sys.modules, name, module)
+        stubbed_modules.append(name)
         setattr(chainlit_pkg, name.split(".")[-1], module)
         return module
 
@@ -107,37 +111,59 @@ def _load_socket_module():
         raise RuntimeError("Unable to load socket module for tests")
     module = util.module_from_spec(spec)
     spec.loader.exec_module(module)
+
+    for name in reversed(stubbed_modules):
+        monkeypatch.delitem(sys.modules, name, raising=False)
+    monkeypatch.delitem(sys.modules, "chainlit", raising=False)
+
     return module
 
 
-_socket_module = _load_socket_module()
-_get_token = _socket_module._get_token
+@pytest.fixture()
+def socket_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+    with tempfile.TemporaryDirectory(prefix="chainlit_app_root_") as temp_dir:
+        module = _load_socket_module(Path(temp_dir), monkeypatch)
+        yield module
 
 
-def test_get_token_uses_cookie_over_other_sources():
+@pytest.fixture()
+def get_token(socket_module: ModuleType):
+    return socket_module._get_token
+
+
+def test_get_token_uses_cookie_over_other_sources(get_token):
     environ = {
         "HTTP_COOKIE": "access_token=cookie-token",
         "HTTP_AUTHORIZATION": "Bearer header-token",
     }
 
-    result = _get_token(environ, {"token": "auth-token"})
+    result = get_token(environ, {"token": "auth-token"})
 
     assert result == "cookie-token"
 
 
-def test_get_token_falls_back_to_authorization_header():
+def test_get_token_falls_back_to_authorization_header(get_token):
     environ = {
         "HTTP_AUTHORIZATION": "Bearer header-token",
     }
 
-    result = _get_token(environ, {"token": "auth-token"})
+    result = get_token(environ, {"token": "auth-token"})
 
     assert result == "header-token"
 
 
-def test_get_token_uses_auth_payload_as_last_resort():
+def test_get_token_uses_auth_payload_as_last_resort(get_token):
     environ = {}
 
-    result = _get_token(environ, {"token": "auth-token"})
+    result = get_token(environ, {"token": "auth-token"})
 
     assert result == "auth-token"
+
+
+def test_socket_loader_replaces_stubbed_chainlit_server(socket_module: ModuleType):
+    assert "chainlit.server" not in sys.modules
+
+    spec = util.find_spec("chainlit.server")
+
+    assert spec is not None and spec.origin is not None
+    assert Path(spec.origin).name == "server.py"

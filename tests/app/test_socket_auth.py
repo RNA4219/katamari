@@ -1,3 +1,5 @@
+from collections.abc import Iterator
+from contextlib import contextmanager
 import os
 import sys
 import tempfile
@@ -21,10 +23,21 @@ def _load_socket_module(temp_root: Path, monkeypatch: pytest.MonkeyPatch) -> Mod
         encoding="utf-8",
     )
     stubbed_modules: list[str] = []
-    original_app_root = os.environ.get("CHAINLIT_APP_ROOT")
-    original_syspath = list(sys.path)
 
-    try:
+    @contextmanager
+    def preserve_environment() -> Iterator[None]:
+        original_app_root = os.environ.get("CHAINLIT_APP_ROOT")
+        original_syspath = list(sys.path)
+        try:
+            yield
+        finally:
+            if original_app_root is None:
+                os.environ.pop("CHAINLIT_APP_ROOT", None)
+            else:
+                os.environ["CHAINLIT_APP_ROOT"] = original_app_root
+            sys.path[:] = original_syspath
+
+    with preserve_environment():
         monkeypatch.setenv("CHAINLIT_APP_ROOT", str(temp_root))
         monkeypatch.syspath_prepend(str(backend_root))
 
@@ -112,23 +125,19 @@ def _load_socket_module(temp_root: Path, monkeypatch: pytest.MonkeyPatch) -> Mod
         stub_module("chainlit.user", {"PersistedUser": object, "User": object})
         stub_module("chainlit.user_session", {"user_sessions": {}})
 
-        module_path = backend_root / "chainlit" / "socket.py"
-        spec = util.spec_from_file_location("chainlit_socket_module", module_path)
-        if spec is None or spec.loader is None:
-            raise RuntimeError("Unable to load socket module for tests")
-        module = util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        try:
+            module_path = backend_root / "chainlit" / "socket.py"
+            spec = util.spec_from_file_location("chainlit_socket_module", module_path)
+            if spec is None or spec.loader is None:
+                raise RuntimeError("Unable to load socket module for tests")
+            module = util.module_from_spec(spec)
+            spec.loader.exec_module(module)
 
-        return module
-    finally:
-        for name in reversed(stubbed_modules):
-            monkeypatch.delitem(sys.modules, name, raising=False)
-        monkeypatch.delitem(sys.modules, "chainlit", raising=False)
-        if original_app_root is None:
-            os.environ.pop("CHAINLIT_APP_ROOT", None)
-        else:
-            os.environ["CHAINLIT_APP_ROOT"] = original_app_root
-        sys.path[:] = original_syspath
+            return module
+        finally:
+            for name in reversed(stubbed_modules):
+                monkeypatch.delitem(sys.modules, name, raising=False)
+            monkeypatch.delitem(sys.modules, "chainlit", raising=False)
 
 
 @pytest.fixture()
@@ -157,6 +166,46 @@ def test_socket_loader_restores_environment(monkeypatch: pytest.MonkeyPatch, tmp
 
     assert os.environ.get("CHAINLIT_APP_ROOT") == "original-root"
     assert sys.path == baseline_syspath
+
+
+def test_socket_loader_restores_environment_when_unset(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    temp_root = tmp_path / "chainlit-app"
+    temp_root.mkdir()
+
+    monkeypatch.delenv("CHAINLIT_APP_ROOT", raising=False)
+
+    sentinel_path = tmp_path / "sentinel"
+    sentinel_path.mkdir()
+    monkeypatch.syspath_prepend(str(sentinel_path))
+
+    baseline_env = dict(os.environ)
+    baseline_syspath = list(sys.path)
+
+    environ_type = type(os.environ)
+    recorded_mutations: list[tuple[str, str | None]] = []
+
+    original_setitem = environ_type.__setitem__
+    original_delitem = environ_type.__delitem__
+
+    def tracking_setitem(self, key: str, value: str) -> None:
+        recorded_mutations.append(("set", key, value))
+        original_setitem(self, key, value)
+
+    def tracking_delitem(self, key: str) -> None:
+        recorded_mutations.append(("del", key, None))
+        original_delitem(self, key)
+
+    monkeypatch.setattr(environ_type, "__setitem__", tracking_setitem)
+    monkeypatch.setattr(environ_type, "__delitem__", tracking_delitem)
+
+    with monkeypatch.context() as isolated_patch:
+        _load_socket_module(temp_root, isolated_patch)
+
+    assert os.environ == baseline_env
+    assert sys.path == baseline_syspath
+    assert recorded_mutations
 
 
 def test_get_token_uses_cookie_over_other_sources(get_token):

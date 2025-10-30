@@ -419,7 +419,8 @@ for _path in ("/metrics", "/healthz"):
 def get_provider(model_id: str) -> OpenAIProvider | GoogleGeminiProvider:
     """Instantiate a provider implementation for the requested model."""
 
-    if model_id.startswith("gemini-"):
+    normalized = model_id.strip().casefold()
+    if normalized.startswith("gemini-"):
         return GoogleGeminiProvider()
     return OpenAIProvider()
 

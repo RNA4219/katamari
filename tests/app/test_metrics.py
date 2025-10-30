@@ -62,4 +62,18 @@ def test_export_prometheus_formats_nan_for_missing_retention(app_module: object)
 
     payload = registry.export_prometheus()
 
-    assert payload.rstrip().endswith("semantic_retention NaN")
+    lines = payload.strip().splitlines()
+
+    assert lines[-1] == "semantic_retention NaN"
+
+
+def test_export_prometheus_normalizes_nan_like_strings(app_module: object) -> None:
+    registry = app_module.MetricsRegistry()  # type: ignore[attr-defined]
+
+    registry.observe_trim(compress_ratio=0.5, semantic_retention="nan")
+
+    payload = registry.export_prometheus()
+
+    lines = payload.strip().splitlines()
+
+    assert lines[-1] == "semantic_retention NaN"

@@ -217,6 +217,10 @@ class MetricsRegistry:
                 if math.isnan(numeric):
                     return "NaN"
                 return f"{numeric}"
+            if isinstance(value, str):
+                normalized = value.strip()
+                if normalized.lower() == "nan":
+                    return "NaN"
             return f"{value}"
 
         lines = [

@@ -111,7 +111,6 @@ code {
 .loading-shimmer {
   background-position: -100% top;
   color: transparent;
-  text-fill-color: transparent;
   -webkit-text-fill-color: transparent;
   animation-delay: 0s;
   animation-duration: 4s;

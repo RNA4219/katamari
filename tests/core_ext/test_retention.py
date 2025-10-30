@@ -306,8 +306,11 @@ def test_openai_embedder_rebuilds_when_env_changes(
     assert created_keys == ["first", "second"]
 
 
-def test_openai_embedder_ignores_blank_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OPENAI_API_KEY", "   ")
+@pytest.mark.parametrize("blank_value", ["", "   ", "\t"], ids=["empty", "spaces", "tab"])
+def test_openai_embedder_ignores_blank_key(
+    monkeypatch: pytest.MonkeyPatch, blank_value: str
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", blank_value)
 
     class _FailingOpenAI:
         def __init__(self, api_key: str) -> None:  # pragma: no cover - defensive
@@ -330,3 +333,60 @@ def test_gemini_embedder_ignores_blank_keys(monkeypatch: pytest.MonkeyPatch) -> 
 
     assert retention.get_embedder("gemini") is None
     assert dummy.configured_keys == []
+
+
+@pytest.mark.parametrize("blank_value", ["", "   ", "\t"], ids=["empty", "spaces", "tab"])
+def test_compute_semantic_retention_ignores_blank_openai_key(
+    monkeypatch: pytest.MonkeyPatch, blank_value: str
+) -> None:
+    monkeypatch.setenv("SEMANTIC_RETENTION_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", blank_value)
+
+    class _FailingOpenAI:
+        def __init__(self, api_key: str) -> None:  # pragma: no cover - defensive
+            raise AssertionError("embedder should not initialize with blank key")
+
+    module = types.ModuleType("openai")
+    setattr(module, "OpenAI", _FailingOpenAI)
+    monkeypatch.setitem(sys.modules, "openai", module)
+
+    before = [{"content": "before"}]
+    after = [{"content": "after"}]
+
+    assert retention.get_embedder("openai") is None
+    assert retention.compute_semantic_retention(before, after) is None
+
+
+@pytest.mark.parametrize(
+    "env_var",
+    ["GOOGLE_GEMINI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"],
+)
+@pytest.mark.parametrize("blank_value", ["", "   ", "\t"], ids=["empty", "spaces", "tab"])
+def test_compute_semantic_retention_ignores_blank_gemini_keys(
+    monkeypatch: pytest.MonkeyPatch, env_var: str, blank_value: str
+) -> None:
+    def _configure(*, api_key: str) -> None:  # pragma: no cover - defensive
+        raise AssertionError("Gemini configure should not run with blank key")
+
+    def _embed_content(*, model: str, content: str):  # pragma: no cover - defensive
+        raise AssertionError("Gemini embed_content should not run with blank key")
+
+    generativeai = types.SimpleNamespace(
+        configure=_configure,
+        embed_content=_embed_content,
+    )
+    google_module = types.ModuleType("google")
+    setattr(google_module, "generativeai", generativeai)
+    monkeypatch.setitem(sys.modules, "google", google_module)
+    monkeypatch.setitem(sys.modules, "google.generativeai", generativeai)
+
+    monkeypatch.setenv("SEMANTIC_RETENTION_PROVIDER", "gemini")
+    for candidate in ("GOOGLE_GEMINI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"):
+        monkeypatch.delenv(candidate, raising=False)
+    monkeypatch.setenv(env_var, blank_value)
+
+    before = [{"content": "before"}]
+    after = [{"content": "after"}]
+
+    assert retention.get_embedder("gemini") is None
+    assert retention.compute_semantic_retention(before, after) is None

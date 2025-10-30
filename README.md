@@ -83,6 +83,7 @@ make run
 | 必須 | `OPENAI_API_KEY` | OpenAI プロバイダー利用時の API キー | `OPENAI_API_KEY=sk-...` | `.env` のみで管理し、Git には含めない |
 | 任意 | `GOOGLE_GEMINI_API_KEY` | Google Gemini プロバイダー利用時の API キー | `GOOGLE_GEMINI_API_KEY=...` | Gemini API を利用する場合のみ |
 | 任意 | `GEMINI_API_KEY` | 旧名称。既存デプロイ互換用 | `GEMINI_API_KEY=...` | 既存環境からの移行時に保持 |
+| 任意 | `GOOGLE_API_KEY` | Gemini 用の最終フォールバック API キー | `GOOGLE_API_KEY=...` | `GOOGLE_GEMINI_API_KEY` / `GEMINI_API_KEY` が欠損した場合の最終手段 |
 | 任意 | `DEFAULT_PROVIDER` | 既定で使用する LLM プロバイダー識別子 | `DEFAULT_PROVIDER=openai` | 将来のマルチプロバイダー切り替え用プレースホルダー（現状未使用） |
 | 任意 | `DEFAULT_MODEL` | 起動時に選択される LLM モデル ID | `DEFAULT_MODEL=gpt-5-main` | `.env` 未設定時はアプリ既定値を利用 |
 | 任意 | `DEFAULT_CHAIN` | 既定で利用する推論チェーン（`single` / `reflect`） | `DEFAULT_CHAIN=single` | 未設定時は `single` を使用 |

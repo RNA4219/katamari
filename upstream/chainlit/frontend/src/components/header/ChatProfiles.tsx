@@ -37,29 +37,37 @@ export default function ChatProfiles({ navigate }: Props) {
   const [newChatProfile, setNewChatProfile] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
 
-  // Early return check to prevent unnecessary renders and resource waste
-  if (!config?.chatProfiles?.length || config.chatProfiles.length <= 1) {
-    return null;
-  }
+  const chatProfiles = config?.chatProfiles ?? [];
 
   // Handle case when no profile is selected
   useEffect(() => {
-    if (!chatProfile) {
-      setChatProfile(config.chatProfiles[0].name);
+    if (!chatProfiles.length) {
+      return;
     }
-  }, [chatProfile, config.chatProfiles, setChatProfile]);
+
+    if (!chatProfile) {
+      setChatProfile(chatProfiles[0].name);
+    }
+  }, [chatProfile, chatProfiles, setChatProfile]);
 
   // Handle case when selected profile becomes invalid
   useEffect(() => {
-    if (chatProfile) {
-      const profileExists = config.chatProfiles.some(
-        (profile) => profile.name === chatProfile
-      );
-      if (!profileExists) {
-        setChatProfile(config.chatProfiles[0].name);
-      }
+    if (!chatProfiles.length || !chatProfile) {
+      return;
     }
-  }, [chatProfile, config.chatProfiles, setChatProfile]);
+
+    const profileExists = chatProfiles.some(
+      (profile) => profile.name === chatProfile
+    );
+
+    if (!profileExists) {
+      setChatProfile(chatProfiles[0].name);
+    }
+  }, [chatProfile, chatProfiles, setChatProfile]);
+
+  if (chatProfiles.length <= 1) {
+    return null;
+  }
 
   const handleClose = () => {
     setOpenDialog(false);
@@ -97,7 +105,7 @@ export default function ChatProfiles({ navigate }: Props) {
           <SelectValue placeholder="Select profile" />
         </SelectTrigger>
         <SelectContent>
-          {config.chatProfiles.map((profile) => {
+          {chatProfiles.map((profile) => {
             const icon = profile.icon?.includes('/public')
               ? apiClient.buildEndpoint(profile.icon)
               : profile.icon;

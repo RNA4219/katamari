@@ -1,0 +1,17 @@
+{
+  "id": "docs/adr/0000-template.md",
+  "role": "markdown",
+  "summary": "ADR-0000: <タイトル>",
+  "public_api": [],
+  "tests": [],
+  "risks": [],
+  "deps_out": [
+    "docs/ROADMAP_AND_SPECS.md"
+  ],
+  "deps_in": [
+    "docs/ROADMAP_AND_SPECS.md",
+    "docs/adr/README.md"
+  ],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
+}

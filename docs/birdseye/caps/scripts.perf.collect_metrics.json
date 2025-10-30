@@ -1,17 +1,18 @@
 {
-  "id": "src/providers/openai_client.py",
+  "id": "scripts/perf/collect_metrics.py",
   "role": "python",
   "summary": "from __future__ import annotations",
   "public_api": [
-    "AsyncOpenAI",
-    "OpenAIProvider"
+    "COMPRESS_RATIO_KEY",
+    "METRIC_KEYS",
+    "SEMANTIC_RETENTION_KEY",
+    "_PROMETHEUS_METRIC_RE",
+    "main"
   ],
   "tests": [],
   "risks": [],
   "deps_out": [],
-  "deps_in": [
-    "src/app.py"
-  ],
+  "deps_in": [],
   "generated_at": "2025-10-30T14:30:20Z",
   "mtime": "2025-10-30T10:35:32Z"
 }

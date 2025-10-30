@@ -1,20 +1,23 @@
 {
   "id": "src/core_ext/prethought.py",
-  "role": "analysis",
-  "summary": "ユーザー発話から意図・制約・視点を定型テキストで抽出し、マルチステップ実行前に表示する軽量プリシンク機能。",
+  "role": "python",
+  "summary": "import re",
   "public_api": [
-    "analyze_intent()"
+    "IntentReport",
+    "IntentSection",
+    "IntentSectionLine",
+    "_SECTION_ANCHORS",
+    "_SECTION_KEYWORDS",
+    "_SECTION_ORDER",
+    "_SECTION_PREFIX_PATTERN",
+    "analyze_intent"
   ],
-  "deps_out": [
-    "src/app.py"
-  ],
+  "tests": [],
+  "risks": [],
+  "deps_out": [],
   "deps_in": [
     "src/app.py"
   ],
-  "tests": [],
-  "risks": [
-    "ルールベースのため解釈精度が限定的で誤誘導する可能性がある"
-  ],
-  "generated_at": "00006",
-  "mtime": "00006"
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
 }

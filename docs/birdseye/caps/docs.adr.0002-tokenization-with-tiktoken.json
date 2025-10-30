@@ -1,0 +1,15 @@
+{
+  "id": "docs/adr/0002-tokenization-with-tiktoken.md",
+  "role": "markdown",
+  "summary": "ADR-0002: Token カウントに tiktoken を採用する",
+  "public_api": [],
+  "tests": [],
+  "risks": [],
+  "deps_out": [],
+  "deps_in": [
+    "docs/ROADMAP_AND_SPECS.md",
+    "docs/adr/README.md"
+  ],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
+}

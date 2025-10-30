@@ -1,0 +1,16 @@
+{
+  "id": "docs/UPSTREAM.md",
+  "role": "markdown",
+  "summary": "UPSTREAM 取り込み方針（Katamari）",
+  "public_api": [],
+  "tests": [],
+  "risks": [],
+  "deps_out": [
+    "docs/TASKS.md"
+  ],
+  "deps_in": [
+    "docs/adr/0001-use-chainlit-subtree.md"
+  ],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
+}

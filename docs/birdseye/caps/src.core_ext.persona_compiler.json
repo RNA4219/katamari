@@ -1,22 +1,17 @@
 {
   "id": "src/core_ext/persona_compiler.py",
-  "role": "persona",
-  "summary": "Persona YAML から名前・トーン・禁止事項・注記を取り出し、Chainlit 用システムプロンプトと検証メッセージを生成するコンパイラ。",
+  "role": "python",
+  "summary": "import json",
   "public_api": [
-    "compile_persona_yaml()"
+    "_FORBIDDEN_PATTERNS_PATH",
+    "compile_persona_yaml"
   ],
-  "deps_out": [
-    "src/app.py"
-  ],
+  "tests": [],
+  "risks": [],
+  "deps_out": [],
   "deps_in": [
     "src/app.py"
   ],
-  "tests": [
-    "pytest tests/test_persona_compiler.py"
-  ],
-  "risks": [
-    "YAML パース失敗時はデフォルトプロンプトへフォールバックし警告を返す"
-  ],
-  "generated_at": "00005",
-  "mtime": "00005"
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
 }

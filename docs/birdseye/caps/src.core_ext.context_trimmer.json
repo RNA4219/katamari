@@ -1,22 +1,17 @@
 {
   "id": "src/core_ext/context_trimmer.py",
-  "role": "context-management",
-  "summary": "履歴からシステムメッセージを保持しつつトークン予算内へ収め、圧縮率とカウンタ情報を返すトリミングユーティリティ。",
+  "role": "python",
+  "summary": "from __future__ import annotations",
   "public_api": [
-    "trim_messages()"
+    "ChatMessage",
+    "trim_messages"
   ],
-  "deps_out": [
-    "src/app.py"
-  ],
+  "tests": [],
+  "risks": [],
+  "deps_out": [],
   "deps_in": [
     "src/app.py"
   ],
-  "tests": [
-    "pytest tests/core_ext/test_context_trimmer.py"
-  ],
-  "risks": [
-    "tiktoken 未導入環境ではヒューリスティックカウントにフォールバックする"
-  ],
-  "generated_at": "00003",
-  "mtime": "00003"
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
 }

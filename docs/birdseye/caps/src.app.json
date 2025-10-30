@@ -1,39 +1,40 @@
 {
   "id": "src/app.py",
-  "role": "entrypoint",
-  "summary": "Chainlit イベントハンドラと運用 API を集約し、履歴トリミング・マルチステップ実行・LLM 呼び出し・メトリクス公開を統括する中核エントリポイント。",
+  "role": "python",
+  "summary": "from __future__ import annotations",
   "public_api": [
+    "DEFAULT_CHAIN",
+    "DEFAULT_MODEL",
+    "DEFAULT_SYSTEM_PROMPT",
     "METRICS_REGISTRY",
-    "get_provider()",
-    "apply_settings()",
-    "on_message()"
+    "MetricsRegistry",
+    "REQUEST_LOGGER",
+    "_BEARER_SCHEME",
+    "_BEARER_SPLIT_PATTERN",
+    "_DISABLED_RETENTION_VALUES",
+    "_RETENTION_LOGGER",
+    "_TOKEN68_PATTERN",
+    "apply_settings",
+    "get_provider",
+    "healthz",
+    "metrics",
+    "on_message",
+    "on_settings_update",
+    "on_start"
   ],
+  "tests": [],
+  "risks": [],
   "deps_out": [
     "src/core_ext/context_trimmer.py",
     "src/core_ext/logging.py",
     "src/core_ext/multistep.py",
     "src/core_ext/persona_compiler.py",
     "src/core_ext/prethought.py",
+    "src/core_ext/retention.py",
     "src/providers/google_gemini_client.py",
     "src/providers/openai_client.py"
   ],
-  "deps_in": [
-    "src/core_ext/context_trimmer.py",
-    "src/core_ext/logging.py",
-    "src/core_ext/persona_compiler.py",
-    "src/core_ext/prethought.py",
-    "src/providers/google_gemini_client.py",
-    "src/providers/openai_client.py"
-  ],
-  "tests": [
-    "pytest tests/app/test_get_provider.py",
-    "pytest tests/app/test_logging.py",
-    "pytest tests/app/test_metrics_healthz.py"
-  ],
-  "risks": [
-    "Chainlit フックと FastAPI ルータの順序を壊すと /metrics が重複登録される",
-    "OPENAI_API_KEY 未設定時はプロバイダ初期化が失敗する"
-  ],
-  "generated_at": "00002",
-  "mtime": "00002"
+  "deps_in": [],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T14:19:53Z"
 }

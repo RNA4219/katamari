@@ -1,0 +1,25 @@
+{
+  "id": "docs/ROADMAP_AND_SPECS.md",
+  "role": "markdown",
+  "summary": "Katamari ロードマップ & 仕様書インデックス",
+  "public_api": [],
+  "tests": [],
+  "risks": [],
+  "deps_out": [
+    "docs/Release_Checklist.md",
+    "docs/adr/0000-template.md",
+    "docs/adr/0001-use-chainlit-subtree.md",
+    "docs/adr/0002-tokenization-with-tiktoken.md",
+    "docs/adr/0003-provider-interface.md",
+    "docs/adr/0004-m1-metrics-and-retention.md",
+    "docs/adr/0005-m1-5-oauth-and-token-governance.md",
+    "docs/adr/0006-m2-evolution-core-loop.md",
+    "docs/adr/0007-m2-5-persistence-and-hybrid-memory.md",
+    "docs/adr/README.md"
+  ],
+  "deps_in": [
+    "docs/adr/0000-template.md"
+  ],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
+}

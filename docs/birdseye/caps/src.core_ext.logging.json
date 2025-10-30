@@ -1,25 +1,18 @@
 {
   "id": "src/core_ext/logging.py",
-  "role": "logging",
-  "summary": "推論処理の成功・失敗やレイテンシ、トークン指標を構造化 JSON で出力するロギングユーティリティ。",
+  "role": "python",
+  "summary": "Structured logging utilities for Katamari inference events.",
   "public_api": [
-    "StepLatency",
     "InferenceLogRecord",
+    "StepLatency",
     "StructuredLogger"
   ],
-  "deps_out": [
-    "src/app.py"
-  ],
+  "tests": [],
+  "risks": [],
+  "deps_out": [],
   "deps_in": [
     "src/app.py"
   ],
-  "tests": [
-    "pytest tests/app/test_logging.py"
-  ],
-  "risks": [
-    "ログフォーマット変更が監視基盤との互換性を損なう",
-    "req_id 生成衝突時に追跡が困難になる"
-  ],
-  "generated_at": "00009",
-  "mtime": "00009"
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
 }

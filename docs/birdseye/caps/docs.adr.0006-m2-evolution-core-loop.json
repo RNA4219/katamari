@@ -1,0 +1,17 @@
+{
+  "id": "docs/adr/0006-m2-evolution-core-loop.md",
+  "role": "markdown",
+  "summary": "ADR-0006: M2 プロンプト進化コアループを実装する",
+  "public_api": [],
+  "tests": [],
+  "risks": [],
+  "deps_out": [
+    "docs/Katamari_Functional_Spec_v1_ja.md"
+  ],
+  "deps_in": [
+    "docs/ROADMAP_AND_SPECS.md",
+    "docs/adr/README.md"
+  ],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
+}

@@ -1,19 +1,18 @@
 {
   "id": "src/core_ext/multistep.py",
-  "role": "workflow",
-  "summary": "マルチステップチェーンの段階構成と各フェーズ向けヒントを提供し、Reflect チェーン実行の制御情報を返す。",
+  "role": "python",
+  "summary": "from typing import List",
   "public_api": [
-    "get_chain_steps()",
-    "system_hint_for_step()"
+    "CHAINS",
+    "get_chain_steps",
+    "system_hint_for_step"
   ],
+  "tests": [],
+  "risks": [],
   "deps_out": [],
   "deps_in": [
     "src/app.py"
   ],
-  "tests": [],
-  "risks": [
-    "CHAINS に未知のキーを追加すると UI 側の選択肢と不整合になる"
-  ],
-  "generated_at": "00004",
-  "mtime": "00004"
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
 }

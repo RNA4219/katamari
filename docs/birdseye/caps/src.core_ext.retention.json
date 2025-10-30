@@ -1,10 +1,11 @@
 {
-  "id": "src/providers/openai_client.py",
+  "id": "src/core_ext/retention.py",
   "role": "python",
   "summary": "from __future__ import annotations",
   "public_api": [
-    "AsyncOpenAI",
-    "OpenAIProvider"
+    "compute_semantic_retention",
+    "get_embedder",
+    "reset_embedder_cache"
   ],
   "tests": [],
   "risks": [],

@@ -1,0 +1,14 @@
+{
+  "id": "docs/Katamari_Technical_Spec_v1_ja.md",
+  "role": "markdown",
+  "summary": "Katamari 技術仕様書 v1",
+  "public_api": [],
+  "tests": [],
+  "risks": [],
+  "deps_out": [],
+  "deps_in": [
+    "docs/adr/0007-m2-5-persistence-and-hybrid-memory.md"
+  ],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
+}

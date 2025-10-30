@@ -1,0 +1,14 @@
+{
+  "id": "docs/Katamari_Functional_Spec_v1_ja.md",
+  "role": "markdown",
+  "summary": "Katamari 機能仕様書 v1",
+  "public_api": [],
+  "tests": [],
+  "risks": [],
+  "deps_out": [],
+  "deps_in": [
+    "docs/adr/0006-m2-evolution-core-loop.md"
+  ],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "docs/FORK_NOTES.md",
+  "role": "markdown",
+  "summary": "FORK_NOTES（Katamari）",
+  "public_api": [],
+  "tests": [],
+  "risks": [],
+  "deps_out": [],
+  "deps_in": [
+    "docs/adr/0001-use-chainlit-subtree.md"
+  ],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
+}

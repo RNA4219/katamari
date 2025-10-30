@@ -1,0 +1,12 @@
+{
+  "id": "docs/addenda/M1_Metrics_Healthz_ADR.md",
+  "role": "markdown",
+  "summary": "ADR M1: Health & Metrics Endpoints",
+  "public_api": [],
+  "tests": [],
+  "risks": [],
+  "deps_out": [],
+  "deps_in": [],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
+}

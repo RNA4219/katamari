@@ -1,51 +1,378 @@
 {
-  "generated_at": "00001",
+  "generated_at": "2025-10-30T14:30:20Z",
   "nodes": {
+    "docs/Architecture_ASCII.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.Architecture_ASCII.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/BIRDSEYE.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.BIRDSEYE.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/FORK_NOTES.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.FORK_NOTES.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/Katamari_Functional_Spec_v1_ja.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.Katamari_Functional_Spec_v1_ja.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/Katamari_Requirements_v3_ja.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.Katamari_Requirements_v3_ja.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/Katamari_Technical_Spec_v1_ja.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.Katamari_Technical_Spec_v1_ja.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/ROADMAP_AND_SPECS.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.ROADMAP_AND_SPECS.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/Release_Checklist.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.Release_Checklist.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/Security_Review_Checklist.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.Security_Review_Checklist.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/TASKS.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.TASKS.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/UPSTREAM.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.UPSTREAM.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/UPSTREAM_WEEKLY_LOG.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.UPSTREAM_WEEKLY_LOG.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/addenda/A_Glossary.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.addenda.A_Glossary.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/addenda/B_UI_Mock.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.addenda.B_UI_Mock.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/addenda/C_Persona_Schema.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.addenda.C_Persona_Schema.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/addenda/D_Trim_Design.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.addenda.D_Trim_Design.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/addenda/E_Evaluator_Details.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.addenda.E_Evaluator_Details.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/addenda/F_Provider_Matrix.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.addenda.F_Provider_Matrix.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/addenda/G_Security_Privacy.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.addenda.G_Security_Privacy.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/addenda/H_Deploy_Guide.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.addenda.H_Deploy_Guide.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/addenda/I_Test_Cases.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.addenda.I_Test_Cases.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/addenda/J_Runbook.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.addenda.J_Runbook.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/addenda/K_Accessibility_UX.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.addenda.K_Accessibility_UX.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/addenda/L_Config_Reference.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.addenda.L_Config_Reference.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/addenda/M1_Metrics_Healthz_ADR.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.addenda.M1_Metrics_Healthz_ADR.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/addenda/M_Versioning_Release.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.addenda.M_Versioning_Release.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/adr/0000-template.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.adr.0000-template.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/adr/0001-use-chainlit-subtree.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.adr.0001-use-chainlit-subtree.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/adr/0002-tokenization-with-tiktoken.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.adr.0002-tokenization-with-tiktoken.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/adr/0003-provider-interface.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.adr.0003-provider-interface.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/adr/0004-m1-metrics-and-retention.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.adr.0004-m1-metrics-and-retention.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/adr/0005-m1-5-oauth-and-token-governance.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.adr.0005-m1-5-oauth-and-token-governance.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/adr/0006-m2-evolution-core-loop.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.adr.0006-m2-evolution-core-loop.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/adr/0007-m2-5-persistence-and-hybrid-memory.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.adr.0007-m2-5-persistence-and-hybrid-memory.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "docs/adr/README.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/docs.adr.README.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "personas/README.md": {
+      "role": "markdown",
+      "caps": "docs/birdseye/caps/personas.README.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "scripts/birdseye_refresh.py": {
+      "role": "python",
+      "caps": "docs/birdseye/caps/scripts.birdseye_refresh.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "scripts/cache/hash_lockfiles.py": {
+      "role": "python",
+      "caps": "docs/birdseye/caps/scripts.cache.hash_lockfiles.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "scripts/perf/collect_metrics.py": {
+      "role": "python",
+      "caps": "docs/birdseye/caps/scripts.perf.collect_metrics.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "scripts/switch_theme.py": {
+      "role": "python",
+      "caps": "docs/birdseye/caps/scripts.switch_theme.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "src/__init__.py": {
+      "role": "python",
+      "caps": "docs/birdseye/caps/src.__init__.json",
+      "mtime": "2025-10-30T10:35:32Z"
+    },
     "src/app.py": {
-      "role": "entrypoint",
+      "role": "python",
       "caps": "docs/birdseye/caps/src.app.json",
-      "mtime": "2025-10-19T22:53:20Z"
+      "mtime": "2025-10-30T14:19:53Z"
     },
     "src/core_ext/context_trimmer.py": {
-      "role": "context-management",
+      "role": "python",
       "caps": "docs/birdseye/caps/src.core_ext.context_trimmer.json",
-      "mtime": "2025-10-19T22:53:20Z"
+      "mtime": "2025-10-30T10:35:32Z"
     },
-    "src/core_ext/multistep.py": {
-      "role": "workflow",
-      "caps": "docs/birdseye/caps/src.core_ext.multistep.json",
-      "mtime": "2025-10-19T22:53:20Z"
+    "src/core_ext/evolve.py": {
+      "role": "python",
+      "caps": "docs/birdseye/caps/src.core_ext.evolve.json",
+      "mtime": "2025-10-30T10:35:32Z"
     },
     "src/core_ext/logging.py": {
-      "role": "logging",
+      "role": "python",
       "caps": "docs/birdseye/caps/src.core_ext.logging.json",
-      "mtime": "2025-10-19T22:53:20Z"
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "src/core_ext/multistep.py": {
+      "role": "python",
+      "caps": "docs/birdseye/caps/src.core_ext.multistep.json",
+      "mtime": "2025-10-30T10:35:32Z"
     },
     "src/core_ext/persona_compiler.py": {
-      "role": "persona",
+      "role": "python",
       "caps": "docs/birdseye/caps/src.core_ext.persona_compiler.json",
-      "mtime": "2025-10-19T22:53:20Z"
+      "mtime": "2025-10-30T10:35:32Z"
     },
     "src/core_ext/prethought.py": {
-      "role": "analysis",
+      "role": "python",
       "caps": "docs/birdseye/caps/src.core_ext.prethought.json",
-      "mtime": "2025-10-19T22:53:20Z"
+      "mtime": "2025-10-30T10:35:32Z"
     },
-    "src/providers/openai_client.py": {
-      "role": "provider",
-      "caps": "docs/birdseye/caps/src.providers.openai_client.json",
-      "mtime": "2025-10-19T22:53:20Z"
+    "src/core_ext/retention.py": {
+      "role": "python",
+      "caps": "docs/birdseye/caps/src.core_ext.retention.json",
+      "mtime": "2025-10-30T10:35:32Z"
     },
     "src/providers/google_gemini_client.py": {
-      "role": "provider",
+      "role": "python",
       "caps": "docs/birdseye/caps/src.providers.google_gemini_client.json",
-      "mtime": "2025-10-19T22:53:20Z"
+      "mtime": "2025-10-30T10:35:32Z"
+    },
+    "src/providers/openai_client.py": {
+      "role": "python",
+      "caps": "docs/birdseye/caps/src.providers.openai_client.json",
+      "mtime": "2025-10-30T10:35:32Z"
     }
   },
   "edges": [
     [
+      "docs/ROADMAP_AND_SPECS.md",
+      "docs/Release_Checklist.md"
+    ],
+    [
+      "docs/ROADMAP_AND_SPECS.md",
+      "docs/adr/0000-template.md"
+    ],
+    [
+      "docs/ROADMAP_AND_SPECS.md",
+      "docs/adr/0001-use-chainlit-subtree.md"
+    ],
+    [
+      "docs/ROADMAP_AND_SPECS.md",
+      "docs/adr/0002-tokenization-with-tiktoken.md"
+    ],
+    [
+      "docs/ROADMAP_AND_SPECS.md",
+      "docs/adr/0003-provider-interface.md"
+    ],
+    [
+      "docs/ROADMAP_AND_SPECS.md",
+      "docs/adr/0004-m1-metrics-and-retention.md"
+    ],
+    [
+      "docs/ROADMAP_AND_SPECS.md",
+      "docs/adr/0005-m1-5-oauth-and-token-governance.md"
+    ],
+    [
+      "docs/ROADMAP_AND_SPECS.md",
+      "docs/adr/0006-m2-evolution-core-loop.md"
+    ],
+    [
+      "docs/ROADMAP_AND_SPECS.md",
+      "docs/adr/0007-m2-5-persistence-and-hybrid-memory.md"
+    ],
+    [
+      "docs/ROADMAP_AND_SPECS.md",
+      "docs/adr/README.md"
+    ],
+    [
+      "docs/UPSTREAM.md",
+      "docs/TASKS.md"
+    ],
+    [
+      "docs/adr/0000-template.md",
+      "docs/ROADMAP_AND_SPECS.md"
+    ],
+    [
+      "docs/adr/0001-use-chainlit-subtree.md",
+      "docs/FORK_NOTES.md"
+    ],
+    [
+      "docs/adr/0001-use-chainlit-subtree.md",
+      "docs/UPSTREAM.md"
+    ],
+    [
+      "docs/adr/0003-provider-interface.md",
+      "docs/addenda/F_Provider_Matrix.md"
+    ],
+    [
+      "docs/adr/0004-m1-metrics-and-retention.md",
+      "docs/Katamari_Requirements_v3_ja.md"
+    ],
+    [
+      "docs/adr/0005-m1-5-oauth-and-token-governance.md",
+      "docs/Katamari_Requirements_v3_ja.md"
+    ],
+    [
+      "docs/adr/0006-m2-evolution-core-loop.md",
+      "docs/Katamari_Functional_Spec_v1_ja.md"
+    ],
+    [
+      "docs/adr/0007-m2-5-persistence-and-hybrid-memory.md",
+      "docs/Katamari_Technical_Spec_v1_ja.md"
+    ],
+    [
+      "docs/adr/README.md",
+      "docs/adr/0000-template.md"
+    ],
+    [
+      "docs/adr/README.md",
+      "docs/adr/0001-use-chainlit-subtree.md"
+    ],
+    [
+      "docs/adr/README.md",
+      "docs/adr/0002-tokenization-with-tiktoken.md"
+    ],
+    [
+      "docs/adr/README.md",
+      "docs/adr/0003-provider-interface.md"
+    ],
+    [
+      "docs/adr/README.md",
+      "docs/adr/0004-m1-metrics-and-retention.md"
+    ],
+    [
+      "docs/adr/README.md",
+      "docs/adr/0005-m1-5-oauth-and-token-governance.md"
+    ],
+    [
+      "docs/adr/README.md",
+      "docs/adr/0006-m2-evolution-core-loop.md"
+    ],
+    [
+      "docs/adr/README.md",
+      "docs/adr/0007-m2-5-persistence-and-hybrid-memory.md"
+    ],
+    [
       "src/app.py",
       "src/core_ext/context_trimmer.py"
+    ],
+    [
+      "src/app.py",
+      "src/core_ext/logging.py"
     ],
     [
       "src/app.py",
@@ -61,40 +388,16 @@
     ],
     [
       "src/app.py",
-      "src/core_ext/logging.py"
-    ],
-    [
-      "src/app.py",
-      "src/providers/openai_client.py"
+      "src/core_ext/retention.py"
     ],
     [
       "src/app.py",
       "src/providers/google_gemini_client.py"
     ],
     [
-      "src/core_ext/context_trimmer.py",
-      "src/app.py"
-    ],
-    [
-      "src/core_ext/persona_compiler.py",
-      "src/app.py"
-    ],
-    [
-      "src/core_ext/prethought.py",
-      "src/app.py"
-    ],
-    [
-      "src/core_ext/logging.py",
-      "src/app.py"
-    ],
-    [
-      "src/providers/openai_client.py",
-      "src/app.py"
-    ],
-    [
-      "src/providers/google_gemini_client.py",
-      "src/app.py"
+      "src/app.py",
+      "src/providers/openai_client.py"
     ]
   ],
-  "mtime": "00001"
+  "mtime": "2025-10-30T14:19:53Z"
 }

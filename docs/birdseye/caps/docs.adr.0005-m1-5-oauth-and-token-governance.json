@@ -1,0 +1,17 @@
+{
+  "id": "docs/adr/0005-m1-5-oauth-and-token-governance.md",
+  "role": "markdown",
+  "summary": "ADR-0005: M1.5 OAuth とトークンガバナンスを導入する",
+  "public_api": [],
+  "tests": [],
+  "risks": [],
+  "deps_out": [
+    "docs/Katamari_Requirements_v3_ja.md"
+  ],
+  "deps_in": [
+    "docs/ROADMAP_AND_SPECS.md",
+    "docs/adr/README.md"
+  ],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
+}

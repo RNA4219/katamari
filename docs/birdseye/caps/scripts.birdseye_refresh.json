@@ -1,17 +1,14 @@
 {
-  "id": "src/providers/openai_client.py",
+  "id": "scripts/birdseye_refresh.py",
   "role": "python",
-  "summary": "from __future__ import annotations",
+  "summary": "Birdseye JSON を最新化するユーティリティ。",
   "public_api": [
-    "AsyncOpenAI",
-    "OpenAIProvider"
+    "main"
   ],
   "tests": [],
   "risks": [],
   "deps_out": [],
-  "deps_in": [
-    "src/app.py"
-  ],
+  "deps_in": [],
   "generated_at": "2025-10-30T14:30:20Z",
   "mtime": "2025-10-30T10:35:32Z"
 }

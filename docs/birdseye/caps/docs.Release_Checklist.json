@@ -1,0 +1,14 @@
+{
+  "id": "docs/Release_Checklist.md",
+  "role": "markdown",
+  "summary": "Release Checklist",
+  "public_api": [],
+  "tests": [],
+  "risks": [],
+  "deps_out": [],
+  "deps_in": [
+    "docs/ROADMAP_AND_SPECS.md"
+  ],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
+}

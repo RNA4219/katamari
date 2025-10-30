@@ -2,6 +2,7 @@ import os
 import sys
 import tempfile
 from importlib import util
+from importlib.machinery import ModuleSpec
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
@@ -41,89 +42,91 @@ def _load_socket_module(temp_root: Path, monkeypatch: pytest.MonkeyPatch) -> Mod
             setattr(chainlit_pkg, name.split(".")[-1], module)
             return module
 
-        class _Logger:
-            def exception(self, *args, **kwargs):
-                pass
+        try:
+            class _Logger:
+                def exception(self, *args, **kwargs):
+                    pass
 
-            def error(self, *args, **kwargs):
-                pass
+                def error(self, *args, **kwargs):
+                    pass
 
-            def info(self, *args, **kwargs):
-                pass
+                def info(self, *args, **kwargs):
+                    pass
 
-        stub_module(
-            "chainlit.logger",
-            {"logger": _Logger()},
-        )
+            stub_module(
+                "chainlit.logger",
+                {"logger": _Logger()},
+            )
 
-        async def _noop_async(*args, **kwargs):
-            return None
-
-        stub_module(
-            "chainlit.auth",
-            {
-                "get_current_user": _noop_async,
-                "get_token_from_cookies": lambda cookies: cookies.get("access_token"),
-                "require_login": lambda: False,
-            },
-        )
-
-        stub_module("chainlit.chat_context", {"chat_context": SimpleNamespace(add=lambda *args, **kwargs: None)})
-        stub_module("chainlit.config", {"ChainlitConfig": object, "config": SimpleNamespace(project=SimpleNamespace(user_env=[]), code=SimpleNamespace(on_chat_start=None, on_chat_resume=None))})
-        stub_module("chainlit.context", {"init_ws_context": lambda sid: SimpleNamespace(emitter=SimpleNamespace(task_end=_noop_async, clear=_noop_async, emit=_noop_async, resume_thread=_noop_async, send_resume_thread_error=_noop_async), session=SimpleNamespace(restored=False, has_first_interaction=False, current_task=None, thread_id_to_resume=None))})
-        stub_module("chainlit.data", {"get_data_layer": lambda: None})
-        stub_module("chainlit.message", {"ErrorMessage": object, "Message": SimpleNamespace(from_dict=lambda data: data)})
-
-        class _SIO:
-            def emit(self, *args, **kwargs):
+            async def _noop_async(*args, **kwargs):
                 return None
 
-            def call(self, *args, **kwargs):
-                return None
+            stub_module(
+                "chainlit.auth",
+                {
+                    "get_current_user": _noop_async,
+                    "get_token_from_cookies": lambda cookies: cookies.get("access_token"),
+                    "require_login": lambda: False,
+                },
+            )
 
-            def on(self, *args, **kwargs):
-                def decorator(fn):
-                    return fn
+            stub_module("chainlit.chat_context", {"chat_context": SimpleNamespace(add=lambda *args, **kwargs: None)})
+            stub_module("chainlit.config", {"ChainlitConfig": object, "config": SimpleNamespace(project=SimpleNamespace(user_env=[]), code=SimpleNamespace(on_chat_start=None, on_chat_resume=None))})
+            stub_module("chainlit.context", {"init_ws_context": lambda sid: SimpleNamespace(emitter=SimpleNamespace(task_end=_noop_async, clear=_noop_async, emit=_noop_async, resume_thread=_noop_async, send_resume_thread_error=_noop_async), session=SimpleNamespace(restored=False, has_first_interaction=False, current_task=None, thread_id_to_resume=None))})
+            stub_module("chainlit.data", {"get_data_layer": lambda: None})
+            stub_module("chainlit.message", {"ErrorMessage": object, "Message": SimpleNamespace(from_dict=lambda data: data)})
 
-                return decorator
+            class _SIO:
+                def emit(self, *args, **kwargs):
+                    return None
 
-        stub_module("chainlit.server", {"sio": _SIO()})
+                def call(self, *args, **kwargs):
+                    return None
 
-        class _WebsocketSession:
-            @classmethod
-            def get_by_id(cls, session_id):
-                return None
+                def on(self, *args, **kwargs):
+                    def decorator(fn):
+                        return fn
 
-            def __init__(self, *args, **kwargs):
-                pass
+                    return decorator
 
-            def restore(self, **kwargs):
-                pass
+            stub_module("chainlit.server", {"sio": _SIO()})
 
-        stub_module("chainlit.session", {"WebsocketSession": _WebsocketSession})
-        stub_module(
-            "chainlit.types",
-            {
-                "InputAudioChunk": object,
-                "InputAudioChunkPayload": object,
-                "MessagePayload": object,
-            },
-        )
-        stub_module("chainlit.user", {"PersistedUser": object, "User": object})
-        stub_module("chainlit.user_session", {"user_sessions": {}})
+            class _WebsocketSession:
+                @classmethod
+                def get_by_id(cls, session_id):
+                    return None
 
-        module_path = backend_root / "chainlit" / "socket.py"
-        spec = util.spec_from_file_location("chainlit_socket_module", module_path)
-        if spec is None or spec.loader is None:
-            raise RuntimeError("Unable to load socket module for tests")
-        module = util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+                def __init__(self, *args, **kwargs):
+                    pass
 
-        return module
+                def restore(self, **kwargs):
+                    pass
+
+            stub_module("chainlit.session", {"WebsocketSession": _WebsocketSession})
+            stub_module(
+                "chainlit.types",
+                {
+                    "InputAudioChunk": object,
+                    "InputAudioChunkPayload": object,
+                    "MessagePayload": object,
+                },
+            )
+            stub_module("chainlit.user", {"PersistedUser": object, "User": object})
+            stub_module("chainlit.user_session", {"user_sessions": {}})
+
+            module_path = backend_root / "chainlit" / "socket.py"
+            spec = util.spec_from_file_location("chainlit_socket_module", module_path)
+            if spec is None or spec.loader is None:
+                raise RuntimeError("Unable to load socket module for tests")
+            module = util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            return module
+        finally:
+            for name in reversed(stubbed_modules):
+                monkeypatch.delitem(sys.modules, name, raising=False)
+            monkeypatch.delitem(sys.modules, "chainlit", raising=False)
     finally:
-        for name in reversed(stubbed_modules):
-            monkeypatch.delitem(sys.modules, name, raising=False)
-        monkeypatch.delitem(sys.modules, "chainlit", raising=False)
         if original_app_root is None:
             os.environ.pop("CHAINLIT_APP_ROOT", None)
         else:
@@ -141,6 +144,41 @@ def socket_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
 @pytest.fixture()
 def get_token(socket_module: ModuleType):
     return socket_module._get_token
+
+
+def test_socket_loader_cleans_stubs_on_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    temp_root = tmp_path / "chainlit-app"
+    temp_root.mkdir()
+
+    failure = RuntimeError("forced spec loader failure")
+
+    class _FailingLoader:
+        def create_module(self, spec: ModuleSpec) -> ModuleType | None:
+            return None
+
+        def exec_module(self, module: ModuleType) -> None:  # pragma: no cover - behaviour only
+            raise failure
+
+    failing_spec = ModuleSpec("chainlit_socket_module", _FailingLoader())
+    failing_spec.origin = "chainlit/socket.py"
+
+    monkeypatch.setattr(
+        util,
+        "spec_from_file_location",
+        lambda *args, **kwargs: failing_spec,
+    )
+
+    preexisting = {name for name in sys.modules if name.startswith("chainlit")}
+
+    with pytest.raises(RuntimeError) as exc_info:
+        _load_socket_module(temp_root, monkeypatch)
+
+    assert exc_info.value is failure
+
+    post_failure = {name for name in sys.modules if name.startswith("chainlit")}
+    assert post_failure == preexisting
 
 
 def test_socket_loader_restores_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

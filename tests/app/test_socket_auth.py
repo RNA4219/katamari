@@ -90,35 +90,43 @@ def _load_socket_module(temp_root: Path, monkeypatch: pytest.MonkeyPatch) -> Mod
                 self.audio_connections: list[str] = []
                 self.processed_messages: list[object] = []
 
+            def _record(
+                self,
+                name: str,
+                args: tuple[object, ...] = (),
+                kwargs: dict[str, object] | None = None,
+            ) -> None:
+                self.call_log.append((name, args, dict(kwargs or {})))
+
             async def task_start(self, *args: object, **kwargs: object) -> None:
-                self.call_log.append(("task_start", args, kwargs))
+                self._record("task_start", args, kwargs)
 
             async def task_end(self, *args: object, **kwargs: object) -> None:
-                self.call_log.append(("task_end", args, kwargs))
+                self._record("task_end", args, kwargs)
 
             async def init_thread(self, *args: object, **kwargs: object) -> None:
-                self.call_log.append(("init_thread", args, kwargs))
+                self._record("init_thread", args, kwargs)
 
             async def update_audio_connection(self, state: str) -> None:
                 self.audio_connections.append(state)
-                self.call_log.append(("update_audio_connection", (state,), {}))
+                self._record("update_audio_connection", (state,), {})
 
             async def process_message(self, payload: object) -> object:
                 self.processed_messages.append(payload)
-                self.call_log.append(("process_message", (payload,), {}))
+                self._record("process_message", (payload,), {})
                 return payload
 
             async def clear(self, *args: object, **kwargs: object) -> None:
-                self.call_log.append(("clear", args, kwargs))
+                self._record("clear", args, kwargs)
 
             async def emit(self, *args: object, **kwargs: object) -> None:
-                self.call_log.append(("emit", args, kwargs))
+                self._record("emit", args, kwargs)
 
             async def resume_thread(self, *args: object, **kwargs: object) -> None:
-                self.call_log.append(("resume_thread", args, kwargs))
+                self._record("resume_thread", args, kwargs)
 
             async def send_resume_thread_error(self, *args: object, **kwargs: object) -> None:
-                self.call_log.append(("send_resume_thread_error", args, kwargs))
+                self._record("send_resume_thread_error", args, kwargs)
 
         class _ContextStub(SimpleNamespace):
             def __init__(self, session: SimpleNamespace | None = None) -> None:
@@ -160,7 +168,17 @@ def _load_socket_module(temp_root: Path, monkeypatch: pytest.MonkeyPatch) -> Mod
                 "ChainlitConfig": object,
                 "config": SimpleNamespace(
                     project=SimpleNamespace(user_env=[]),
-                    code=SimpleNamespace(on_chat_start=None, on_chat_resume=None),
+                    code=SimpleNamespace(
+                        on_audio_start=_noop_async,
+                        on_audio_chunk=None,
+                        on_audio_end=_noop_async,
+                        on_window_message=None,
+                        on_chat_start=None,
+                        on_chat_resume=None,
+                        on_message=None,
+                        on_settings_update=None,
+                        on_stop=None,
+                    ),
                 ),
             },
         )
@@ -174,7 +192,20 @@ def _load_socket_module(temp_root: Path, monkeypatch: pytest.MonkeyPatch) -> Mod
             },
         )
         stub_module("chainlit.data", {"get_data_layer": lambda: None})
-        stub_module("chainlit.message", {"ErrorMessage": object, "Message": SimpleNamespace(from_dict=lambda data: data)})
+        class _ErrorMessage:
+            def __init__(self, **kwargs: object) -> None:
+                self.payload = dict(kwargs)
+
+            async def send(self) -> None:
+                return None
+
+        stub_module(
+            "chainlit.message",
+            {
+                "ErrorMessage": _ErrorMessage,
+                "Message": SimpleNamespace(from_dict=lambda data: data),
+            },
+        )
 
         class _SIO:
             def emit(self, *args, **kwargs):
@@ -427,6 +458,40 @@ def test_audio_end_uses_emitter_hooks(socket_module: ModuleType) -> None:
     assert any(name == "init_thread" for name in method_names)
     assert session.has_first_interaction is True
     assert audio_end_calls
+
+
+def test_audio_start_invokes_emitter_hooks(socket_module: ModuleType) -> None:
+    session = socket_module.WebsocketSession(id="session-id", socket_id="sid")
+    config = session.get_config()
+    config.features.audio.enabled = True
+
+    audio_start_calls: list[None] = []
+
+    async def _on_audio_start() -> bool:
+        audio_start_calls.append(None)
+        return True
+
+    config.code.on_audio_start = _on_audio_start
+
+    context = socket_module.init_ws_context(session)
+    emitter = context.emitter
+
+    payload = {"message": {"content": "hello"}}
+
+    async def _exercise() -> None:
+        await socket_module.audio_start("sid")
+        await socket_module.process_message(session, payload)
+
+    asyncio.run(_exercise())
+
+    assert audio_start_calls
+    assert emitter.audio_connections == ["on"]
+    assert emitter.processed_messages == [payload]
+
+    method_names = [entry[0] for entry in emitter.call_log]
+
+    assert method_names.count("update_audio_connection") == 1
+    assert method_names.count("process_message") == 1
 
 
 def test_socket_loader_replaces_stubbed_chainlit_server(

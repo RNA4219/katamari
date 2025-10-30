@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Iterator
 from contextlib import contextmanager
 import os
@@ -82,8 +83,96 @@ def _load_socket_module(temp_root: Path, monkeypatch: pytest.MonkeyPatch) -> Mod
         )
 
         stub_module("chainlit.chat_context", {"chat_context": SimpleNamespace(add=lambda *args, **kwargs: None)})
-        stub_module("chainlit.config", {"ChainlitConfig": object, "config": SimpleNamespace(project=SimpleNamespace(user_env=[]), code=SimpleNamespace(on_chat_start=None, on_chat_resume=None))})
-        stub_module("chainlit.context", {"init_ws_context": lambda sid: SimpleNamespace(emitter=SimpleNamespace(task_end=_noop_async, clear=_noop_async, emit=_noop_async, resume_thread=_noop_async, send_resume_thread_error=_noop_async), session=SimpleNamespace(restored=False, has_first_interaction=False, current_task=None, thread_id_to_resume=None))})
+
+        class _EmitterStub:
+            def __init__(self) -> None:
+                self.call_log: list[tuple[str, tuple[object, ...], dict[str, object]]] = []
+                self.audio_connections: list[str] = []
+                self.processed_messages: list[object] = []
+
+            async def task_start(self, *args: object, **kwargs: object) -> None:
+                self.call_log.append(("task_start", args, kwargs))
+
+            async def task_end(self, *args: object, **kwargs: object) -> None:
+                self.call_log.append(("task_end", args, kwargs))
+
+            async def init_thread(self, *args: object, **kwargs: object) -> None:
+                self.call_log.append(("init_thread", args, kwargs))
+
+            async def update_audio_connection(self, state: str) -> None:
+                self.audio_connections.append(state)
+                self.call_log.append(("update_audio_connection", (state,), {}))
+
+            async def process_message(self, payload: object) -> object:
+                self.processed_messages.append(payload)
+                self.call_log.append(("process_message", (payload,), {}))
+                return payload
+
+            async def clear(self, *args: object, **kwargs: object) -> None:
+                self.call_log.append(("clear", args, kwargs))
+
+            async def emit(self, *args: object, **kwargs: object) -> None:
+                self.call_log.append(("emit", args, kwargs))
+
+            async def resume_thread(self, *args: object, **kwargs: object) -> None:
+                self.call_log.append(("resume_thread", args, kwargs))
+
+            async def send_resume_thread_error(self, *args: object, **kwargs: object) -> None:
+                self.call_log.append(("send_resume_thread_error", args, kwargs))
+
+        class _ContextStub(SimpleNamespace):
+            def __init__(self, session: SimpleNamespace | None = None) -> None:
+                super().__init__(
+                    emitter=_EmitterStub(),
+                    session=session
+                    or SimpleNamespace(
+                        restored=False,
+                        has_first_interaction=False,
+                        current_task=None,
+                        thread_id_to_resume=None,
+                    ),
+                )
+
+        _context_store: dict[str, _ContextStub] = {}
+
+        def _context_key(target: object) -> str:
+            if isinstance(target, str):
+                return target
+            for attr in ("socket_id", "id"):
+                value = getattr(target, attr, None)
+                if isinstance(value, str) and value:
+                    return value
+            return str(id(target))
+
+        def init_ws_context(session_or_sid: object) -> _ContextStub:
+            key = _context_key(session_or_sid)
+            context = _context_store.get(key)
+            if context is None:
+                context = _ContextStub()
+                _context_store[key] = context
+            if not isinstance(session_or_sid, str):
+                context.session = session_or_sid
+            return context
+
+        stub_module(
+            "chainlit.config",
+            {
+                "ChainlitConfig": object,
+                "config": SimpleNamespace(
+                    project=SimpleNamespace(user_env=[]),
+                    code=SimpleNamespace(on_chat_start=None, on_chat_resume=None),
+                ),
+            },
+        )
+        stub_module(
+            "chainlit.context",
+            {
+                "init_ws_context": init_ws_context,
+                "context_store": _context_store,
+                "ContextStub": _ContextStub,
+                "EmitterStub": _EmitterStub,
+            },
+        )
         stub_module("chainlit.data", {"get_data_layer": lambda: None})
         stub_module("chainlit.message", {"ErrorMessage": object, "Message": SimpleNamespace(from_dict=lambda data: data)})
 
@@ -103,15 +192,87 @@ def _load_socket_module(temp_root: Path, monkeypatch: pytest.MonkeyPatch) -> Mod
         stub_module("chainlit.server", {"sio": _SIO()})
 
         class _WebsocketSession:
+            _sessions: dict[str, "_WebsocketSession"] = {}
+            _sessions_by_id: dict[str, "_WebsocketSession"] = {}
+
             @classmethod
             def get_by_id(cls, session_id):
-                return None
+                return cls._sessions_by_id.get(session_id)
 
-            def __init__(self, *args, **kwargs):
-                pass
+            @classmethod
+            def get(cls, socket_id):
+                return cls._sessions.get(socket_id)
+
+            @classmethod
+            def require(cls, socket_id):
+                session = cls.get(socket_id)
+                if session is None:
+                    raise KeyError(socket_id)
+                return session
+
+            def __init__(
+                self,
+                *,
+                id=None,
+                socket_id=None,
+                emit=None,
+                emit_call=None,
+                client_type=None,
+                user_env=None,
+                user=None,
+                token=None,
+                chat_profile=None,
+                thread_id=None,
+                environ=None,
+                **_: object,
+            ) -> None:
+                self.id = id or socket_id or "session"
+                self.socket_id = socket_id or self.id
+                self.emit = emit
+                self.emit_call = emit_call
+                self.client_type = client_type
+                self.user_env = user_env
+                self.user = user
+                self.token = token
+                self.chat_profile = chat_profile
+                self.thread_id = thread_id
+                self.environ = environ
+                self.has_first_interaction = False
+                self.current_task = None
+                self.thread_id_to_resume = None
+                self.chat_settings: dict[str, object] = {}
+                self.to_clear = False
+                self.restored = False
+                self._config = SimpleNamespace(
+                    features=SimpleNamespace(audio=SimpleNamespace(enabled=False)),
+                    code=SimpleNamespace(
+                        on_audio_start=_noop_async,
+                        on_audio_chunk=None,
+                        on_audio_end=_noop_async,
+                        on_window_message=None,
+                        on_chat_start=None,
+                        on_chat_resume=None,
+                        on_message=None,
+                        on_settings_update=None,
+                        on_stop=None,
+                    ),
+                )
+                _WebsocketSession._sessions[self.socket_id] = self
+                _WebsocketSession._sessions_by_id[self.id] = self
 
             def restore(self, **kwargs):
+                self.restored = True
+                for key, value in kwargs.items():
+                    setattr(self, key, value)
+
+            def get_config(self):
+                return self._config
+
+            async def delete(self) -> None:
                 pass
+
+            def to_persistable(self):
+                return {}
 
         stub_module("chainlit.session", {"WebsocketSession": _WebsocketSession})
         stub_module(
@@ -235,6 +396,37 @@ def test_get_token_uses_auth_payload_as_last_resort(get_token):
     result = get_token(environ, {"token": "auth-token"})
 
     assert result == "auth-token"
+
+
+def test_audio_end_uses_emitter_hooks(socket_module: ModuleType) -> None:
+    session = socket_module.WebsocketSession(id="session-id", socket_id="sid")
+    config = session.get_config()
+    config.features.audio.enabled = True
+
+    audio_end_calls: list[None] = []
+
+    async def _on_audio_end() -> None:
+        audio_end_calls.append(None)
+
+    config.code.on_audio_end = _on_audio_end
+
+    context = socket_module.init_ws_context(session)
+    emitter = context.emitter
+
+    async def _exercise() -> None:
+        await socket_module.audio_end("sid")
+        await asyncio.sleep(0)
+
+    asyncio.run(_exercise())
+
+    method_names = [entry[0] for entry in emitter.call_log]
+
+    assert method_names.count("task_start") == 1
+    assert method_names.count("task_end") == 1
+    assert method_names.index("task_start") < method_names.index("task_end")
+    assert any(name == "init_thread" for name in method_names)
+    assert session.has_first_interaction is True
+    assert audio_end_calls
 
 
 def test_socket_loader_replaces_stubbed_chainlit_server(

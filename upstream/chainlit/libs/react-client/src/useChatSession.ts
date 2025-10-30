@@ -162,7 +162,7 @@ const useChatSession = () => {
       try {
         await client.stickyCookie(sessionId);
       } catch (err) {
-        console.error(`Failed to set sticky session cookie: ${err}`);
+        console.error('Failed to set sticky session cookie: %s', err);
       }
 
       const socket = io(uri, {

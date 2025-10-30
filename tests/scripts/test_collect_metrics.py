@@ -74,6 +74,22 @@ def negative_semantic_retention_metrics() -> Iterator[str]:
         shutdown()
 
 
+def test_parse_prometheus_requires_uppercase_nan() -> None:
+    payload = (
+        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
+        "# TYPE compress_ratio gauge\n"
+        "compress_ratio 0.37\n"
+        "# HELP semantic_retention Semantic retention score for trimmed context.\n"
+        "# TYPE semantic_retention gauge\n"
+        "semantic_retention nan"
+    )
+
+    parsed = collect_metrics._parse_prometheus(payload)
+
+    assert parsed == {"compress_ratio": pytest.approx(0.37)}
+    assert "semantic_retention" not in parsed
+
+
 def test_preserves_negative_semantic_retention_from_http(
     negative_semantic_retention_metrics: str, tmp_path: Path
 ) -> None:

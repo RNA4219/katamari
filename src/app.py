@@ -240,6 +240,7 @@ _RETENTION_LOGGER = logging.getLogger("katamari.retention")
 
 _BEARER_SCHEME = "bearer"
 _BEARER_SPLIT_PATTERN = re.compile(r"\s+")
+_TOKEN68_PATTERN = re.compile(r"^[A-Za-z0-9\-._~+/]+=*$")
 
 
 def _get_auth_secret() -> str | None:
@@ -277,6 +278,9 @@ def _extract_bearer_token(value: str | None) -> str | None:
     token = token_candidate
 
     if _BEARER_SPLIT_PATTERN.search(token):
+        return None
+
+    if not _TOKEN68_PATTERN.fullmatch(token):
         return None
 
     return token

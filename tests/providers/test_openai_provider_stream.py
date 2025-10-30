@@ -197,6 +197,7 @@ def test_module_reimport_allows_stub_registration(monkeypatch: pytest.MonkeyPatc
     assert getattr(module, "AsyncOpenAI") is None
 
     provider_cls = cast(Type[Any], getattr(module, "OpenAIProvider"))
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
 
     class _DummyClient:
         def __init__(self, **kwargs: Any) -> None:
@@ -261,6 +262,106 @@ async def test_stream_uses_recorded_sse(monkeypatch: pytest.MonkeyPatch) -> None
             "stream": True,
             "opts": {"temperature": 0.4},
         }
+    ]
+
+
+@ANYIO_ASYNCIO
+async def test_stream_retries_and_resumes_on_retryable_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Retry streaming on retryable failures and resume without duplicating tokens."""
+
+    from src.providers import openai_client
+
+    class _RetryableStreamError(RuntimeError):
+        retryable = True
+
+    class _FlakyStream:
+        def __init__(self, events: List[Any], fail_after: int | None) -> None:
+            self._events = events
+            self._fail_after = fail_after
+            self._index = 0
+
+        def __aiter__(self) -> "_FlakyStream":
+            return self
+
+        async def __anext__(self) -> Any:
+            if self._fail_after is not None and self._index >= self._fail_after:
+                raise _RetryableStreamError("transient failure")
+            if self._index >= len(self._events):
+                raise StopAsyncIteration
+            event = self._events[self._index]
+            self._index += 1
+            return event
+
+    class _FlakyCompletions:
+        def __init__(self, events: List[Any], failures: List[int | None]) -> None:
+            self._events = events
+            self._failures = failures
+            self.calls: List[Dict[str, Any]] = []
+            self._invocation = 0
+
+        async def create(
+            self,
+            model: str,
+            messages: List[Dict[str, Any]],
+            *,
+            stream: bool,
+            **opts: Any,
+        ) -> Any:
+            record = {"model": model, "messages": messages, "stream": stream, "opts": opts}
+            self.calls.append(record)
+            fail_after = self._failures[min(self._invocation, len(self._failures) - 1)]
+            self._invocation += 1
+            if not stream:
+                raise AssertionError("flaky completions only supports streaming in tests")
+            return _FlakyStream(self._events, fail_after)
+
+    class _FlakyClient:
+        def __init__(self, completions: _FlakyCompletions) -> None:
+            self.chat = SimpleNamespace(completions=completions)
+
+    messages = [{"role": "user", "content": "hello"}]
+    tokens = ["alpha", "beta", "gamma", "delta"]
+    events = [
+        _to_namespace(
+            {"choices": [{"delta": {"content": token}}]},
+        )
+        for token in tokens
+    ]
+
+    completions = _FlakyCompletions(events, failures=[1, 3, None])
+    client = _FlakyClient(completions)
+
+    def _factory(**_: Any) -> _FlakyClient:
+        return client
+
+    monkeypatch.setattr(openai_client, "_resolve_async_openai", lambda: _factory)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+
+    provider = openai_client.OpenAIProvider()
+
+    sleep_calls: List[float] = []
+
+    async def _fake_sleep(delay: float) -> None:
+        sleep_calls.append(delay)
+
+    monkeypatch.setattr(openai_client.asyncio, "sleep", _fake_sleep)
+
+    chunks: List[str] = []
+    async for token in provider.stream("gpt-4o-mini", messages, temperature=0.2):
+        chunks.append(token)
+
+    assert chunks == tokens
+    assert sleep_calls == [1, 2]
+    assert completions.calls == [
+        {
+            "model": "gpt-4o-mini",
+            "messages": messages,
+            "stream": True,
+            "opts": {"temperature": 0.2},
+        }
+        for _ in range(3)
     ]
 
 

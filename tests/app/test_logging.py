@@ -842,11 +842,6 @@ async def test_on_message_emits_structured_log(monkeypatch, caplog, app_module, 
     assert steps[0]["step"] == "Step 1: final"
     assert steps[0]["latency_ms"] == pytest.approx((100.2 - 100.1) * 1000)
 
-
-class _RetryableError(RuntimeError):
-    retryable = True
-
-
 @pytest.mark.anyio
 async def test_apply_settings_persists_min_turns(app_module, stub_chainlit):
     await app_module.apply_settings({"min_turns": 3})
@@ -945,7 +940,8 @@ async def test_on_message_logs_retryable_error(monkeypatch, caplog, app_module, 
     monkeypatch.setattr(app_module.METRICS_REGISTRY, "observe_trim", lambda **_: None)
     monkeypatch.setattr(app_module, "get_chain_steps", lambda chain_id: ["final"])
 
-    error = _RetryableError("temporary")
+    error = RuntimeError("temporary")
+    setattr(error, "retryable", True)
     provider = _StubProvider(error=error)
     monkeypatch.setattr(app_module, "get_provider", lambda model: provider)
 
@@ -953,7 +949,7 @@ async def test_on_message_logs_retryable_error(monkeypatch, caplog, app_module, 
     monkeypatch.setattr(app_module, "perf_counter", lambda: next(clock), raising=False)
 
     with caplog.at_level("INFO", logger="katamari.request"):
-        with pytest.raises(_RetryableError):
+        with pytest.raises(RuntimeError):
             await app_module.on_message(_DummyMessage("oops"))
 
     assert len(caplog.records) == 1

@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import Iterator
+from collections.abc import Coroutine, Iterator
 from contextlib import contextmanager
 import os
 import sys
@@ -7,6 +7,7 @@ import tempfile
 from importlib import util
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
+from typing import Any, cast
 
 import pytest
 
@@ -207,7 +208,7 @@ def _load_socket_module(temp_root: Path, monkeypatch: pytest.MonkeyPatch) -> Mod
             def require(cls, socket_id):
                 session = cls.get(socket_id)
                 if session is None:
-                    raise KeyError(socket_id)
+                    raise ValueError("Session not found")
                 return session
 
             def __init__(
@@ -261,15 +262,23 @@ def _load_socket_module(temp_root: Path, monkeypatch: pytest.MonkeyPatch) -> Mod
                 _WebsocketSession._sessions_by_id[self.id] = self
 
             def restore(self, **kwargs):
-                self.restored = True
+                new_socket_id = kwargs.get("new_socket_id")
+                if isinstance(new_socket_id, str) and new_socket_id:
+                    _WebsocketSession._sessions.pop(self.socket_id, None)
+                    self.socket_id = new_socket_id
                 for key, value in kwargs.items():
-                    setattr(self, key, value)
+                    if key != "new_socket_id":
+                        setattr(self, key, value)
+                _WebsocketSession._sessions[self.socket_id] = self
+                _WebsocketSession._sessions_by_id[self.id] = self
+                self.restored = True
 
             def get_config(self):
                 return self._config
 
             async def delete(self) -> None:
-                pass
+                _WebsocketSession._sessions.pop(self.socket_id, None)
+                _WebsocketSession._sessions_by_id.pop(self.id, None)
 
             def to_persistable(self):
                 return {}
@@ -396,6 +405,56 @@ def test_get_token_uses_auth_payload_as_last_resort(get_token):
     result = get_token(environ, {"token": "auth-token"})
 
     assert result == "auth-token"
+
+
+def test_client_message_uses_stub_session(
+    socket_module: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def _scenario() -> None:
+        payload = {"foo": "bar"}
+
+        with pytest.raises(ValueError):
+            await socket_module.message("missing", payload)
+
+        session_cls = socket_module.WebsocketSession
+        session = session_cls(
+            id="session-id",
+            socket_id="socket-id",
+            emit=lambda *args, **kwargs: None,
+            emit_call=lambda *args, **kwargs: None,
+            client_type="webapp",
+            user_env={},
+        )
+
+        recorded: dict[str, object] = {}
+
+        async def fake_process_message(registered_session: object, data: object) -> None:
+            recorded["session"] = registered_session
+            recorded["payload"] = data
+
+        def fake_create_task(coro: Coroutine[Any, Any, None]) -> object:
+            recorded["coro"] = coro
+
+            class _DummyTask:
+                def __init__(self, coroutine: Coroutine[Any, Any, None]) -> None:
+                    self.coroutine = coroutine
+
+            return _DummyTask(coro)
+
+        monkeypatch.setattr(socket_module, "process_message", fake_process_message)
+        monkeypatch.setattr(socket_module.asyncio, "create_task", fake_create_task)
+
+        await socket_module.message(session.socket_id, payload)
+
+        await cast(Coroutine[Any, Any, None], recorded["coro"])
+
+        assert recorded["session"] is session
+        assert recorded["payload"] == payload
+        assert session.current_task is not None
+
+        await session.delete()
+
+    asyncio.run(_scenario())
 
 
 def test_audio_end_uses_emitter_hooks(socket_module: ModuleType) -> None:

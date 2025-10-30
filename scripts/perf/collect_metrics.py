@@ -56,8 +56,14 @@ def _parse_prometheus(body: str) -> dict[str, float]:
         name, *rest = line.split()
         base_name = name.split("{", 1)[0]
         if base_name in METRIC_KEYS and rest:
+            raw_value = rest[0]
+            if raw_value == "NaN":
+                metrics[base_name] = math.nan
+                continue
+            if raw_value in {"nan", "+nan", "-nan"}:
+                continue
             try:
-                metrics[base_name] = float(rest[0])
+                metrics[base_name] = float(raw_value)
             except ValueError:
                 continue
     return metrics

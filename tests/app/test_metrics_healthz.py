@@ -145,6 +145,24 @@ def test_metrics_endpoint_does_not_report_one_for_missing_retention(
     assert "semantic_retention 1.0" not in body
 
 
+def test_parse_prometheus_ignores_lowercase_nan() -> None:
+    payload = "\n".join(
+        (
+            "# HELP compress_ratio Ratio of tokens kept after trimming.",
+            "# TYPE compress_ratio gauge",
+            "compress_ratio 0.42",
+            "# HELP semantic_retention Semantic retention score for trimmed context.",
+            "# TYPE semantic_retention gauge",
+            "semantic_retention nan",
+        )
+    )
+
+    parsed = _parse_prometheus(payload)
+
+    assert parsed == {"compress_ratio": pytest.approx(0.42)}
+    assert "semantic_retention" not in parsed
+
+
 def test_export_prometheus_outputs_nan_for_missing_retention(
     app_context, auth_secret
 ) -> None:

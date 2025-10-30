@@ -172,6 +172,25 @@ def test_metrics_endpoint_rejects_tokens_with_trailing_whitespace(
 
 
 @pytest.mark.parametrize(
+    "header_value",
+    [
+        "Bearer valid#token",
+        'Bearer "validtoken"',
+        "Bearer 'validtoken'",
+    ],
+)
+def test_healthz_endpoint_rejects_non_token68_tokens(
+    app_context, header_value
+) -> None:
+    chainlit_app, _ = app_context
+    client = TestClient(chainlit_app)
+
+    response = client.get("/healthz", headers={"Authorization": header_value})
+
+    assert response.status_code == 401
+
+
+@pytest.mark.parametrize(
     "invalid_token",
     [
         "valid#token",

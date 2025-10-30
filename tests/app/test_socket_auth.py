@@ -1,3 +1,5 @@
+import asyncio
+
 from collections.abc import Iterator
 from contextlib import contextmanager
 import os
@@ -6,6 +8,7 @@ import tempfile
 from importlib import util
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
+from typing import ClassVar
 
 import pytest
 
@@ -103,15 +106,57 @@ def _load_socket_module(temp_root: Path, monkeypatch: pytest.MonkeyPatch) -> Mod
         stub_module("chainlit.server", {"sio": _SIO()})
 
         class _WebsocketSession:
+            _by_socket_id: ClassVar[dict[str, object]] = {}
+            _by_session_id: ClassVar[dict[str, object]] = {}
+
+            @classmethod
+            def register(
+                cls,
+                socket_id: str,
+                session: object,
+                *,
+                session_id: str | None = None,
+            ) -> object:
+                cls._by_socket_id[socket_id] = session
+                if session_id is not None:
+                    cls._by_session_id[session_id] = session
+                return session
+
+            @classmethod
+            def get(cls, socket_id: str) -> object | None:
+                return cls._by_socket_id.get(socket_id)
+
+            @classmethod
+            def require(cls, socket_id: str) -> object:
+                session = cls.get(socket_id)
+                if session is None:
+                    raise ValueError("Session not found")
+                return session
+
             @classmethod
             def get_by_id(cls, session_id):
-                return None
+                return cls._by_session_id.get(session_id)
+
+            @classmethod
+            def clear_registry(cls) -> None:
+                cls._by_socket_id.clear()
+                cls._by_session_id.clear()
 
             def __init__(self, *args, **kwargs):
-                pass
+                socket_id = kwargs.get("socket_id")
+                session_id = kwargs.get("id")
+                self.socket_id = socket_id
+                self.id = session_id
+                if socket_id is not None:
+                    self.register(socket_id, self, session_id=session_id)
 
-            def restore(self, **kwargs):
-                pass
+            def restore(self, *, new_socket_id: str | None = None, **kwargs):
+                if new_socket_id is None:
+                    return
+                if self.socket_id is not None:
+                    self._by_socket_id.pop(self.socket_id, None)
+                self.socket_id = new_socket_id
+                self._by_socket_id[new_socket_id] = self
 
         stub_module("chainlit.session", {"WebsocketSession": _WebsocketSession})
         stub_module(
@@ -150,6 +195,49 @@ def socket_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
 @pytest.fixture()
 def get_token(socket_module: ModuleType):
     return socket_module._get_token
+
+
+def test_audio_start_handles_stub_session(
+    socket_module: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session_cls = socket_module.WebsocketSession
+    socket_id = "socket-123"
+    updates: list[str] = []
+
+    class _Emitter:
+        async def update_audio_connection(self, state: str) -> None:
+            updates.append(state)
+
+    async def _on_audio_start() -> bool:
+        return True
+
+    stub_config = SimpleNamespace(
+        features=SimpleNamespace(audio=SimpleNamespace(enabled=True)),
+        code=SimpleNamespace(on_audio_start=_on_audio_start),
+    )
+
+    class _Session:
+        def get_config(self) -> SimpleNamespace:
+            return stub_config
+
+    monkeypatch.setattr(
+        socket_module,
+        "init_ws_context",
+        lambda session: SimpleNamespace(emitter=_Emitter(), session=session),
+    )
+
+    session = _Session()
+
+    assert hasattr(session_cls, "register")
+    assert hasattr(session_cls, "clear_registry")
+
+    try:
+        session_cls.register(socket_id, session)
+        asyncio.run(socket_module.audio_start(socket_id))
+    finally:
+        session_cls.clear_registry()
+
+    assert updates == ["on"]
 
 
 def test_socket_loader_restores_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

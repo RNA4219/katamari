@@ -10,6 +10,10 @@ _Signature = Tuple[Tuple[str, str], ...]
 _CacheEntry = Tuple[_Signature, Embedder]
 
 _EMBEDDER_CACHE: Dict[str, _CacheEntry] = {}
+_MODEL_DEFAULTS: Dict[str, str] = {
+    "SEMANTIC_RETENTION_OPENAI_MODEL": "text-embedding-3-large",
+    "SEMANTIC_RETENTION_GEMINI_MODEL": "text-embedding-004",
+}
 
 
 def _norm(vec: Sequence[float]) -> float:
@@ -35,6 +39,16 @@ def _aggregate(messages: Iterable[Message]) -> str:
     return "\n".join(parts)
 
 
+def _normalized_model_env(name: str) -> str:
+    default = _MODEL_DEFAULTS[name]
+    value = os.getenv(name)
+    if value is not None:
+        value = value.strip()
+    if value:
+        return value
+    return default
+
+
 def _build_openai_embedder() -> Optional[Embedder]:
     api_key = os.getenv("OPENAI_API_KEY")
     if api_key is not None:
@@ -45,11 +59,7 @@ def _build_openai_embedder() -> Optional[Embedder]:
         from openai import OpenAI
     except ImportError:
         return None
-    model = os.getenv("SEMANTIC_RETENTION_OPENAI_MODEL")
-    if model is not None:
-        model = model.strip()
-    if not model:
-        model = "text-embedding-3-large"
+    model = _normalized_model_env("SEMANTIC_RETENTION_OPENAI_MODEL")
     client = OpenAI(api_key=api_key)
 
     def _embed(text: str) -> Sequence[float]:
@@ -79,11 +89,7 @@ def _build_gemini_embedder() -> Optional[Embedder]:
         import google.generativeai as genai
     except ImportError:
         return None
-    model = os.getenv("SEMANTIC_RETENTION_GEMINI_MODEL")
-    if model is not None:
-        model = model.strip()
-    if not model:
-        model = "text-embedding-004"
+    model = _normalized_model_env("SEMANTIC_RETENTION_GEMINI_MODEL")
     configure = getattr(genai, "configure", None)
     if callable(configure):
         configure(api_key=api_key)
@@ -116,9 +122,14 @@ def _provider_signature(provider: str) -> _Signature:
         )
     else:
         env_vars = ()
-    signature: Tuple[Tuple[str, str], ...] = tuple(
-        (name, (os.getenv(name, "") or "").strip()) for name in env_vars
-    )
+    signature_items = []
+    for name in env_vars:
+        if name in _MODEL_DEFAULTS:
+            value = _normalized_model_env(name)
+        else:
+            value = (os.getenv(name, "") or "").strip()
+        signature_items.append((name, value))
+    signature = tuple(signature_items)
     return signature
 
 

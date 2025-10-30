@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,20 @@ SEMANTIC_RETENTION_KEY = "semantic_retention"
 SEMANTIC_RETENTION_FALLBACK: Final[None] = None
 
 METRIC_KEYS = (COMPRESS_RATIO_KEY, SEMANTIC_RETENTION_KEY)
+
+_PROMETHEUS_VALUE_RE = re.compile(
+    r"""
+    (?P<value>
+        [+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?
+        |[+-]?(?:Inf|inf)
+        |NaN
+        |[+-]?nan
+    )
+    (?:\s+(?P<timestamp>-?\d+(?:\.\d+)?))?
+    \s*$
+    """,
+    re.VERBOSE,
+)
 METRIC_RANGES: dict[str, tuple[float, float]] = {
     COMPRESS_RATIO_KEY: (0.0, 1.0),
     SEMANTIC_RETENTION_KEY: (-1.0, 1.0),
@@ -53,12 +68,15 @@ def _parse_prometheus(body: str) -> dict[str, float]:
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        try:
-            metric_token, raw_value = line.rsplit(None, 1)
-        except ValueError:
+        match = _PROMETHEUS_VALUE_RE.search(line)
+        if not match:
+            continue
+        metric_token = line[: match.start()].rstrip()
+        if not metric_token:
             continue
         base_name = metric_token.split("{", 1)[0]
         if base_name in METRIC_KEYS:
+            raw_value = match.group("value")
             if raw_value == "NaN":
                 metrics[base_name] = math.nan
                 continue

@@ -108,6 +108,24 @@ def test_parse_prometheus_accepts_label_values_with_spaces() -> None:
     }
 
 
+def test_parse_prometheus_ignores_timestamps_with_label_spaces() -> None:
+    payload = (
+        "# HELP compress_ratio Ratio of tokens kept after trimming.\n"
+        "# TYPE compress_ratio gauge\n"
+        "compress_ratio{deployment=\"vector store\"} 0.42 1700000000\n"
+        "# HELP semantic_retention Semantic retention score for trimmed context.\n"
+        "# TYPE semantic_retention gauge\n"
+        "semantic_retention{model=\"embedding large\"} 0.73 1700000000\n"
+    )
+
+    parsed = collect_metrics._parse_prometheus(payload)
+
+    assert parsed == {
+        "compress_ratio": pytest.approx(0.42),
+        "semantic_retention": pytest.approx(0.73),
+    }
+
+
 def test_preserves_negative_semantic_retention_from_http(
     negative_semantic_retention_metrics: str, tmp_path: Path
 ) -> None:

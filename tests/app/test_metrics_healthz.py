@@ -145,6 +145,19 @@ def test_metrics_endpoint_does_not_report_one_for_missing_retention(
     assert "semantic_retention 1.0" not in body
 
 
+def test_healthz_endpoint_rejects_tokens_with_whitespace(
+    app_context, auth_secret
+) -> None:
+    chainlit_app, _ = app_context
+    client = TestClient(chainlit_app)
+
+    response = client.get(
+        "/healthz", headers={"Authorization": f"Bearer {auth_secret} extra"}
+    )
+
+    assert response.status_code == 401
+
+
 def test_parse_prometheus_ignores_lowercase_nan() -> None:
     payload = "\n".join(
         (

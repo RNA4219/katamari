@@ -268,7 +268,13 @@ def _extract_bearer_token(value: str | None) -> str | None:
     if not scheme or scheme.casefold() != _BEARER_SCHEME:
         return None
 
-    return token or None
+    if not token:
+        return None
+
+    if _BEARER_SPLIT_PATTERN.search(token):
+        return None
+
+    return token
 
 
 def _is_token_authorized(token: str | None) -> bool:

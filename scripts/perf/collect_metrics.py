@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 from typing import Final
 from urllib.error import URLError
+from urllib.parse import urlparse
 from urllib.request import urlopen
 
 
@@ -42,6 +43,8 @@ METRIC_RANGES: dict[str, tuple[float, float]] = {
     COMPRESS_RATIO_KEY: (0.0, 1.0),
     SEMANTIC_RETENTION_KEY: (-1.0, 1.0),
 }
+
+_ALLOWED_METRICS_URL_SCHEMES: Final[frozenset[str]] = frozenset({"http", "https"})
 
 
 def _is_finite(value: float) -> bool:
@@ -133,13 +136,30 @@ def _parse_chainlit_log(path: Path) -> dict[str, float | None]:
     return metrics
 
 
+def _validate_metrics_url(value: str) -> str:
+    parsed = urlparse(value)
+    if parsed.scheme not in _ALLOWED_METRICS_URL_SCHEMES:
+        raise ValueError("metrics-url must use http:// or https:// scheme")
+    if not parsed.netloc:
+        raise ValueError("metrics-url must include a network location")
+    return value
+
+
+def _parse_metrics_url(value: str) -> str:
+    try:
+        return _validate_metrics_url(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+
+
 def _collect(
     metrics_url: str | None, log_path: Path | None
 ) -> dict[str, float | None]:
     http_metrics: dict[str, float] = {}
     if metrics_url:
+        sanitized_metrics_url = _validate_metrics_url(metrics_url)
         try:
-            with urlopen(metrics_url, timeout=5) as response:  # nosec B310
+            with urlopen(sanitized_metrics_url, timeout=5) as response:  # nosec B310
                 charset = response.headers.get_content_charset("utf-8")
                 http_metrics.update(
                     _parse_prometheus(response.read().decode(charset))
@@ -213,7 +233,11 @@ def _collect(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Collect performance metrics.")
-    parser.add_argument("--metrics-url", help="Prometheus metrics endpoint URL")
+    parser.add_argument(
+        "--metrics-url",
+        type=_parse_metrics_url,
+        help="Prometheus metrics endpoint URL",
+    )
     parser.add_argument("--log-path", type=Path, help="Chainlit log file path")
     parser.add_argument("--output", required=True, type=Path, help="JSON output path")
     args = parser.parse_args(argv)

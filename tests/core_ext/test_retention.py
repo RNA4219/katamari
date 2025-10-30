@@ -330,3 +330,58 @@ def test_gemini_embedder_ignores_blank_keys(monkeypatch: pytest.MonkeyPatch) -> 
 
     assert retention.get_embedder("gemini") is None
     assert dummy.configured_keys == []
+
+
+@pytest.mark.parametrize("model_value", ["", "   "])
+def test_openai_embedder_uses_default_model_for_blank_env(
+    monkeypatch: pytest.MonkeyPatch, model_value: str
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "dummy-key")
+    monkeypatch.setenv("SEMANTIC_RETENTION_OPENAI_MODEL", model_value)
+
+    requested_models: List[str] = []
+
+    class _DummyOpenAI:
+        def __init__(self, api_key: str) -> None:
+            self.embeddings = types.SimpleNamespace(create=self._create)
+
+        def _create(self, *, model: str, input: str):
+            requested_models.append(model)
+            return types.SimpleNamespace(
+                data=[types.SimpleNamespace(embedding=[1.0, 0.0])]
+            )
+
+    module = types.ModuleType("openai")
+    setattr(module, "OpenAI", _DummyOpenAI)
+    monkeypatch.setitem(sys.modules, "openai", module)
+
+    embedder = retention.get_embedder("openai")
+
+    assert embedder is not None
+    embedder("payload")
+    assert requested_models == ["text-embedding-3-large"]
+    cache_entry = retention._EMBEDDER_CACHE.get("openai")
+    assert cache_entry is not None
+    signature, _ = cache_entry
+    assert dict(signature)["SEMANTIC_RETENTION_OPENAI_MODEL"] == "text-embedding-3-large"
+
+
+@pytest.mark.parametrize("model_value", ["", "  "])
+def test_gemini_embedder_uses_default_model_for_blank_env(
+    monkeypatch: pytest.MonkeyPatch, model_value: str
+) -> None:
+    dummy = _DummyGenAI()
+    _install_dummy_genai(monkeypatch, dummy)
+    monkeypatch.setenv("SEMANTIC_RETENTION_PROVIDER", "gemini")
+    monkeypatch.setenv("GOOGLE_GEMINI_API_KEY", "primary-key")
+    monkeypatch.setenv("SEMANTIC_RETENTION_GEMINI_MODEL", model_value)
+
+    embedder = retention.get_embedder("gemini")
+
+    assert embedder is not None
+    embedder("payload")
+    assert dummy.requested_models == ["text-embedding-004"]
+    cache_entry = retention._EMBEDDER_CACHE.get("gemini")
+    assert cache_entry is not None
+    signature, _ = cache_entry
+    assert dict(signature)["SEMANTIC_RETENTION_GEMINI_MODEL"] == "text-embedding-004"

@@ -208,6 +208,21 @@ def test_cli_writes_null_for_nan_semantic_retention(tmp_path: Path) -> None:
         shutdown()
 
 
+def test_cli_rejects_non_http_metrics_url(tmp_path: Path) -> None:
+    output_path = tmp_path / "metrics_invalid.json"
+
+    result = _run_cli(
+        "--metrics-url",
+        "file:///etc/passwd",
+        "--output",
+        str(output_path),
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "metrics-url must use http:// or https://" in result.stderr
+
+
 def test_cli_writes_null_when_semantic_retention_missing(tmp_path: Path) -> None:
     payload = (
         "# HELP compress_ratio Ratio of tokens kept after trimming.\n"

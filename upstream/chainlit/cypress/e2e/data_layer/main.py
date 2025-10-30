@@ -1,6 +1,6 @@
 import os
 import os.path
-import pickle
+import json
 from typing import Dict, List, Optional
 
 import chainlit as cl
@@ -73,12 +73,12 @@ thread_history = [
 ]  # type: List[ThreadDict]
 deleted_thread_ids = []  # type: List[str]
 
-THREAD_HISTORY_PICKLE_PATH = os.path.join(
-    os.path.dirname(__file__), "thread_history.pickle"
+THREAD_HISTORY_JSON_PATH = os.path.join(
+    os.path.dirname(__file__), "thread_history.json"
 )
-if THREAD_HISTORY_PICKLE_PATH and os.path.exists(THREAD_HISTORY_PICKLE_PATH):
-    with open(THREAD_HISTORY_PICKLE_PATH, "rb") as f:
-        thread_history = pickle.load(f)
+if THREAD_HISTORY_JSON_PATH and os.path.exists(THREAD_HISTORY_JSON_PATH):
+    with open(THREAD_HISTORY_JSON_PATH, "r", encoding="utf-8") as f:
+        thread_history = json.load(f)
 
 
 async def save_thread_history():
@@ -87,8 +87,8 @@ async def save_thread_history():
         cl.context.session.thread_id, cl.context.session.to_persistable()
     )
 
-    with open(THREAD_HISTORY_PICKLE_PATH, "wb") as out_file:
-        pickle.dump(thread_history, out_file)
+    with open(THREAD_HISTORY_JSON_PATH, "w", encoding="utf-8") as out_file:
+        json.dump(thread_history, out_file)
 
 
 class TestDataLayer(cl_data.BaseDataLayer):

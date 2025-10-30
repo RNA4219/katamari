@@ -131,7 +131,7 @@ const startNewThread = () => {
 
 describe('Data Layer', () => {
   const pathItems = Cypress.spec.absolute.split(sep);
-  pathItems[pathItems.length - 1] = 'thread_history.pickle';
+  pathItems[pathItems.length - 1] = 'thread_history.json';
   const threadHistoryFile = pathItems.join(sep);
 
   const cleanupThreadHistory = () => {

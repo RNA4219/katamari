@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from importlib import import_module
-from typing import Any, Dict, List, Optional, Sequence, Tuple, TypedDict, cast
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple, TypedDict, cast
 
 tiktoken: Any
 _registry: Any
@@ -132,10 +132,15 @@ def trim_messages(
     model: str,
     *,
     min_turns: int = 0,
+    priority_roles: Iterable[str] | None = None,
 ) -> Tuple[List[ChatMessage], TrimMetrics]:
     counter = _TokenCounter(model)
+    priority_role_set: Set[str] = set(priority_roles or ())
     system_messages = [m for m in messages if m.get("role") == "system"]
-    kept_system_messages = system_messages[:1]
+    kept_system_messages: List[ChatMessage] = []
+    for message in system_messages:
+        if not kept_system_messages or message.get("role") in priority_role_set:
+            kept_system_messages.append(message)
     conversation = [m for m in messages if m.get("role") != "system"]
     base_budget = max(256, target_tokens)
     system_tokens = sum(
@@ -156,12 +161,14 @@ def trim_messages(
                 counter.count(str(message.get("content", ""))) for message in turn
             )
             is_latest_turn = turn is latest_turn
+            has_priority = any(message.get("role") in priority_role_set for message in turn)
             if (
                 not is_latest_turn
                 and total + turn_tokens > budget
                 and turns_kept >= required_turns
+                and not has_priority
             ):
-                break
+                continue
             kept_turns.append(turn)
             total += turn_tokens
             turns_kept += 1
@@ -170,6 +177,12 @@ def trim_messages(
         kept = [message for turn in reversed(kept_turns) for message in turn]
     else:
         forced_ids = {id(message) for message in latest_turn}
+        if priority_role_set:
+            forced_ids.update(
+                id(message)
+                for message in conversation
+                if message.get("role") in priority_role_set
+            )
         kept = []
         total = 0
         for message in reversed(conversation):

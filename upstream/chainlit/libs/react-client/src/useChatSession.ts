@@ -453,23 +453,44 @@ const useChatSession = () => {
       });
 
       socket.on('window_message', (data: any) => {
-        if (!window.parent) {
+        if (typeof window === 'undefined' || !window.parent) {
           return;
         }
 
-        const resolveParentOrigin = () => {
-          if (typeof document !== 'undefined' && document.referrer) {
-            try {
-              return new URL(document.referrer).origin;
-            } catch (error) {
-              console.warn('Invalid document.referrer for postMessage.', error);
-            }
+        const resolveParentOrigin = (): string | null => {
+          if (typeof document === 'undefined') {
+            return null;
           }
 
-          return window.location.origin;
+          const applicationOrigin = window.location.origin;
+
+          if (!document.referrer) {
+            return applicationOrigin;
+          }
+
+          try {
+            const referrerOrigin = new URL(document.referrer).origin;
+            if (referrerOrigin !== applicationOrigin) {
+              console.warn(
+                'Blocked window.postMessage to unexpected origin.',
+                referrerOrigin
+              );
+              return applicationOrigin;
+            }
+          } catch (error) {
+            console.warn('Invalid document.referrer for postMessage.', error);
+            return applicationOrigin;
+          }
+
+          return applicationOrigin;
         };
 
-        window.parent.postMessage(data, resolveParentOrigin());
+        const targetOrigin = resolveParentOrigin();
+        if (!targetOrigin) {
+          return;
+        }
+
+        window.parent.postMessage(data, targetOrigin);
       });
 
       socket.on('toast', (data: { message: string; type: string }) => {

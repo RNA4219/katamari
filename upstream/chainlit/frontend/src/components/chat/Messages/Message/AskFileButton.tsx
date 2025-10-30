@@ -18,7 +18,7 @@ interface UploadState {
   fileRef?: IFileRef;
 }
 
-interface _AskFileButtonProps {
+interface AskFileButtonInnerProps {
   askUser: IAsk;
   parentId?: string;
   uploadFile: (
@@ -74,11 +74,11 @@ const CircularProgress = ({ value }: { value: number }) => {
   );
 };
 
-const _AskFileButton = ({
+const AskFileButtonInner = ({
   askUser,
   uploadFile,
   onError
-}: _AskFileButtonProps) => {
+}: AskFileButtonInnerProps) => {
   const { t } = useTranslation();
 
   const [uploads, setUploads] = useState<UploadState[]>([]);
@@ -191,7 +191,7 @@ const AskFileButton = ({ messageId, onError }: AskFileButtonProps) => {
     return null;
 
   return (
-    <_AskFileButton
+    <AskFileButtonInner
       onError={onError}
       uploadFile={messageContext.uploadFile}
       askUser={messageContext.askUser!}

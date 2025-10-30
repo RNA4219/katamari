@@ -144,6 +144,7 @@ def fixture_stub_genai(monkeypatch):
         GenerativeModel=lambda name: SimpleNamespace(name=name),
     )
     monkeypatch.setattr(google_gemini_client, "_genai", stub, raising=False)
+    monkeypatch.setenv("GOOGLE_GEMINI_API_KEY", "test-google-gemini")
     return google_gemini_client
 
 
@@ -162,6 +163,12 @@ def test_get_provider_returns_openai_for_gpt_models(app_module, stub_openai):
 
 def test_get_provider_returns_gemini_for_prefixed_models(app_module, stub_genai):
     provider = app_module.get_provider("gemini-2.5-flash")
+
+    assert isinstance(provider, stub_genai.GoogleGeminiProvider)
+
+
+def test_get_provider_handles_mixed_case_gemini_model(app_module, stub_genai):
+    provider = app_module.get_provider("Gemini-2.5-Pro")
 
     assert isinstance(provider, stub_genai.GoogleGeminiProvider)
 
@@ -206,6 +213,8 @@ async def test_openai_provider_forwards_extra_kwargs(monkeypatch: pytest.MonkeyP
     from providers import openai_client
 
     calls = []
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai")
 
     async def fake_create(**kwargs):
         calls.append(kwargs)

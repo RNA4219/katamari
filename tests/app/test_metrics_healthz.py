@@ -171,6 +171,26 @@ def test_metrics_endpoint_rejects_tokens_with_trailing_whitespace(
     assert response.status_code == 401
 
 
+@pytest.mark.parametrize(
+    "invalid_token",
+    [
+        "valid#token",
+        "invalid:token",
+    ],
+)
+def test_metrics_endpoint_rejects_tokens_with_invalid_characters(
+    app_context, invalid_token
+) -> None:
+    chainlit_app, _ = app_context
+    client = TestClient(chainlit_app)
+
+    response = client.get(
+        "/metrics", headers={"Authorization": f"Bearer {invalid_token}"}
+    )
+
+    assert response.status_code == 401
+
+
 def test_parse_prometheus_ignores_lowercase_nan() -> None:
     payload = "\n".join(
         (

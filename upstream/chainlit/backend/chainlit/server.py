@@ -205,10 +205,12 @@ def get_build_dir(local_target: str, packaged_target: str) -> str:
     local_build_dir = os.path.join(PACKAGE_ROOT, local_target, "dist")
     packaged_build_dir = os.path.join(BACKEND_ROOT, packaged_target, "dist")
 
-    if config.ui.custom_build and os.path.exists(
-        os.path.join(APP_ROOT, config.ui.custom_build)
-    ):
-        return os.path.join(APP_ROOT, config.ui.custom_build)
+    if config.ui.custom_build:
+        custom_build_path = Path(APP_ROOT) / config.ui.custom_build
+        if not is_path_inside(custom_build_path, Path(APP_ROOT)):
+            raise ValueError("The custom build directory must reside within the app root.")
+        if custom_build_path.exists():
+            return str(custom_build_path)
     elif os.path.exists(local_build_dir):
         return local_build_dir
     elif os.path.exists(packaged_build_dir):

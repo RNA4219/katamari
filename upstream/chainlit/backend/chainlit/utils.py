@@ -17,6 +17,16 @@ from chainlit.context import context
 from chainlit.logger import logger
 
 
+ALLOWED_VERSIONED_MODULES = frozenset(
+    {
+        "langchain",
+        "langflow",
+        "llama_index.core",
+        "openai",
+    }
+)
+
+
 def utc_now():
     dt = datetime.now(timezone.utc).replace(tzinfo=None)
     return dt.isoformat() + "Z"
@@ -101,11 +111,17 @@ def check_module_version(name, required_version):
         (bool): Return True if the module is installed and the version
             match the minimum required version.
     """
+    if name not in ALLOWED_VERSIONED_MODULES:
+        logger.warning("Module %s is not in the allowed list", name)
+        return False
     try:
         module = importlib.import_module(name)
     except ModuleNotFoundError:
         return False
-    return version.parse(module.__version__) >= version.parse(required_version)
+    module_version = getattr(module, "__version__", None)
+    if module_version is None:
+        return False
+    return version.parse(module_version) >= version.parse(required_version)
 
 
 def check_file(target: str):

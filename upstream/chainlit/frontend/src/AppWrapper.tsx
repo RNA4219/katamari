@@ -1,6 +1,6 @@
 import getRouterBasename from '@/lib/router';
 import App from 'App';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -32,13 +32,24 @@ export default function AppWrapper() {
     setTranslationLoaded(true);
   }, [translations]);
 
-  useEffect(() => {
-    const handleWindowMessage = (event: MessageEvent) => {
+  const handleWindowMessage = useCallback(
+    (event: MessageEvent) => {
+      const isSameOrigin = event.origin === window.location.origin;
+      const isSelfMessage = event.origin === 'null' && event.source === window;
+
+      if (!isSameOrigin && !isSelfMessage) {
+        return;
+      }
+
       windowMessage(event.data);
-    };
+    },
+    [windowMessage]
+  );
+
+  useEffect(() => {
     window.addEventListener('message', handleWindowMessage);
     return () => window.removeEventListener('message', handleWindowMessage);
-  }, [windowMessage]);
+  }, [handleWindowMessage]);
 
   if (!translationLoaded) return null;
 

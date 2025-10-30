@@ -1,7 +1,8 @@
+import json
 import os
 import os.path
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, cast
 
 import chainlit as cl
 import chainlit.data as cl_data
@@ -73,12 +74,12 @@ thread_history = [
 ]  # type: List[ThreadDict]
 deleted_thread_ids = []  # type: List[str]
 
-THREAD_HISTORY_JSON_PATH = os.path.join(
+THREAD_HISTORY_FILE_PATH = os.path.join(
     os.path.dirname(__file__), "thread_history.json"
 )
-if THREAD_HISTORY_JSON_PATH and os.path.exists(THREAD_HISTORY_JSON_PATH):
-    with open(THREAD_HISTORY_JSON_PATH, "r", encoding="utf-8") as f:
-        thread_history = json.load(f)
+if THREAD_HISTORY_FILE_PATH and os.path.exists(THREAD_HISTORY_FILE_PATH):
+    with open(THREAD_HISTORY_FILE_PATH, "r", encoding="utf-8") as f:
+        thread_history = cast(List[ThreadDict], json.load(f))
 
 
 async def save_thread_history():
@@ -87,8 +88,8 @@ async def save_thread_history():
         cl.context.session.thread_id, cl.context.session.to_persistable()
     )
 
-    with open(THREAD_HISTORY_JSON_PATH, "w", encoding="utf-8") as out_file:
-        json.dump(thread_history, out_file)
+    with open(THREAD_HISTORY_FILE_PATH, "w", encoding="utf-8") as out_file:
+        json.dump(thread_history, out_file, ensure_ascii=False)
 
 
 class TestDataLayer(cl_data.BaseDataLayer):

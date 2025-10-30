@@ -1,0 +1,18 @@
+{
+  "id": "src/core_ext/retention.py",
+  "role": "python",
+  "summary": "from __future__ import annotations",
+  "public_api": [
+    "compute_semantic_retention",
+    "get_embedder",
+    "reset_embedder_cache"
+  ],
+  "tests": [],
+  "risks": [],
+  "deps_out": [],
+  "deps_in": [
+    "src/app.py"
+  ],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
+}

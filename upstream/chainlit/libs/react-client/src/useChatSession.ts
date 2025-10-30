@@ -38,6 +38,7 @@ import {
   IAction,
   ICommand,
   IElement,
+  IMcp,
   IMessageElement,
   IStep,
   ITasklistElement,
@@ -53,6 +54,7 @@ import {
 import { OutputAudioChunk } from './types/audio';
 
 import { ChainlitContext } from './context';
+import type { ChainlitAPI } from './api';
 import type { IToken } from './useChatData';
 
 export const RECONNECTION_ATTEMPTS = 3;
@@ -71,6 +73,38 @@ export const SOCKET_IO_RECONNECTION_OPTIONS = {
   reconnectionDelayMax: SOCKET_IO_RECONNECTION_DELAY_MAX_MS,
   randomizationFactor: 0
 } as const;
+
+const waitFor = (duration: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, duration));
+
+const connectSseMcpWithRetry = async (
+  client: ChainlitAPI,
+  sessionId: string,
+  mcp: IMcp
+) => {
+  let attempt = 0;
+  let delay = RECONNECTION_DELAY_MS;
+
+  while (attempt < RECONNECTION_ATTEMPTS) {
+    try {
+      return await client.connectSseMCP(
+        sessionId,
+        mcp.name,
+        mcp.url!,
+        mcp.headers
+      );
+    } catch (error) {
+      attempt += 1;
+      if (attempt >= RECONNECTION_ATTEMPTS) {
+        throw error;
+      }
+      await waitFor(delay);
+      delay = Math.min(delay * 2, RECONNECTION_DELAY_MAX_MS);
+    }
+  }
+
+  throw new Error('Failed to connect to MCP via SSE');
+};
 
 const useChatSession = () => {
   const client = useContext(ChainlitContext);
@@ -128,7 +162,7 @@ const useChatSession = () => {
       try {
         await client.stickyCookie(sessionId);
       } catch (err) {
-        console.error(`Failed to set sticky session cookie: ${err}`);
+        console.error('Failed to set sticky session cookie: %s', err);
       }
 
       const socket = io(uri, {
@@ -159,7 +193,7 @@ const useChatSession = () => {
           prev.map((mcp) => {
             let promise;
             if (mcp.clientType === 'sse') {
-              promise = client.connectSseMCP(sessionId, mcp.name, mcp.url!);
+              promise = connectSseMcpWithRetry(client, sessionId, mcp);
             } else if (mcp.clientType === 'streamable-http') {
               promise = client.connectStreamableHttpMCP(
                 sessionId,
@@ -199,6 +233,9 @@ const useChatSession = () => {
                     }
                     return existingMcp;
                   })
+                );
+                toast.error(
+                  `Failed to connect to ${mcp.name} after ${RECONNECTION_ATTEMPTS} attempts.`
                 );
               });
             return { ...mcp, status: 'connecting' };

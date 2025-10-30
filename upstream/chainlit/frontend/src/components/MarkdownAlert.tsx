@@ -330,7 +330,7 @@ export const normalizeAlertType = (type: string): AlertVariant => {
   if (!type) return 'info';
   const normalized = type.toLowerCase().replace(/[-_\s]/g, '-');
   if (!AlertTypes.includes(normalized as AlertVariant)) {
-    console.warn(`Invalid alert type "${type}", falling back to "info"`);
+    console.warn('Invalid alert type "%s", falling back to "info"', type);
     return 'info';
   }
   return normalized as AlertVariant;

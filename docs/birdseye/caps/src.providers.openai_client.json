@@ -1,23 +1,17 @@
 {
   "id": "src/providers/openai_client.py",
-  "role": "provider",
-  "summary": "OpenAI Chat Completions API を非同期ストリーム/単発で呼び出し、Chainlit からモデル応答を取得するための薄いプロバイダラッパー。",
+  "role": "python",
+  "summary": "from __future__ import annotations",
   "public_api": [
-    "OpenAIProvider",
-    "OpenAIProvider.stream()",
-    "OpenAIProvider.complete()"
+    "AsyncOpenAI",
+    "OpenAIProvider"
   ],
-  "deps_out": [
-    "src/app.py"
-  ],
+  "tests": [],
+  "risks": [],
+  "deps_out": [],
   "deps_in": [
     "src/app.py"
   ],
-  "tests": [],
-  "risks": [
-    "OPENAI_API_KEY 未設定時は初期化が例外を投げる",
-    "OpenAI SDK の breaking change に追随する必要がある"
-  ],
-  "generated_at": "00007",
-  "mtime": "00007"
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
 }

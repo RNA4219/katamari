@@ -1,0 +1,15 @@
+{
+  "id": "docs/Katamari_Requirements_v3_ja.md",
+  "role": "markdown",
+  "summary": "Katamari 要件定義 v3（Forkベース：Chainlit）",
+  "public_api": [],
+  "tests": [],
+  "risks": [],
+  "deps_out": [],
+  "deps_in": [
+    "docs/adr/0004-m1-metrics-and-retention.md",
+    "docs/adr/0005-m1-5-oauth-and-token-governance.md"
+  ],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
+}

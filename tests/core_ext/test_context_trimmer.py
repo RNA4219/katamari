@@ -184,3 +184,24 @@ def test_trim_messages_counts_system_tokens_in_budget_with_min_turns() -> None:
         {"role": "user", "content": "final question"},
         {"role": "assistant", "content": "concise answer"},
     ]
+
+
+def test_trim_messages_priority_roles_are_preserved_over_budget() -> None:
+    messages: List[Dict[str, str]] = [
+        {"role": "system", "content": "System"},
+        {"role": "user", "content": "intro" * 200},
+        {"role": "assistant", "content": "ack"},
+        {"role": "developer", "content": "details" * 600},
+        {"role": "user", "content": "final question"},
+    ]
+
+    trimmed, _ = trim_messages(
+        messages,
+        target_tokens=128,
+        model="legacy-model",
+        priority_roles=("developer",),
+    )
+
+    assert {"role": "developer", "content": "details" * 600} in trimmed
+    assert trimmed[-1] == {"role": "user", "content": "final question"}
+    assert {"role": "user", "content": "intro" * 200} not in trimmed

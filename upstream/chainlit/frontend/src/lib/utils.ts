@@ -19,7 +19,7 @@ export function hslToHex(hslStr: string): string {
   // Parse HSL string
   const values = hslStr
     .split(' ')
-    .map((value) => parseFloat(value.replace('%', '')));
+    .map((value) => parseFloat(value.replace(/%/g, '')));
 
   const h = values[0];
   const s = values[1];

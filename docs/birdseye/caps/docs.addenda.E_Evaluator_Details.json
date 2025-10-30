@@ -1,0 +1,12 @@
+{
+  "id": "docs/addenda/E_Evaluator_Details.md",
+  "role": "markdown",
+  "summary": "付録E: 評価器詳細（BERTScore / ROUGE / ルール）",
+  "public_api": [],
+  "tests": [],
+  "risks": [],
+  "deps_out": [],
+  "deps_in": [],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "docs/addenda/F_Provider_Matrix.md",
+  "role": "markdown",
+  "summary": "付録F: Provider互換表（初期）",
+  "public_api": [],
+  "tests": [],
+  "risks": [],
+  "deps_out": [],
+  "deps_in": [
+    "docs/adr/0003-provider-interface.md"
+  ],
+  "generated_at": "2025-10-30T14:30:20Z",
+  "mtime": "2025-10-30T10:35:32Z"
+}

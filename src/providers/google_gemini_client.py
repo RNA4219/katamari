@@ -45,8 +45,9 @@ class GoogleGeminiProvider:
             if stripped:
                 api_key_value = stripped
                 break
-        if api_key_value is not None:
-            self._genai.configure(api_key=api_key_value)
+        if api_key_value is None:
+            raise ValueError("Google Gemini API key is required.")
+        self._genai.configure(api_key=api_key_value)
 
     async def stream(
         self, model: str, messages: Sequence[Dict[str, Any]], **opts: Any

@@ -121,8 +121,18 @@ def test_google_gemini_provider_ignores_blank_api_key(
     for variable in ("GOOGLE_GEMINI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"):
         monkeypatch.delenv(variable, raising=False)
     monkeypatch.setenv(env_name, api_key_value)
+    monkeypatch.setenv("GOOGLE_API_KEY", "usable-key")
     module = StubGenerativeAIModule(stream_chunks=[], response_text="unused")
 
     GoogleGeminiProvider(genai_module=module)
 
-    assert module.configure_kwargs == []
+    assert module.configure_kwargs == [{"api_key": "usable-key"}]
+
+
+def test_google_gemini_provider_raises_when_no_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    for variable in ("GOOGLE_GEMINI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"):
+        monkeypatch.setenv(variable, "   ")
+    module = StubGenerativeAIModule(stream_chunks=[], response_text="unused")
+
+    with pytest.raises(ValueError):
+        GoogleGeminiProvider(genai_module=module)

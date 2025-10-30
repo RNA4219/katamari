@@ -254,7 +254,7 @@ def _extract_bearer_token(value: str | None) -> str | None:
     if value is None:
         return None
 
-    stripped = value.strip()
+    stripped = value.lstrip()
     if not stripped:
         return None
 
@@ -262,14 +262,19 @@ def _extract_bearer_token(value: str | None) -> str | None:
     if separator is None:
         return None
 
-    scheme = stripped[:separator.start()].strip()
-    token = stripped[separator.end():].strip()
+    scheme = stripped[: separator.start()].strip()
+    token_candidate = stripped[separator.end():]
 
     if not scheme or scheme.casefold() != _BEARER_SCHEME:
         return None
 
-    if not token:
+    if not token_candidate:
         return None
+
+    if token_candidate != token_candidate.strip():
+        return None
+
+    token = token_candidate
 
     if _BEARER_SPLIT_PATTERN.search(token):
         return None

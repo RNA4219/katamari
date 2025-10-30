@@ -158,6 +158,19 @@ def test_healthz_endpoint_rejects_tokens_with_whitespace(
     assert response.status_code == 401
 
 
+def test_metrics_endpoint_rejects_tokens_with_trailing_whitespace(
+    app_context, auth_secret
+) -> None:
+    chainlit_app, _ = app_context
+    client = TestClient(chainlit_app)
+
+    response = client.get(
+        "/metrics", headers={"Authorization": f"Bearer {auth_secret} "}
+    )
+
+    assert response.status_code == 401
+
+
 def test_parse_prometheus_ignores_lowercase_nan() -> None:
     payload = "\n".join(
         (
@@ -220,7 +233,6 @@ def test_operations_endpoints_require_bearer_token(
         "  BeArEr {token}",
         "Bearer   {token}",
         "\tBEARER {token}",
-        "  bearer   {token}   ",
     ],
 )
 def test_operations_endpoints_accept_case_insensitive_bearer_headers(

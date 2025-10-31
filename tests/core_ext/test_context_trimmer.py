@@ -205,3 +205,25 @@ def test_trim_messages_priority_roles_are_preserved_over_budget() -> None:
     assert {"role": "developer", "content": "details" * 600} in trimmed
     assert trimmed[-1] == {"role": "user", "content": "final question"}
     assert {"role": "user", "content": "intro" * 200} not in trimmed
+
+
+def test_trim_messages_priority_roles_survive_midstream_over_budget() -> None:
+    developer_message = {"role": "developer", "content": "details" * 400}
+    assistant_message = {"role": "assistant", "content": "overflow" * 4000}
+    messages: List[Dict[str, str]] = [
+        {"role": "system", "content": "System"},
+        developer_message,
+        assistant_message,
+        {"role": "user", "content": "latest"},
+    ]
+
+    trimmed, _ = trim_messages(
+        messages,
+        target_tokens=128,
+        model="legacy-model",
+        priority_roles=("developer",),
+    )
+
+    assert developer_message in trimmed
+    assert assistant_message not in trimmed
+    assert trimmed[-1] == {"role": "user", "content": "latest"}

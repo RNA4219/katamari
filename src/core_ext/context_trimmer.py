@@ -189,6 +189,8 @@ def trim_messages(
             tokens = counter.count(str(message.get("content", "")))
             should_force = id(message) in forced_ids
             if not should_force and total + tokens > budget:
+                if forced_ids:
+                    continue
                 break
             kept.append(message)
             total += tokens

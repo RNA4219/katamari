@@ -17,6 +17,9 @@ def test_llama_index_cb_sample_loads_without_llama_index(tmp_path: pathlib.Path)
     previous_app_root = os.environ.get("CHAINLIT_APP_ROOT")
     os.environ["CHAINLIT_APP_ROOT"] = str(tmp_path)
     sys.path.insert(0, str(chainlit_root / "backend"))
+    for module_name in list(sys.modules):
+        if module_name == "chainlit" or module_name.startswith("chainlit."):
+            sys.modules.pop(module_name, None)
 
     try:
         spec = importlib.util.spec_from_file_location(

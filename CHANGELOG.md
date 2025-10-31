@@ -18,6 +18,7 @@
 - 0002: CHANGELOG のエントリに通番を付けるルールを追加。
 - 0003: README とロードマップに CHANGELOG 更新導線とタスク移管ルールを明文化。
 - 0004: README の主要導線にタスク移管の導線を追記し、完了タスクの CHANGELOG 反映を必須化。
+- 0006: OpenAI ストリームの再試行を 1s→2s→4s の backoff と `katamari.request` 計測に対応させ、ログ/RUNBOOK を更新。
 ### Deprecated
 ### Removed
 ### Fixed

@@ -124,7 +124,7 @@ describe('useChatSession', () => {
     });
   });
 
-  it('retries SSE connection with exponential backoff and succeeds on third attempt', async () => {
+  it('retries SSE connection with exponential backoff and succeeds on third retry', async () => {
     vi.useFakeTimers();
     const socketHandlers: Record<string, (...args: any[]) => void> = {};
     const socket = {
@@ -143,6 +143,7 @@ describe('useChatSession', () => {
       .fn()
       .mockRejectedValueOnce(new Error('network-error-1'))
       .mockRejectedValueOnce(new Error('network-error-2'))
+      .mockRejectedValueOnce(new Error('network-error-3'))
       .mockResolvedValue({
         success: true,
         mcp: {
@@ -234,6 +235,14 @@ describe('useChatSession', () => {
 
     expect(connectSseMCP).toHaveBeenCalledTimes(3);
 
+    await vi.advanceTimersByTimeAsync(RECONNECTION_DELAY_MAX_MS);
+    await Promise.resolve();
+
+    expect(connectSseMCP).toHaveBeenCalledTimes(4);
+
+    expect(
+      observedStates.slice(0, -1).every((state) => state[0].status === 'connecting')
+    ).toBe(true);
     expect(observedStates.at(-1)?.[0].status).toBe('connected');
     expect(toastMock.error).not.toHaveBeenCalled();
 
@@ -245,6 +254,9 @@ describe('useChatSession', () => {
     ).toHaveLength(1);
     expect(
       delays.filter((delay) => delay === RECONNECTION_DELAY_MS * 2)
+    ).toHaveLength(1);
+    expect(
+      delays.filter((delay) => delay === RECONNECTION_DELAY_MAX_MS)
     ).toHaveLength(1);
 
     setTimeoutSpy.mockRestore();

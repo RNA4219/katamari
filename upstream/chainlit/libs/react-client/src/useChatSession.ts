@@ -82,10 +82,9 @@ const connectSseMcpWithRetry = async (
   sessionId: string,
   mcp: IMcp
 ) => {
-  let attempt = 0;
   let delay = RECONNECTION_DELAY_MS;
 
-  while (attempt < RECONNECTION_ATTEMPTS) {
+  for (let retry = 0; retry <= RECONNECTION_ATTEMPTS; retry += 1) {
     try {
       return await client.connectSseMCP(
         sessionId,
@@ -94,10 +93,10 @@ const connectSseMcpWithRetry = async (
         mcp.headers
       );
     } catch (error) {
-      attempt += 1;
-      if (attempt >= RECONNECTION_ATTEMPTS) {
+      if (retry === RECONNECTION_ATTEMPTS) {
         throw error;
       }
+
       await waitFor(delay);
       delay = Math.min(delay * 2, RECONNECTION_DELAY_MAX_MS);
     }
@@ -235,7 +234,7 @@ const useChatSession = () => {
                   })
                 );
                 toast.error(
-                  `Failed to connect to ${mcp.name} after ${RECONNECTION_ATTEMPTS} attempts.`
+                  `Failed to connect to ${mcp.name} after ${RECONNECTION_ATTEMPTS} retries.`
                 );
               });
             return { ...mcp, status: 'connecting' };

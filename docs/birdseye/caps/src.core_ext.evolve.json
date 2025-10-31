@@ -1,8 +1,9 @@
 {
   "id": "src/core_ext/evolve.py",
   "role": "python",
-  "summary": "from __future__ import annotations",
+  "summary": "Prompt evolution orchestration utilities.",
   "public_api": [
+    "EvaluationDetail",
     "EvolutionHistoryEntry",
     "EvolutionResult",
     "evolve_prompts"
@@ -11,6 +12,6 @@
   "risks": [],
   "deps_out": [],
   "deps_in": [],
-  "generated_at": "2025-10-30T14:30:20Z",
-  "mtime": "2025-10-30T10:35:32Z"
+  "generated_at": "2025-10-31T04:16:14Z",
+  "mtime": "2025-10-30T21:27:25Z"
 }

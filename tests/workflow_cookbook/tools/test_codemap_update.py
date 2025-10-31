@@ -67,6 +67,7 @@ def test_run_update_generates_codemap(tmp_path: Path, monkeypatch: pytest.Monkey
     helper_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
     main_time = datetime(2024, 1, 2, 9, 30, 0, tzinfo=timezone.utc)
     guide_time = datetime(2024, 1, 3, 18, 45, 0, tzinfo=timezone.utc)
+    summary_time = datetime(2024, 1, 4, 8, 15, 0, tzinfo=timezone.utc)
 
     _write(
         project_root / "src/utils/helpers.py",
@@ -98,6 +99,28 @@ def test_run_update_generates_codemap(tmp_path: Path, monkeypatch: pytest.Monkey
     )
 
     _write(
+        project_root / "src/pkg/module_without_doc.py",
+        dedent(
+            '''\
+            from __future__ import annotations
+
+
+            class PublicClass:
+                """Public class summary."""
+
+
+            def public_function() -> None:
+                """Public function summary."""
+
+
+            def _private_helper() -> None:
+                """Should be ignored."""
+            '''
+        ),
+        mtime=summary_time,
+    )
+
+    _write(
         project_root / "docs/guide.md",
         """# Guide\n\nSee the [main module](../src/main.py) for details.\n""",
         mtime=guide_time,
@@ -118,15 +141,22 @@ def test_run_update_generates_codemap(tmp_path: Path, monkeypatch: pytest.Monkey
     assert ISO_8601_UTC.match(index["generated_at"])  # type: ignore[arg-type]
 
     nodes = index["nodes"]  # type: ignore[assignment]
-    assert {"src/main.py", "src/utils/helpers.py", "docs/guide.md"} <= set(nodes.keys())
+    assert {
+        "docs/guide.md",
+        "src/main.py",
+        "src/pkg/module_without_doc.py",
+        "src/utils/helpers.py",
+    } <= set(nodes.keys())
 
     helper_caps_path = Path(nodes["src/utils/helpers.py"]["caps"])  # type: ignore[index]
     main_caps_path = Path(nodes["src/main.py"]["caps"])  # type: ignore[index]
     guide_caps_path = Path(nodes["docs/guide.md"]["caps"])  # type: ignore[index]
+    summary_caps_path = Path(nodes["src/pkg/module_without_doc.py"]["caps"])  # type: ignore[index]
 
     helper_caps = _load(project_root / helper_caps_path)
     main_caps = _load(project_root / main_caps_path)
     guide_caps = _load(project_root / guide_caps_path)
+    summary_caps = _load(project_root / summary_caps_path)
 
     generated_at = index["generated_at"]
     assert helper_caps["generated_at"] == generated_at
@@ -145,14 +175,19 @@ def test_run_update_generates_codemap(tmp_path: Path, monkeypatch: pytest.Monkey
     expected_helper_mtime = _as_iso(helper_time)
     expected_main_mtime = _as_iso(main_time)
     expected_guide_mtime = _as_iso(guide_time)
+    expected_summary_mtime = _as_iso(summary_time)
 
     assert nodes["src/utils/helpers.py"]["mtime"] == expected_helper_mtime  # type: ignore[index]
     assert nodes["src/main.py"]["mtime"] == expected_main_mtime  # type: ignore[index]
     assert nodes["docs/guide.md"]["mtime"] == expected_guide_mtime  # type: ignore[index]
+    assert nodes["src/pkg/module_without_doc.py"]["mtime"] == expected_summary_mtime  # type: ignore[index]
 
     assert helper_caps["mtime"] == expected_helper_mtime
     assert main_caps["mtime"] == expected_main_mtime
     assert guide_caps["mtime"] == expected_guide_mtime
+    assert summary_caps["mtime"] == expected_summary_mtime
+
+    assert summary_caps["summary"] == "Public class summary."
 
     index_edges = {tuple(edge) for edge in index["edges"]}  # type: ignore[list-item]
     assert (
@@ -160,4 +195,4 @@ def test_run_update_generates_codemap(tmp_path: Path, monkeypatch: pytest.Monkey
         and ("docs/guide.md", "src/main.py") in index_edges
     )
 
-    assert index["mtime"] == expected_guide_mtime
+    assert index["mtime"] == expected_summary_mtime

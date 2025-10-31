@@ -335,8 +335,7 @@ def _summarize_python(path: Path) -> tuple[str, list[str]]:
     except SyntaxError:
         return "", []
 
-    doc = ast.get_docstring(module)
-    summary = doc.strip().splitlines()[0].strip() if doc else _first_meaningful_line(source)
+    summary = _derive_python_summary(module, source)
     explicit = _extract_explicit_all(module)
     if explicit is not None:
         public_api = explicit
@@ -345,11 +344,73 @@ def _summarize_python(path: Path) -> tuple[str, list[str]]:
     return summary, public_api
 
 
+def _derive_python_summary(module: ast.Module, source: str) -> str:
+    module_doc = ast.get_docstring(module)
+    if module_doc:
+        summary = _first_summary_line(module_doc)
+        if summary:
+            return summary
+
+    public_doc = _first_public_docstring(module)
+    if public_doc:
+        return public_doc
+
+    comment = _first_comment_line(source)
+    if comment:
+        return comment
+
+    return _first_meaningful_line(source)
+
+
+def _first_summary_line(text: str) -> str:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped:
+            return stripped
+    return ""
+
+
+def _first_public_docstring(module: ast.Module) -> str:
+    fallback = ""
+    for node in module.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and not node.name.startswith("_"):
+            doc = ast.get_docstring(node)
+            if doc:
+                summary = _first_summary_line(doc)
+                if summary:
+                    return summary
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            doc = ast.get_docstring(node)
+            if doc and not fallback:
+                summary = _first_summary_line(doc)
+                if summary:
+                    fallback = summary
+    return fallback
+
+
+def _first_comment_line(source: str) -> str:
+    for line in source.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("#"):
+            text = stripped.lstrip("#").strip()
+            if not text:
+                continue
+            if text.lower().startswith("coding") or text.lower().startswith("-*- coding"):
+                continue
+            return text
+    return ""
+
+
 def _first_meaningful_line(source: str) -> str:
     for line in source.splitlines():
         stripped = line.strip()
-        if stripped and not stripped.startswith("#"):
-            return stripped
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith("from __future__ import"):
+            continue
+        return stripped
     return ""
 
 

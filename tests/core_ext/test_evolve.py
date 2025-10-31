@@ -29,6 +29,22 @@ class _DeterministicGenerator:
             raise AssertionError(f"unexpected generation {generation_index}") from exc
 
 
+class _RecordingSeedGenerator:
+    def __init__(self, generations: Dict[int, List[str]]) -> None:
+        self.generations = generations
+        self.received_seeds: List[str] = []
+
+    def __call__(
+        self,
+        seed_prompt: str,
+        generation_index: int,
+        population: int,
+        previous_best: str,
+    ) -> List[str]:
+        self.received_seeds.append(seed_prompt)
+        return self.generations[generation_index]
+
+
 @pytest.fixture
 def metric_functions() -> Dict[str, evolve.PromptEvaluator]:
     metric_values: Dict[str, Dict[str, float]] = {
@@ -166,3 +182,25 @@ def test_evolve_prompts_updates_history_and_best_prompt(mock_metrics: Dict[str, 
     history_entry = result["history"][2]
     assert history_entry["evaluations"][1]["prompt"] == "best"
     assert history_entry["evaluations"][1]["metrics"]["a"] > history_entry["evaluations"][0]["metrics"]["a"]
+
+
+def test_evolve_prompts_passes_original_seed_to_custom_generator(
+    mock_metrics: Dict[str, evolve.PromptEvaluator],
+) -> None:
+    candidate_plan = {
+        0: ["seed", "seed"],
+        1: ["seed", "better"],
+        2: ["better", "best"],
+    }
+    candidate_generator = _RecordingSeedGenerator(candidate_plan)
+
+    evolve.evolve_prompts(
+        seed_prompt="seed",
+        objective="maximize goodness",
+        pop=2,
+        gen=2,
+        metric_functions=mock_metrics,
+        candidate_generator=candidate_generator,
+    )
+
+    assert candidate_generator.received_seeds == ["seed", "seed", "seed"]

@@ -155,12 +155,12 @@ def evolve_prompts(
     global_best_score = float("-inf")
     previous_best_prompt = seed_prompt
 
-    origin_seed = seed_prompt
+    original_seed_prompt = seed_prompt
 
     for generation in range(gen + 1):
         try:
             generated = candidate_generator(
-                origin_seed,
+                original_seed_prompt,
                 generation,
                 pop,
                 previous_best_prompt,

@@ -159,7 +159,14 @@ async def test_on_message_computes_semantic_retention(
         {"role": "user", "content": "hello"},
     ]
 
-    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+    def _fake_trim(
+        history,
+        target_tokens,
+        model,
+        *,
+        min_turns: int = 0,
+        priority_roles: Iterable[str] | None = None,
+    ):
         return list(trimmed_messages), dict(metrics)
 
     monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
@@ -298,7 +305,14 @@ async def test_on_message_uses_formatter_for_trim_message_when_debug_disabled(
         {"role": "user", "content": "hello"},
     ]
 
-    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+    def _fake_trim(
+        history,
+        target_tokens,
+        model,
+        *,
+        min_turns: int = 0,
+        priority_roles: Iterable[str] | None = None,
+    ):
         return list(trimmed_messages), dict(metrics)
 
     monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
@@ -371,7 +385,14 @@ async def test_on_message_does_not_analyze_intent_when_debug_disabled(
         "semantic_retention": None,
     }
 
-    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+    def _fake_trim(
+        history,
+        target_tokens,
+        model,
+        *,
+        min_turns: int = 0,
+        priority_roles: Iterable[str] | None = None,
+    ):
         return list(history), dict(metrics)
 
     monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
@@ -411,7 +432,14 @@ async def test_on_message_does_not_analyze_intent_when_false_string(
         "semantic_retention": None,
     }
 
-    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+    def _fake_trim(
+        history,
+        target_tokens,
+        model,
+        *,
+        min_turns: int = 0,
+        priority_roles: Iterable[str] | None = None,
+    ):
         return list(history), dict(metrics)
 
     monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
@@ -448,7 +476,14 @@ async def test_on_message_skips_debug_when_false_string(
         {"role": "user", "content": "hello"},
     ]
 
-    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+    def _fake_trim(
+        history,
+        target_tokens,
+        model,
+        *,
+        min_turns: int = 0,
+        priority_roles: Iterable[str] | None = None,
+    ):
         return list(trimmed_messages), dict(metrics)
 
     async def _fake_ensure_retention(*_args: Any, **_kwargs: Any) -> float:
@@ -492,7 +527,14 @@ async def test_on_message_skips_intent_analysis_when_debug_disabled(
         "semantic_retention": None,
     }
 
-    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+    def _fake_trim(
+        history,
+        target_tokens,
+        model,
+        *,
+        min_turns: int = 0,
+        priority_roles: Iterable[str] | None = None,
+    ):
         return list(history), dict(metrics)
 
     monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
@@ -529,7 +571,14 @@ async def test_on_message_emits_trim_and_streams_tokens_when_debug_enabled(
         {"role": "user", "content": "hello"},
     ]
 
-    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+    def _fake_trim(
+        history,
+        target_tokens,
+        model,
+        *,
+        min_turns: int = 0,
+        priority_roles: Iterable[str] | None = None,
+    ):
         return list(trimmed_messages), dict(metrics)
 
     monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
@@ -642,7 +691,14 @@ async def test_on_message_converts_string_nan_semantic_retention(
         {"role": "user", "content": "hello"},
     ]
 
-    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+    def _fake_trim(
+        history,
+        target_tokens,
+        model,
+        *,
+        min_turns: int = 0,
+        priority_roles: Iterable[str] | None = None,
+    ):
         return list(trimmed_messages), dict(metrics)
 
     monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
@@ -709,7 +765,14 @@ async def test_on_message_logs_nan_semantic_retention_as_null_json(
         {"role": "user", "content": "hello"},
     ]
 
-    def _fake_trim(history, target_tokens, model, *, min_turns: int = 0):
+    def _fake_trim(
+        history,
+        target_tokens,
+        model,
+        *,
+        min_turns: int = 0,
+        priority_roles: Iterable[str] | None = None,
+    ):
         return list(trimmed_messages), dict(metrics)
 
     monkeypatch.setattr(app_module, "trim_messages", _fake_trim)
@@ -783,6 +846,7 @@ async def test_on_message_emits_structured_log(monkeypatch, caplog, app_module, 
         model: str,
         *,
         min_turns: int = 0,
+        priority_roles: Iterable[str] | None = None,
     ) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
         observed_min_turns["value"] = min_turns
         return list(trimmed_messages), dict(metrics)

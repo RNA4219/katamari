@@ -5,3 +5,6 @@ cot = "hidden"
 default_sidebar_state = "open"
 # Load optional stylesheet overrides
 custom_css = "/public/stylesheet.css"
+
+[meta]
+generated_by = "2.8.3"

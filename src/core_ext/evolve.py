@@ -10,10 +10,10 @@ PromptEvaluator = Callable[[str, str], float]
 
 
 class EvaluationDetail(TypedDict):
-    """JSON-serialisable evaluation metrics for a single prompt candidate."""
+    """JSON 互換の評価詳細を保持するレコード。"""
 
     prompt: str
-    metrics: Mapping[str, float]
+    metrics: Dict[str, float]
     totalScore: float
 
 
@@ -153,16 +153,22 @@ def evolve_prompts(
     history: List[EvolutionHistoryEntry] = []
     global_best_prompt = seed_prompt
     global_best_score = float("-inf")
+    previous_best_prompt = seed_prompt
+
+    origin_seed = seed_prompt
 
     for generation in range(gen + 1):
-        candidates = list(
-            candidate_generator(
-                global_best_prompt,
+        try:
+            generated = candidate_generator(
+                origin_seed,
                 generation,
                 pop,
-                global_best_prompt,
+                previous_best_prompt,
             )
-        )[:pop]
+        except TypeError as exc:  # pragma: no cover - defensive guard
+            raise RuntimeError("candidate generator has an invalid signature") from exc
+
+        candidates = list(generated)[:pop]
         if not candidates:
             candidates = [global_best_prompt]
 
@@ -172,8 +178,11 @@ def evolve_prompts(
         generation_best_score = float("-inf")
 
         for candidate in candidates:
-            metrics_result = {name: func(candidate, objective) for name, func in metrics.items()}
-            total_score = _mean(metrics_result.values())
+            metrics_result = {
+                name: float(func(candidate, objective))
+                for name, func in metrics.items()
+            }
+            total_score = float(_mean(metrics_result.values()))
             evaluations.append(
                 {
                     "prompt": candidate,
@@ -200,5 +209,7 @@ def evolve_prompts(
                 "evaluations": evaluations,
             }
         )
+
+        previous_best_prompt = generation_best_prompt
 
     return {"bestPrompt": global_best_prompt, "history": history}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Dict, List
+from unittest.mock import Mock
 
 import pytest
 
@@ -107,3 +108,61 @@ def test_evolve_prompts_selects_best_prompt_and_records_history(
     ]
 
     assert generator.requested == [0, 1, 2]
+
+
+@pytest.fixture()
+def mock_metrics() -> Dict[str, evolve.PromptEvaluator]:
+    scorer_a = Mock(name="scorer_a")
+    scorer_b = Mock(name="scorer_b")
+
+    def _score(candidate: str, *_: str) -> float:
+        if candidate == "seed":
+            return 0.2
+        if candidate == "better":
+            return 0.6
+        if candidate == "best":
+            return 0.95
+        return 0.1
+
+    scorer_a.side_effect = _score
+    scorer_b.side_effect = lambda candidate, *_: _score(candidate) - 0.05
+
+    return {"a": scorer_a, "b": scorer_b}
+
+
+def test_evolve_prompts_updates_history_and_best_prompt(mock_metrics: Dict[str, evolve.PromptEvaluator]) -> None:
+    candidate_plan = {
+        0: ["seed"],
+        1: ["seed", "better"],
+        2: ["better", "best"],
+    }
+    candidate_generator = Mock(
+        side_effect=lambda seed, generation, population, prev_best: candidate_plan[generation]
+    )
+
+    result = evolve.evolve_prompts(
+        seed_prompt="seed",
+        objective="maximize goodness",
+        pop=2,
+        gen=2,
+        metric_functions=mock_metrics,
+        candidate_generator=candidate_generator,
+    )
+
+    assert result["bestPrompt"] == "best"
+    assert [entry["bestPrompt"] for entry in result["history"]] == ["seed", "better", "best"]
+    assert [entry["gen"] for entry in result["history"]] == [0, 1, 2]
+
+    assert candidate_generator.call_args_list[0].args == ("seed", 0, 2, "seed")
+    assert candidate_generator.call_args_list[1].args == ("seed", 1, 2, "seed")
+    assert candidate_generator.call_args_list[2].args == ("seed", 2, 2, "better")
+
+    for scorer in mock_metrics.values():
+        recorded_calls = [args.args for args in scorer.call_args_list]
+        assert ("seed", "maximize goodness") in recorded_calls
+        assert ("better", "maximize goodness") in recorded_calls
+        assert ("best", "maximize goodness") in recorded_calls
+
+    history_entry = result["history"][2]
+    assert history_entry["evaluations"][1]["prompt"] == "best"
+    assert history_entry["evaluations"][1]["metrics"]["a"] > history_entry["evaluations"][0]["metrics"]["a"]

@@ -1,7 +1,7 @@
 {
   "id": "src/app.py",
   "role": "python",
-  "summary": "from __future__ import annotations",
+  "summary": "Collect runtime metrics for operational endpoints.",
   "public_api": [
     "DEFAULT_CHAIN",
     "DEFAULT_MODEL",
@@ -35,6 +35,6 @@
     "src/providers/openai_client.py"
   ],
   "deps_in": [],
-  "generated_at": "2025-10-31T04:16:14Z",
-  "mtime": "2025-10-30T21:27:25Z"
+  "generated_at": "2025-10-31T21:49:49Z",
+  "mtime": "2025-10-31T21:44:18Z"
 }

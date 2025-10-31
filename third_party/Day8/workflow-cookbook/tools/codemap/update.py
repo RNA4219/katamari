@@ -6,6 +6,7 @@ import argparse
 import ast
 import json
 import re
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -118,14 +119,33 @@ def run_update(options: UpdateOptions) -> None:
 
 def generate_codemap(root: Path, targets: Sequence[Path]) -> Codemap:
     resolved_targets = _resolve_targets(root, targets)
-    nodes, module_map = _build_capsules(root, resolved_targets)
+    analysis_roots = _analysis_roots(resolved_targets)
+    nodes, module_map = _build_capsules(root, resolved_targets, analysis_roots)
     _populate_dependencies(root, nodes, module_map)
+    seeds = _collect_seed_identifiers(root, nodes, resolved_targets)
+    selected = _expand_neighbourhood(nodes, seeds, hops=2)
+    selected_nodes = {
+        identifier: Capsule(
+            identifier=capsule.identifier,
+            path=capsule.path,
+            role=capsule.role,
+            summary=capsule.summary,
+            public_api=list(capsule.public_api),
+            tests=list(capsule.tests),
+            risks=list(capsule.risks),
+            mtime=capsule.mtime,
+            deps_out={dep for dep in capsule.deps_out if dep in selected},
+            deps_in={dep for dep in capsule.deps_in if dep in selected},
+        )
+        for identifier, capsule in nodes.items()
+        if identifier in selected
+    }
     edges = [
         (source, target)
-        for source, capsule in sorted(nodes.items())
+        for source, capsule in sorted(selected_nodes.items())
         for target in sorted(capsule.deps_out)
     ]
-    return Codemap(nodes=nodes, edges=edges)
+    return Codemap(nodes=selected_nodes, edges=edges)
 
 
 def _resolve_targets(root: Path, targets: Sequence[Path]) -> list[Path]:
@@ -143,16 +163,28 @@ def _resolve_targets(root: Path, targets: Sequence[Path]) -> list[Path]:
     return resolved
 
 
-def _build_capsules(root: Path, targets: Sequence[Path]) -> tuple[dict[str, Capsule], dict[str, str]]:
+def _analysis_roots(targets: Sequence[Path]) -> list[Path]:
+    roots: set[Path] = set()
+    for target in targets:
+        roots.add(target if target.is_dir() else target.parent)
+    return sorted(roots, key=lambda path: path.as_posix())
+
+
+def _build_capsules(
+    root: Path,
+    targets: Sequence[Path],
+    analysis_roots: Sequence[Path],
+) -> tuple[dict[str, Capsule], dict[str, str]]:
     output_dir = (root / OUTPUT_DIR).resolve()
-    files = sorted(
-        {
-            path.resolve()
-            for target in targets
-            for path in _iter_source_files(target, output_dir)
-        },
-        key=lambda path: path.relative_to(root).as_posix(),
-    )
+    discovered: set[Path] = {
+        path.resolve()
+        for base in analysis_roots
+        for path in _iter_source_files(base, output_dir)
+    }
+    for target in targets:
+        if target.is_file() and _should_include(target, output_dir):
+            discovered.add(target.resolve())
+    files = sorted(discovered, key=lambda path: path.relative_to(root).as_posix())
 
     nodes: dict[str, Capsule] = {}
     module_map: dict[str, str] = {}
@@ -179,6 +211,56 @@ def _build_capsules(root: Path, targets: Sequence[Path]) -> tuple[dict[str, Caps
                 if alias and alias not in module_map:
                     module_map[alias] = identifier
     return nodes, module_map
+
+
+def _collect_seed_identifiers(
+    root: Path,
+    nodes: Mapping[str, Capsule],
+    targets: Sequence[Path],
+) -> set[str]:
+    seeds: set[str] = set()
+    for target in targets:
+        if target.is_dir():
+            for identifier, capsule in nodes.items():
+                try:
+                    capsule.path.relative_to(target)
+                except ValueError:
+                    continue
+                seeds.add(identifier)
+        else:
+            try:
+                identifier = target.relative_to(root).as_posix()
+            except ValueError:
+                continue
+            if identifier in nodes:
+                seeds.add(identifier)
+    return seeds
+
+
+def _expand_neighbourhood(
+    nodes: Mapping[str, Capsule],
+    seeds: set[str],
+    *,
+    hops: int,
+) -> set[str]:
+    if not seeds:
+        return set()
+    adjacency = {
+        identifier: set(capsule.deps_out) | set(capsule.deps_in)
+        for identifier, capsule in nodes.items()
+    }
+    visited = set(seeds)
+    queue = deque((seed, 0) for seed in seeds)
+    while queue:
+        current, depth = queue.popleft()
+        if depth >= hops:
+            continue
+        for neighbour in adjacency.get(current, set()):
+            if neighbour not in nodes or neighbour in visited:
+                continue
+            visited.add(neighbour)
+            queue.append((neighbour, depth + 1))
+    return visited
 
 
 def _populate_dependencies(root: Path, nodes: dict[str, Capsule], module_map: Mapping[str, str]) -> None:

@@ -32,6 +32,7 @@ rg -n "CHECKLIST" third_party/Day8/workflow-cookbook/GUARDRAILS.md
 - Docker イメージが GHCR に push され、`vX.Y.Z-katamari` 形式のタグで管理される。
 - `CHECKLISTS.md` と `RUNBOOK.md` に CI/リリース手順が反映され、`EVALUATION.md` で DoD 判定が可能。
 - Guardrails 文書（HUB/BLUEPRINT/RUNBOOK/EVALUATION/CHECKLISTS）の相互参照が更新されている。
+- Birdseye 再生成では `third_party/Day8/workflow-cookbook/tools/codemap/update.py` を実行し、±2 hop のノード抽出と UTC ISO8601 の `generated_at`/`mtime` を確認する。
 
 ## フォローアップ
 - Guardrails の「テスト先行・最小差分」原則に従い、未解決項目は後続 Task Seed または Issue に分割する。

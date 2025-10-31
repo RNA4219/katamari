@@ -17,6 +17,7 @@ import pytest
 
 
 ISO_8601_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 MODULE_PATH = (
     Path(__file__)
@@ -55,6 +56,19 @@ def _load(path: Path) -> dict[str, object]:
 
 def _as_iso(mtime: datetime) -> str:
     return mtime.replace(tzinfo=timezone.utc, microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def test_hot_json_generated_at_and_mtime_are_iso8601() -> None:
+    hot_path = REPO_ROOT / "docs" / "birdseye" / "hot.json"
+    hot = _load(hot_path)
+
+    generated_at = hot["generated_at"]
+    mtime = hot["mtime"]
+
+    assert isinstance(generated_at, str)
+    assert isinstance(mtime, str)
+    assert ISO_8601_UTC.match(generated_at)
+    assert ISO_8601_UTC.match(mtime)
 
 
 def test_run_update_generates_codemap(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -9,6 +10,9 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 import pytest
+
+
+ISO_8601_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
 @pytest.fixture(name="birdseye_workspace")
@@ -77,29 +81,30 @@ def test_cli_handles_original_edges_without_typeerror(birdseye_workspace: Path) 
     assert "TypeError" not in stderr
 
 
-def test_generated_at_and_mtime_are_sequential(birdseye_workspace: Path) -> None:
+def test_generated_at_and_mtime_remain_iso8601(birdseye_workspace: Path) -> None:
+    before = {
+        path: _load_json(path)
+        for path in birdseye_workspace.rglob("*.json")
+    }
+
     _run_cli(birdseye_workspace)
 
-    index = _load_json(birdseye_workspace / "index.json")
-    hot = _load_json(birdseye_workspace / "hot.json")
-    cap_files = sorted((birdseye_workspace / "caps").glob("*.json"))
+    after = {
+        path: _load_json(path)
+        for path in birdseye_workspace.rglob("*.json")
+    }
 
-    refreshed = [
-        index,
-        *(_load_json(path) for path in cap_files),
-        hot,
-    ]
+    for path, data in after.items():
+        generated_at = data.get("generated_at")
+        mtime = data.get("mtime")
 
-    generated_values = [item["generated_at"] for item in refreshed]
-    mtime_values = [item["mtime"] for item in refreshed]
+        assert isinstance(generated_at, str)
+        assert isinstance(mtime, str)
+        assert ISO_8601_UTC.match(generated_at)
+        assert ISO_8601_UTC.match(mtime)
 
-    assert all(isinstance(value, str) and value.isdigit() and len(value) == 5 for value in generated_values)
-    assert all(isinstance(value, str) and value.isdigit() and len(value) == 5 for value in mtime_values)
-
-    assert generated_values == mtime_values
-
-    expected = {f"{offset:05d}" for offset in range(1, len(generated_values) + 1)}
-    assert set(generated_values) == expected
+        assert generated_at == before[path]["generated_at"]
+        assert mtime == before[path]["mtime"]
 
 
 def test_caps_dependencies_follow_index_edges(birdseye_workspace: Path) -> None:

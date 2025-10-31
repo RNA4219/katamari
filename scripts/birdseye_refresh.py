@@ -78,25 +78,6 @@ def _apply_if_changed(path: Path, before: str, data: Any, dry_run: bool, changed
     changed.append(path)
 
 
-def _assign_sequence_numbers(entries: Iterable[Tuple[Path, Any]]) -> dict[Path, str]:
-    ordered: List[Tuple[Path, Any]] = []
-    numeric_bucket: List[Tuple[int, Path, Any]] = []
-    fallback_bucket: List[Tuple[Path, Any]] = []
-
-    for path, data in entries:
-        raw = data.get("generated_at")
-        if isinstance(raw, str) and raw.isdigit():
-            numeric_bucket.append((int(raw), path, data))
-        else:
-            fallback_bucket.append((path, data))
-
-    numeric_bucket.sort(key=lambda item: (item[0], str(item[1])))
-    ordered.extend((path, data) for _, path, data in numeric_bucket)
-    ordered.extend(fallback_bucket)
-
-    return {path: f"{index:05d}" for index, (path, _) in enumerate(ordered, start=1)}
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parse_args(argv)
     docs_dir: Path = args.docs_dir
@@ -131,12 +112,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         (hot_path, hot_data, hot_before),
     ]
 
-    sequence_map = _assign_sequence_numbers((path, data) for path, data, _ in targets)
-
     for path, data, before in targets:
-        sequence = sequence_map[path]
-        data["generated_at"] = sequence
-        data["mtime"] = sequence
         _apply_if_changed(path, before, data, dry_run, changed)
 
     action = "would change" if dry_run else "updated"

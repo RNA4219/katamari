@@ -18,7 +18,8 @@
 - 0002: CHANGELOG のエントリに通番を付けるルールを追加。
 - 0003: README とロードマップに CHANGELOG 更新導線とタスク移管ルールを明文化。
 - 0004: README の主要導線にタスク移管の導線を追記し、完了タスクの CHANGELOG 反映を必須化。
-- 0006: Birdseye 再生成スクリプトを ±2 hop 解析と UTC タイムスタンプ対応に刷新し、運用手順を README へ反映。
+- 0006: OpenAI ストリームの再試行を 1s→2s→4s の backoff と `katamari.request` 計測に対応させ、ログ/RUNBOOK を更新。
+- 0007: Birdseye 再生成スクリプトを ±2 hop 解析と UTC タイムスタンプ対応に刷新し、運用手順を README へ反映。
 ### Deprecated
 ### Removed
 ### Fixed

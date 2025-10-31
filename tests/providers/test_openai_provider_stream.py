@@ -330,7 +330,7 @@ async def test_stream_retries_and_resumes_on_retryable_errors(
         for token in tokens
     ]
 
-    completions = _FlakyCompletions(events, failures=[1, 3, None])
+    completions = _FlakyCompletions(events, failures=[0, 1, 2, None])
     client = _FlakyClient(completions)
 
     def _factory(**_: Any) -> _FlakyClient:
@@ -353,7 +353,7 @@ async def test_stream_retries_and_resumes_on_retryable_errors(
         chunks.append(token)
 
     assert chunks == tokens
-    assert sleep_calls == [1, 2]
+    assert sleep_calls == [1, 2, 4]
     assert completions.calls == [
         {
             "model": "gpt-4o-mini",
@@ -361,7 +361,7 @@ async def test_stream_retries_and_resumes_on_retryable_errors(
             "stream": True,
             "opts": {"temperature": 0.2},
         }
-        for _ in range(3)
+        for _ in range(4)
     ]
 
 

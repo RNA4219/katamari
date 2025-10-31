@@ -4,7 +4,7 @@ import asyncio
 import os
 import sys
 from time import perf_counter
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Literal, Mapping, Sequence, cast
 
 from core_ext.logging import InferenceLogRecord, StructuredLogger
 
@@ -16,18 +16,103 @@ _MISSING_OPENAI_MESSAGE = (
 
 _BACKOFF_SECONDS: tuple[float, ...] = (1.0, 2.0, 4.0)
 _PROVIDER_LOGGER = StructuredLogger(logger_name="katamari.provider")
+_REQUEST_LOGGER = StructuredLogger()
 
 __all__ = ["AsyncOpenAI", "OpenAIProvider"]
 
 if TYPE_CHECKING:
     from openai import AsyncOpenAI as AsyncOpenAIClient
 else:  # pragma: no cover - used only for typing fallbacks at runtime
+
     class AsyncOpenAIClient:  # type: ignore[too-few-public-methods]
         """Runtime placeholder for the OpenAI async client."""
 
         ...
 
 AsyncOpenAIFactory = Callable[..., AsyncOpenAIClient]
+
+
+async def _start_chat_stream(
+    client: AsyncOpenAIClient,
+    *,
+    model: str,
+    messages: Sequence[MessageParam],
+    options: Mapping[str, Any],
+) -> AsyncIterator[Any]:
+    """Create a streaming chat completion iterator."""
+
+    stream = await client.chat.completions.create(
+        model=model,
+        messages=cast(Any, messages),
+        stream=True,
+        **dict(options),
+    )
+    return cast(AsyncIterator[Any], stream)
+
+
+def _extract_token(part: Any) -> str | None:
+    """Return the SSE token content from a streamed part if present."""
+
+    choices = getattr(part, "choices", None)
+    if not choices:
+        return None
+    choice = choices[0]
+    delta = getattr(choice, "delta", None)
+    content = getattr(delta, "content", "") if delta is not None else ""
+    if not content:
+        return None
+    return str(content)
+
+
+def _coerce_retryable(exc: BaseException) -> bool:
+    """Normalise the retryable flag on exceptions to a boolean."""
+
+    retryable = getattr(exc, "retryable", None)
+    is_retryable = retryable if isinstance(retryable, bool) else True
+    try:
+        setattr(exc, "retryable", is_retryable)
+    except Exception:  # pragma: no cover - defensive
+        pass
+    return is_retryable
+
+
+def _set_retryable(exc: BaseException, value: bool) -> None:
+    """Update the retryable flag if the exception allows attribute assignment."""
+
+    try:
+        setattr(exc, "retryable", value)
+    except Exception:  # pragma: no cover - defensive
+        pass
+
+
+def _emit_stream_metric(
+    *,
+    status: Literal["success", "failure"],
+    model: str,
+    chain: str,
+    latency_ms: float,
+    token_out: int,
+    retryable: bool | None,
+    error: str | None = None,
+    provider_log: bool = False,
+) -> None:
+    """Emit structured stream metrics to request (and optionally provider) logs."""
+
+    record = InferenceLogRecord(
+        status=status,
+        model=model,
+        chain=chain,
+        token_in=0,
+        token_out=token_out,
+        compress_ratio=0.0,
+        step_latency_ms=[],
+        latency_ms=latency_ms,
+        retryable=retryable,
+        error=error,
+    )
+    if provider_log:
+        _PROVIDER_LOGGER.emit(record)
+    _REQUEST_LOGGER.emit(record)
 
 
 def _missing_async_openai_factory(*_: Any, **__: Any) -> AsyncOpenAIClient:
@@ -121,28 +206,23 @@ class OpenAIProvider:
         messages: Sequence[MessageParam],
         **opts: Any,
     ) -> AsyncIterator[str]:
-        attempt = 0
+        options = cast(Mapping[str, Any], dict(opts))
         seen_tokens: list[str] = []
         start = perf_counter()
 
-        while True:
-            attempt += 1
+        for attempt_index in range(len(_BACKOFF_SECONDS) + 1):
             try:
-                stream = await self.client.chat.completions.create(
+                stream_iter = await _start_chat_stream(
+                    self.client,
                     model=model,
-                    messages=cast(Any, messages),
-                    stream=True,
-                    **opts,
+                    messages=messages,
+                    options=options,
                 )
-                stream_iter = cast(AsyncIterator[Any], stream)
                 index = 0
                 async for part in stream_iter:
-                    choice = getattr(part, "choices", [None])[0]
-                    delta = getattr(choice, "delta", None)
-                    content = getattr(delta, "content", "") if delta is not None else ""
-                    if not content:
+                    token = _extract_token(part)
+                    if token is None:
                         continue
-                    token = str(content)
                     if index < len(seen_tokens):
                         if token == seen_tokens[index]:
                             index += 1
@@ -151,36 +231,57 @@ class OpenAIProvider:
                     seen_tokens.append(token)
                     index += 1
                     yield token
+
+                elapsed_ms = (perf_counter() - start) * 1000.0
+                _emit_stream_metric(
+                    status="success",
+                    model=model,
+                    chain="openai.stream",
+                    latency_ms=elapsed_ms,
+                    token_out=len(seen_tokens),
+                    retryable=None,
+                )
                 return
             except asyncio.CancelledError:  # pragma: no cover - cooperative cancellation
                 raise
             except BaseException as exc:
-                retryable = getattr(exc, "retryable", None)
-                is_retryable = True if not isinstance(retryable, bool) else retryable
-                try:
-                    setattr(exc, "retryable", is_retryable)
-                except Exception:  # pragma: no cover - defensive
-                    pass
-
-                retry_index = attempt - 1
-                if not is_retryable or retry_index > len(_BACKOFF_SECONDS) - 1:
-                    raise
-
-                delay = _BACKOFF_SECONDS[retry_index]
+                is_retryable = _coerce_retryable(exc)
                 elapsed_ms = (perf_counter() - start) * 1000.0
-                _PROVIDER_LOGGER.emit(
-                    InferenceLogRecord(
+                attempt_number = attempt_index + 1
+                has_remaining = attempt_index < len(_BACKOFF_SECONDS)
+
+                if not is_retryable or not has_remaining:
+                    if is_retryable and not has_remaining:
+                        _set_retryable(exc, False)
+                        is_retryable = False
+                    retry_attr = getattr(exc, "retryable", is_retryable)
+                    retry_flag = retry_attr if isinstance(retry_attr, bool) else False
+                    _emit_stream_metric(
                         status="failure",
                         model=model,
-                        chain="openai.stream.retry",
-                        token_in=0,
-                        token_out=0,
-                        compress_ratio=0.0,
-                        step_latency_ms=[],
+                        chain="openai.stream.failure",
                         latency_ms=elapsed_ms,
-                        retryable=True,
-                        error=f"attempt={attempt} delay={delay:.1f}s",
+                        token_out=len(seen_tokens),
+                        retryable=retry_flag,
+                        error=(
+                            f"attempt={attempt_number} terminal error={type(exc).__name__}: {exc}"
+                        ),
+                        provider_log=True,
                     )
+                    raise
+
+                delay = _BACKOFF_SECONDS[attempt_index]
+                _emit_stream_metric(
+                    status="failure",
+                    model=model,
+                    chain="openai.stream.retry",
+                    latency_ms=elapsed_ms,
+                    token_out=len(seen_tokens),
+                    retryable=True,
+                    error=(
+                        f"attempt={attempt_number} delay={delay:.1f}s error={type(exc).__name__}: {exc}"
+                    ),
+                    provider_log=True,
                 )
                 await asyncio.sleep(delay)
 

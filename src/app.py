@@ -623,15 +623,12 @@ async def apply_settings(settings: Mapping[str, Any]) -> None:
                 await _send_message(
                     content="[persona issues]\nPersona prompt reset to default."
                 )
-            return
-
-        if yaml_str:
+        elif yaml_str:
             system, issues = compile_persona_yaml(yaml_str)
             _session_set("system", system)
             _sync_history_system(system)
             if issues:
                 await _send_message(content="\n".join(["[persona issues]"] + issues))
-            return
 
     if system_override is not None:
         _session_set("system", system_override)

@@ -980,6 +980,29 @@ async def test_apply_settings_updates_history_system_when_history_empty(
 
 
 @pytest.mark.anyio
+async def test_apply_settings_allows_system_override_after_persona_reset(
+    app_module, stub_chainlit
+):
+    session = app_module.cl.user_session
+    session.set(
+        "history",
+        [
+            {"role": "system", "content": "legacy persona"},
+            {"role": "user", "content": "hello"},
+        ],
+    )
+
+    await app_module.apply_settings(
+        {"persona_yaml": "", "system": "custom prompt"}
+    )
+
+    history = session.get("history")
+    assert history[0] == {"role": "system", "content": "custom prompt"}
+    assert history[1] == {"role": "user", "content": "hello"}
+    assert session.get("system") == "custom prompt"
+
+
+@pytest.mark.anyio
 async def test_on_message_logs_retryable_error(monkeypatch, caplog, app_module, stub_chainlit):
     metrics = {
         "input_tokens": 80,

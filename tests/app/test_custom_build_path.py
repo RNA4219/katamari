@@ -62,3 +62,12 @@ def test_get_build_dir_accepts_safe_path(chainlit_server: ModuleType) -> None:
     result = chainlit_server.get_build_dir("frontend", "frontend")
 
     assert Path(result) == safe_dir
+
+
+def test_get_build_dir_missing_custom_build(chainlit_server: ModuleType) -> None:
+    app_root = Path(chainlit_server.APP_ROOT)
+    missing_dir = app_root / "custom" / "dist"
+    chainlit_server.config.ui.custom_build = os.path.relpath(missing_dir, app_root)
+
+    with pytest.raises(FileNotFoundError):
+        chainlit_server.get_build_dir("frontend", "frontend")

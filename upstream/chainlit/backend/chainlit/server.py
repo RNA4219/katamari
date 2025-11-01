@@ -211,6 +211,9 @@ def get_build_dir(local_target: str, packaged_target: str) -> str:
             raise ValueError("The custom build directory must reside within the app root.")
         if custom_build_path.exists():
             return str(custom_build_path)
+        raise FileNotFoundError(
+            f"Custom build directory '{custom_build_path}' not found"
+        )
     elif os.path.exists(local_build_dir):
         return local_build_dir
     elif os.path.exists(packaged_build_dir):

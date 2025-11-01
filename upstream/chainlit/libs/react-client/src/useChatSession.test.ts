@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { JSDOM } from 'jsdom';
-import { ReactNode, createElement, useEffect } from 'react';
+import { Fragment, ReactNode, createElement, useEffect } from 'react';
 import { RecoilRoot, useRecoilValue } from 'recoil';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -97,8 +97,7 @@ describe('useChatSession', () => {
               );
             },
             children
-          },
-          children
+          }
         )
       );
 
@@ -199,14 +198,18 @@ describe('useChatSession', () => {
                   interrupt: vi.fn()
                 } as any
               );
-            }
-          },
-          createElement(McpStateObserver, {
-            onChange: (value) => {
-              observedStates.push(value);
-            }
-          }),
-          children
+            },
+            children: createElement(
+              Fragment,
+              null,
+              createElement(McpStateObserver, {
+                onChange: (value) => {
+                  observedStates.push(value);
+                }
+              }),
+              children
+            )
+          }
         )
       );
 

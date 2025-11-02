@@ -88,7 +88,8 @@ def run_update(options: UpdateOptions) -> None:
     latest_mtime_dt = max((capsule.mtime for capsule in codemap.nodes.values()), default=generated_at_dt)
     latest_mtime = _format_timestamp(latest_mtime_dt)
     hot_path = output_dir / "hot.json"
-    hot_entries = _load_hot_entries(hot_path)
+    hot_payload = _load_hot_payload(hot_path)
+    hot_entries = _load_hot_entries(hot_path, hot_payload)
 
     if options.emit in {"index", "index+caps"}:
         index_path = output_dir / "index.json"
@@ -124,7 +125,13 @@ def run_update(options: UpdateOptions) -> None:
             }
             _dump_json(capsule_path, capsule_data)
 
-    _write_hot_list(hot_path, generated_at=generated_at, mtime=latest_mtime, entries=hot_entries)
+    _write_hot_list(
+        hot_path,
+        generated_at=generated_at,
+        mtime=latest_mtime,
+        entries=hot_entries,
+        existing_payload=hot_payload,
+    )
 
 
 def generate_codemap(root: Path, targets: Sequence[Path]) -> Codemap:
@@ -605,12 +612,22 @@ def _capsule_path_for(identifier: str) -> Path:
     return OUTPUT_DIR / CAPS_DIR_NAME / f"{stem}.json"
 
 
-def _load_hot_entries(path: Path) -> list[HotEntry]:
+def _load_hot_payload(path: Path) -> Mapping[str, object] | None:
     if not path.exists():
-        return []
+        return None
     with path.open(encoding="utf-8") as file:
         payload = json.load(file)
-    entries = payload.get("entries", [])
+    if not isinstance(payload, Mapping):
+        return None
+    return dict(payload)
+
+
+def _parse_hot_entries(payload: Mapping[str, object] | None) -> list[HotEntry]:
+    if payload is None:
+        entries: list[object] = []
+    else:
+        raw_entries = payload.get("entries", [])
+        entries = list(raw_entries) if isinstance(raw_entries, list) else []
     result: list[HotEntry] = []
     for item in entries:
         if not isinstance(item, Mapping):
@@ -621,11 +638,40 @@ def _load_hot_entries(path: Path) -> list[HotEntry]:
     return result
 
 
+def _load_hot_entries(
+    path: Path,
+    payload: Mapping[str, object] | None = None,
+) -> list[HotEntry]:
+    actual_payload = payload if payload is not None else _load_hot_payload(path)
+    return _parse_hot_entries(actual_payload)
+
+
 def _serialize_hot_entries(entries: Sequence[HotEntry]) -> list[dict[str, str]]:
     return [
         {"id": entry.identifier, "reason": entry.reason}
         for entry in entries
     ]
+
+
+def _prepare_hot_payload(
+    existing_payload: Mapping[str, object] | None,
+    *,
+    generated_at: str,
+    mtime: str,
+    entries: Sequence[HotEntry],
+) -> dict[str, object]:
+    if existing_payload is not None:
+        payload = dict(existing_payload)
+        payload["generated_at"] = generated_at
+        payload["mtime"] = mtime
+        if "entries" not in payload:
+            payload["entries"] = _serialize_hot_entries(entries)
+        return payload
+    return {
+        "generated_at": generated_at,
+        "entries": _serialize_hot_entries(entries),
+        "mtime": mtime,
+    }
 
 
 def _write_hot_list(
@@ -634,12 +680,14 @@ def _write_hot_list(
     generated_at: str,
     mtime: str,
     entries: Sequence[HotEntry],
+    existing_payload: Mapping[str, object] | None = None,
 ) -> None:
-    payload = {
-        "generated_at": generated_at,
-        "entries": _serialize_hot_entries(entries),
-        "mtime": mtime,
-    }
+    payload = _prepare_hot_payload(
+        existing_payload,
+        generated_at=generated_at,
+        mtime=mtime,
+        entries=entries,
+    )
     _dump_json(path, payload)
 
 

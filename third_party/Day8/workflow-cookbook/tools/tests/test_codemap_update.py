@@ -93,6 +93,56 @@ def test_run_update_refreshes_hot_list_metadata(tmp_path: Path) -> None:
     datetime.fromisoformat(mtime_value.replace("Z", "+00:00"))
 
 
+def test_run_update_preserves_hot_entries_when_metadata_refreshes(tmp_path: Path) -> None:
+    module = _load_update_module()
+    UpdateOptions = module.UpdateOptions
+    run_update = module.run_update
+
+    project_root = tmp_path
+    src = project_root / "src"
+    mtime = datetime(2023, 12, 1, 2, 3, 4, tzinfo=timezone.utc)
+
+    _write(
+        src / "theta.py",
+        '"""Theta module."""\n',
+        mtime=mtime,
+    )
+
+    hot_path = project_root / "docs" / "birdseye" / "hot.json"
+    hot_path.parent.mkdir(parents=True, exist_ok=True)
+    existing_entries = [
+        {"id": "src/theta.py", "reason": "Key scenario", "tags": ["core"]},
+        {
+            "id": "src/kappa.py",
+            "reason": "Pending deprecation",
+            "tags": ["legacy", "audit"],
+        },
+    ]
+    hot_payload = {
+        "generated_at": "1999-12-31T23:59:59Z",
+        "entries": existing_entries,
+        "mtime": "1999-12-31T23:59:59Z",
+        "notes": {"owner": "ops"},
+    }
+    hot_path.write_text(json.dumps(hot_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    options = UpdateOptions(targets=(Path("src/theta.py"),), emit="index+caps")
+
+    with chdir(project_root):
+        run_update(options)
+
+    index_path = project_root / "docs" / "birdseye" / "index.json"
+    with index_path.open(encoding="utf-8") as fh:
+        index = json.load(fh)
+
+    with hot_path.open(encoding="utf-8") as fh:
+        hot = json.load(fh)
+
+    assert hot["entries"] == existing_entries
+    assert hot["notes"] == hot_payload["notes"]
+    assert hot["generated_at"] == index["generated_at"]
+    assert hot["mtime"] == index["mtime"]
+
 def test_run_update_generates_iso8601_metadata_with_two_hop_dependencies(tmp_path: Path) -> None:
     module = _load_update_module()
     UpdateOptions = module.UpdateOptions

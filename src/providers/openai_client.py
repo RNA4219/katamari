@@ -53,24 +53,40 @@ async def _start_chat_stream(
 def _extract_token(part: Any) -> str | None:
     """Return the SSE token content from a streamed part if present."""
 
+    def _is_sequence(value: Any) -> bool:
+        return isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray))
+
     def _collect_text(value: Any) -> list[str]:
         if value is None:
             return []
         if isinstance(value, str):
             return [value]
-        if isinstance(value, (list, tuple)):
+        if _is_sequence(value):
             fragments: list[str] = []
             for item in value:
                 fragments.extend(_collect_text(item))
             return fragments
-        if isinstance(value, dict):
-            if "text" in value:
-                return _collect_text(value["text"])
-            return []
+        if isinstance(value, Mapping):
+            fragments: list[str] = []
+            for key, item in value.items():
+                if key == "text":
+                    fragments.extend(_collect_text(item))
+                elif _is_sequence(item) or isinstance(item, Mapping) or getattr(item, "text", None) is not None:
+                    fragments.extend(_collect_text(item))
+            return fragments
 
         text_attr = getattr(value, "text", None)
         if text_attr is not None:
             return _collect_text(text_attr)
+
+        if hasattr(value, "__dict__"):
+            fragments: list[str] = []
+            for item in vars(value).values():
+                if item is value:
+                    continue
+                if isinstance(item, Mapping) or _is_sequence(item) or getattr(item, "text", None) is not None:
+                    fragments.extend(_collect_text(item))
+            return fragments
         return []
 
     choices = getattr(part, "choices", None)
@@ -82,9 +98,10 @@ def _extract_token(part: Any) -> str | None:
     fragments = _collect_text(content)
     if not fragments and isinstance(content, str):
         fragments = [content]
+    fragments = [fragment for fragment in fragments if isinstance(fragment, str) and fragment]
     if not fragments:
         return None
-    token = "".join(str(fragment) for fragment in fragments if fragment)
+    token = "".join(fragments)
     return token or None
 
 

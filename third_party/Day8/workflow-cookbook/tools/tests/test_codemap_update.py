@@ -44,6 +44,42 @@ def _write(path: Path, content: str, *, mtime: datetime) -> None:
     os.utime(path, times=(timestamp, timestamp))
 
 
+def test_codemap_update_prefers_public_docstring(tmp_path: Path) -> None:
+    module = _load_update_module()
+
+    mtime = datetime(2024, 2, 3, 4, 5, 6, tzinfo=timezone.utc)
+
+    public_doc_module = tmp_path / "module_public_docstring.py"
+    _write(
+        public_doc_module,
+        (
+            "import math\n"
+            "VALUE = math.pi\n\n"
+            "def _internal_helper() -> float:\n"
+            "    \"\"\"Return the cached constant.\"\"\"\n"
+            "    return VALUE\n\n"
+            "def public_api() -> float:\n"
+            "    \"\"\"Provide the shared PI constant.\"\"\"\n"
+            "    return VALUE\n"
+        ),
+        mtime=mtime,
+    )
+
+    summary, public_api = module._summarize_python(public_doc_module)
+    assert summary == "Provide the shared PI constant."
+    assert public_api == ["VALUE", "public_api"]
+
+    no_doc_module = tmp_path / "module_without_docstrings.py"
+    _write(
+        no_doc_module,
+        "import sys\n\nVALUE = len(sys.argv)\n",
+        mtime=mtime,
+    )
+
+    summary_without_docs, _ = module._summarize_python(no_doc_module)
+    assert summary_without_docs == ""
+
+
 def test_run_update_generates_iso8601_metadata_with_two_hop_dependencies(tmp_path: Path) -> None:
     module = _load_update_module()
     UpdateOptions = module.UpdateOptions

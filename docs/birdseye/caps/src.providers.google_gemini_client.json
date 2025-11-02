@@ -1,7 +1,7 @@
 {
   "id": "src/providers/google_gemini_client.py",
   "role": "python",
-  "summary": "import asyncio",
+  "summary": "Provides GoogleGeminiProvider",
   "public_api": [
     "GoogleGeminiProvider"
   ],
@@ -11,6 +11,6 @@
   "deps_in": [
     "src/app.py"
   ],
-  "generated_at": "2025-10-31T21:49:49Z",
-  "mtime": "2025-10-31T21:44:18Z"
+  "generated_at": "2025-11-02T11:06:05Z",
+  "mtime": "2025-11-02T10:47:47Z"
 }

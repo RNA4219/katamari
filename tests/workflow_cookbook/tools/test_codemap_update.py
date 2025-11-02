@@ -82,6 +82,7 @@ def test_run_update_generates_codemap(tmp_path: Path, monkeypatch: pytest.Monkey
     main_time = datetime(2024, 1, 2, 9, 30, 0, tzinfo=timezone.utc)
     guide_time = datetime(2024, 1, 3, 18, 45, 0, tzinfo=timezone.utc)
     summary_time = datetime(2024, 1, 4, 8, 15, 0, tzinfo=timezone.utc)
+    gemini_time = datetime(2024, 1, 5, 10, 0, 0, tzinfo=timezone.utc)
 
     _write(
         project_root / "src/utils/helpers.py",
@@ -135,6 +136,20 @@ def test_run_update_generates_codemap(tmp_path: Path, monkeypatch: pytest.Monkey
     )
 
     _write(
+        project_root / "src/providers/google_gemini_client.py",
+        dedent(
+            '''\
+            __all__ = ["GoogleGeminiProvider"]
+
+
+            class GoogleGeminiProvider:
+                pass
+            '''
+        ),
+        mtime=gemini_time,
+    )
+
+    _write(
         project_root / "docs/guide.md",
         """# Guide\n\nSee the [main module](../src/main.py) for details.\n""",
         mtime=guide_time,
@@ -159,6 +174,7 @@ def test_run_update_generates_codemap(tmp_path: Path, monkeypatch: pytest.Monkey
         "docs/guide.md",
         "src/main.py",
         "src/pkg/module_without_doc.py",
+        "src/providers/google_gemini_client.py",
         "src/utils/helpers.py",
     } <= set(nodes.keys())
 
@@ -166,11 +182,13 @@ def test_run_update_generates_codemap(tmp_path: Path, monkeypatch: pytest.Monkey
     main_caps_path = Path(nodes["src/main.py"]["caps"])  # type: ignore[index]
     guide_caps_path = Path(nodes["docs/guide.md"]["caps"])  # type: ignore[index]
     summary_caps_path = Path(nodes["src/pkg/module_without_doc.py"]["caps"])  # type: ignore[index]
+    gemini_caps_path = Path(nodes["src/providers/google_gemini_client.py"]["caps"])  # type: ignore[index]
 
     helper_caps = _load(project_root / helper_caps_path)
     main_caps = _load(project_root / main_caps_path)
     guide_caps = _load(project_root / guide_caps_path)
     summary_caps = _load(project_root / summary_caps_path)
+    gemini_caps = _load(project_root / gemini_caps_path)
 
     generated_at = index["generated_at"]
     assert helper_caps["generated_at"] == generated_at
@@ -190,18 +208,22 @@ def test_run_update_generates_codemap(tmp_path: Path, monkeypatch: pytest.Monkey
     expected_main_mtime = _as_iso(main_time)
     expected_guide_mtime = _as_iso(guide_time)
     expected_summary_mtime = _as_iso(summary_time)
+    expected_gemini_mtime = _as_iso(gemini_time)
 
     assert nodes["src/utils/helpers.py"]["mtime"] == expected_helper_mtime  # type: ignore[index]
     assert nodes["src/main.py"]["mtime"] == expected_main_mtime  # type: ignore[index]
     assert nodes["docs/guide.md"]["mtime"] == expected_guide_mtime  # type: ignore[index]
     assert nodes["src/pkg/module_without_doc.py"]["mtime"] == expected_summary_mtime  # type: ignore[index]
+    assert nodes["src/providers/google_gemini_client.py"]["mtime"] == expected_gemini_mtime  # type: ignore[index]
 
     assert helper_caps["mtime"] == expected_helper_mtime
     assert main_caps["mtime"] == expected_main_mtime
     assert guide_caps["mtime"] == expected_guide_mtime
     assert summary_caps["mtime"] == expected_summary_mtime
+    assert gemini_caps["mtime"] == expected_gemini_mtime
 
     assert summary_caps["summary"] == "Public class summary."
+    assert gemini_caps["summary"] == "Provides GoogleGeminiProvider"
 
     index_edges = {tuple(edge) for edge in index["edges"]}  # type: ignore[list-item]
     assert (
@@ -209,4 +231,4 @@ def test_run_update_generates_codemap(tmp_path: Path, monkeypatch: pytest.Monkey
         and ("docs/guide.md", "src/main.py") in index_edges
     )
 
-    assert index["mtime"] == expected_summary_mtime
+    assert index["mtime"] == expected_gemini_mtime

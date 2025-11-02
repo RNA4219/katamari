@@ -158,16 +158,14 @@ def _prepare_provider_options(model_id: str, base: Mapping[str, Any]) -> Dict[st
         reasoning_opts = dict(reasoning_value)
 
     if "thinking" in model_key:
-        if reasoning_opts is None:
-            reasoning_opts = dict(_REASONING_DEFAULT)
+        merged_reasoning: Dict[str, Any] = dict(_REASONING_DEFAULT)
+        if reasoning_opts is not None:
+            merged_reasoning.update(reasoning_opts)
         if model_key in _THINKING_PARALLEL_MODELS:
-            reasoning_opts["parallel"] = True
+            merged_reasoning["parallel"] = True
         else:
-            reasoning_opts.pop("parallel", None)
-        if reasoning_opts:
-            opts["reasoning"] = reasoning_opts
-        else:
-            opts.pop("reasoning", None)
+            merged_reasoning.pop("parallel", None)
+        opts["reasoning"] = merged_reasoning
     elif reasoning_opts is not None:
         opts["reasoning"] = reasoning_opts
     return opts

@@ -173,6 +173,13 @@ def _resolve_targets(root: Path, targets: Sequence[Path]) -> list[Path]:
         if not candidate.exists():
             raise FileNotFoundError(f"Target '{target}' does not exist")
         resolved_path = candidate.resolve()
+        if resolved_path.is_file():
+            suffix = resolved_path.suffix.lower()
+            if suffix not in SUPPORTED_SUFFIXES:
+                allowed = ", ".join(sorted(SUPPORTED_SUFFIXES))
+                raise ValueError(
+                    f"Unsupported target '{target}': suffix '{suffix or '<none>'}' is not allowed (expected one of: {allowed})"
+                )
         if resolved_path in seen:
             continue
         seen.add(resolved_path)

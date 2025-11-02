@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Iterator
 import sys
 
+import pytest
+
 MODULE_PATH = Path(__file__).resolve().parents[1] / "codemap" / "update.py"
 
 
@@ -222,3 +224,22 @@ def test_run_update_generates_iso8601_metadata_with_two_hop_dependencies(tmp_pat
             capsule = json.load(fh)
         assert capsule["generated_at"] == generated_at
         assert capsule["mtime"] == index["nodes"][identifier]["mtime"]
+
+
+def test_run_update_rejects_non_source_targets(tmp_path: Path) -> None:
+    module = _load_update_module()
+    UpdateOptions = module.UpdateOptions
+    run_update = module.run_update
+
+    project_root = tmp_path
+    index_path = project_root / "docs" / "birdseye" / "index.json"
+    original_payload = {"generated_at": "2020-01-01T00:00:00Z", "nodes": {}, "edges": [], "mtime": "2020-01-01T00:00:00Z"}
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    index_path.write_text(json.dumps(original_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    options = UpdateOptions(targets=(Path("docs/birdseye/index.json"),), emit="index")
+
+    with chdir(project_root), pytest.raises(ValueError):
+        run_update(options)
+
+    assert json.loads(index_path.read_text(encoding="utf-8")) == original_payload

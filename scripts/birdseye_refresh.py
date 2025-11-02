@@ -78,6 +78,16 @@ def _apply_if_changed(path: Path, before: str, data: Any, dry_run: bool, changed
     changed.append(path)
 
 
+def _sync_hot_metadata(hot_data: Any, index_data: Any) -> None:
+    generated_at = index_data.get("generated_at")
+    if isinstance(generated_at, str):
+        hot_data["generated_at"] = generated_at
+
+    mtime = index_data.get("mtime")
+    if isinstance(mtime, str):
+        hot_data["mtime"] = mtime
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parse_args(argv)
     docs_dir: Path = args.docs_dir
@@ -105,6 +115,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     hot_path = docs_dir / "hot.json"
     hot_data = _load_json(hot_path)
     hot_before = _serialize(hot_data)
+    _sync_hot_metadata(hot_data, index_data)
 
     targets: List[Tuple[Path, Any, str]] = [
         (index_path, index_data, index_before),

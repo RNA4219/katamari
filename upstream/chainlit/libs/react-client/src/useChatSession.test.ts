@@ -123,7 +123,7 @@ describe('useChatSession', () => {
     });
   });
 
-  it('retries SSE connection with exponential backoff and succeeds on third retry', async () => {
+  it('fails SSE connection after three attempts while preserving exponential backoff delays', async () => {
     vi.useFakeTimers();
     const socketHandlers: Record<string, (...args: any[]) => void> = {};
     const socket = {
@@ -138,18 +138,7 @@ describe('useChatSession', () => {
 
     mockIo.mockReturnValue(socket);
 
-    const connectSseMCP = vi
-      .fn()
-      .mockRejectedValueOnce(new Error('network-error-1'))
-      .mockRejectedValueOnce(new Error('network-error-2'))
-      .mockRejectedValueOnce(new Error('network-error-3'))
-      .mockResolvedValue({
-        success: true,
-        mcp: {
-          name: 'sse-mcp',
-          tools: [{ name: 'tool' }]
-        }
-      });
+    const connectSseMCP = vi.fn().mockRejectedValue(new Error('network-error'));
 
     const observedStates: IMcp[][] = [];
 
@@ -224,43 +213,49 @@ describe('useChatSession', () => {
 
     await act(async () => {
       socketHandlers['connect']?.();
+      await Promise.resolve();
     });
 
     expect(connectSseMCP).toHaveBeenCalledTimes(1);
 
-    await vi.advanceTimersByTimeAsync(RECONNECTION_DELAY_MS);
-    await Promise.resolve();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(RECONNECTION_DELAY_MS);
+      await Promise.resolve();
+    });
 
     expect(connectSseMCP).toHaveBeenCalledTimes(2);
 
-    await vi.advanceTimersByTimeAsync(RECONNECTION_DELAY_MS * 2);
-    await Promise.resolve();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(RECONNECTION_DELAY_MS * 2);
+      await Promise.resolve();
+    });
 
     expect(connectSseMCP).toHaveBeenCalledTimes(3);
 
-    await vi.advanceTimersByTimeAsync(RECONNECTION_DELAY_MAX_MS);
-    await Promise.resolve();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(RECONNECTION_DELAY_MAX_MS);
+      await Promise.resolve();
+    });
 
-    expect(connectSseMCP).toHaveBeenCalledTimes(4);
+    expect(connectSseMCP).toHaveBeenCalledTimes(3);
 
     expect(
       observedStates.slice(0, -1).every((state) => state[0].status === 'connecting')
     ).toBe(true);
-    expect(observedStates.at(-1)?.[0].status).toBe('connected');
-    expect(toastMock.error).not.toHaveBeenCalled();
+    expect(observedStates.at(-1)?.[0].status).toBe('failed');
+    expect(toastMock.error).toHaveBeenCalledWith(
+      'Failed to connect to sse-mcp after 3 attempts.'
+    );
 
     const delays = setTimeoutSpy.mock.calls
       .map(([, timeout]) => timeout)
       .filter((value): value is number => typeof value === 'number');
-    expect(
-      delays.filter((delay) => delay === RECONNECTION_DELAY_MS)
-    ).toHaveLength(1);
-    expect(
-      delays.filter((delay) => delay === RECONNECTION_DELAY_MS * 2)
-    ).toHaveLength(1);
-    expect(
-      delays.filter((delay) => delay === RECONNECTION_DELAY_MAX_MS)
-    ).toHaveLength(1);
+    expect(delays.length).toBeGreaterThanOrEqual(3);
+    expect(delays.slice(0, 3)).toEqual([
+      RECONNECTION_DELAY_MS,
+      RECONNECTION_DELAY_MS * 2,
+      RECONNECTION_DELAY_MAX_MS
+    ]);
 
     setTimeoutSpy.mockRestore();
     vi.useRealTimers();

@@ -44,6 +44,55 @@ def _write(path: Path, content: str, *, mtime: datetime) -> None:
     os.utime(path, times=(timestamp, timestamp))
 
 
+def test_run_update_refreshes_hot_list_metadata(tmp_path: Path) -> None:
+    module = _load_update_module()
+    UpdateOptions = module.UpdateOptions
+    run_update = module.run_update
+
+    project_root = tmp_path
+    src = project_root / "src"
+    mtime = datetime(2024, 2, 3, 4, 5, 6, tzinfo=timezone.utc)
+
+    _write(
+        src / "omega.py",
+        '"""Omega module."""\n',
+        mtime=mtime,
+    )
+
+    hot_path = project_root / "docs" / "birdseye" / "hot.json"
+    hot_path.parent.mkdir(parents=True, exist_ok=True)
+    hot_entries = [
+        {"id": "src/omega.py", "reason": "Critical entry point"},
+        {"id": "src/zeta.py", "reason": "Legacy integration"},
+    ]
+    hot_payload = {
+        "generated_at": "2000-01-01T00:00:00Z",
+        "entries": hot_entries,
+        "mtime": "2000-01-01T00:00:00Z",
+    }
+    hot_path.write_text(json.dumps(hot_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    options = UpdateOptions(targets=(Path("src/omega.py"),), emit="index+caps")
+
+    with chdir(project_root):
+        run_update(options)
+
+    index_path = project_root / "docs" / "birdseye" / "index.json"
+    hot = json.loads(hot_path.read_text(encoding="utf-8"))
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+
+    assert hot["entries"] == hot_entries
+
+    generated_at = hot["generated_at"]
+    mtime_value = hot["mtime"]
+
+    assert generated_at == index["generated_at"]
+    assert mtime_value == index["mtime"]
+
+    datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+    datetime.fromisoformat(mtime_value.replace("Z", "+00:00"))
+
+
 def test_run_update_generates_iso8601_metadata_with_two_hop_dependencies(tmp_path: Path) -> None:
     module = _load_update_module()
     UpdateOptions = module.UpdateOptions

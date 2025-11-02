@@ -105,6 +105,25 @@ def test_prepare_provider_options_thinking_effort_default(app_module, model_id: 
     assert reasoning.get("effort") == app_module._REASONING_DEFAULT["effort"]
 
 
+@pytest.mark.parametrize(
+    "model_id",
+    [
+        "gpt-5-thinking",
+        "gpt-5-thinking-pro",
+        "gpt-5-thinking-mini",
+        "gpt-5-thinking-nano",
+    ],
+)
+def test_prepare_provider_options_thinking_preserves_effort_with_parallel_override(
+    app_module, model_id: str
+) -> None:
+    options = app_module._prepare_provider_options(model_id, {"reasoning": {"parallel": False}})
+    reasoning = options.get("reasoning")
+
+    assert reasoning is not None
+    assert reasoning.get("effort") == app_module._REASONING_DEFAULT["effort"]
+
+
 def test_prepare_provider_options_removes_parallel_for_non_thinking(app_module) -> None:
     base = {"reasoning": {"parallel": True, "effort": "high", "notes": "keep"}}
 

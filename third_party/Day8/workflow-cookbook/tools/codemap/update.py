@@ -335,21 +335,25 @@ def _summarize_python(path: Path) -> tuple[str, list[str]]:
     except SyntaxError:
         return "", []
 
-    summary = _derive_python_summary(module, source)
     explicit = _extract_explicit_all(module)
     if explicit is not None:
         public_api = explicit
     else:
         public_api = _infer_public_api(module)
+    summary = _derive_python_summary(module, source, public_api)
     return summary, public_api
 
 
-def _derive_python_summary(module: ast.Module, source: str) -> str:
+def _derive_python_summary(module: ast.Module, source: str, public_api: Sequence[str]) -> str:
     module_doc = ast.get_docstring(module)
     if module_doc:
         summary = _first_summary_line(module_doc)
         if summary:
             return summary
+
+    exported_doc = _docstring_from_public_api(module, public_api)
+    if exported_doc:
+        return exported_doc
 
     public_doc = _first_public_docstring(module)
     if public_doc:
@@ -359,7 +363,7 @@ def _derive_python_summary(module: ast.Module, source: str) -> str:
     if comment:
         return comment
 
-    return _first_meaningful_line(source)
+    return ""
 
 
 def _first_summary_line(text: str) -> str:
@@ -367,6 +371,28 @@ def _first_summary_line(text: str) -> str:
         stripped = line.strip()
         if stripped:
             return stripped
+    return ""
+
+
+def _docstring_from_public_api(module: ast.Module, public_api: Sequence[str]) -> str:
+    if not public_api:
+        return ""
+
+    definitions: dict[str, ast.AST] = {}
+    for node in module.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            definitions.setdefault(node.name, node)
+
+    for name in public_api:
+        node = definitions.get(name)
+        if node is None:
+            continue
+        doc = ast.get_docstring(node)
+        if not doc:
+            continue
+        summary = _first_summary_line(doc)
+        if summary:
+            return summary
     return ""
 
 
@@ -393,6 +419,8 @@ def _first_comment_line(source: str) -> str:
         stripped = line.strip()
         if not stripped:
             continue
+        if stripped.startswith("#!"):
+            continue
         if stripped.startswith("#"):
             text = stripped.lstrip("#").strip()
             if not text:
@@ -400,17 +428,6 @@ def _first_comment_line(source: str) -> str:
             if text.lower().startswith("coding") or text.lower().startswith("-*- coding"):
                 continue
             return text
-    return ""
-
-
-def _first_meaningful_line(source: str) -> str:
-    for line in source.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if stripped.startswith("from __future__ import"):
-            continue
-        return stripped
     return ""
 
 

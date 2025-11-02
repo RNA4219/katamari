@@ -345,16 +345,18 @@ def _summarize_python(path: Path) -> tuple[str, list[str]]:
     except SyntaxError:
         return "", []
 
-    summary = _derive_python_summary(module, source)
     explicit = _extract_explicit_all(module)
     if explicit is not None:
         public_api = explicit
     else:
         public_api = _infer_public_api(module)
+    summary = _derive_python_summary(module, source, public_api)
     return summary, public_api
 
 
-def _derive_python_summary(module: ast.Module, source: str) -> str:
+def _derive_python_summary(
+    module: ast.Module, source: str, public_api: Sequence[str]
+) -> str:
     module_doc = ast.get_docstring(module)
     if module_doc:
         summary = _first_summary_line(module_doc)
@@ -369,7 +371,33 @@ def _derive_python_summary(module: ast.Module, source: str) -> str:
     if comment:
         return comment
 
+    public_api_summary = _format_public_api_summary(public_api)
+    if public_api_summary:
+        return public_api_summary
+
     return _first_meaningful_line(source)
+
+
+def _format_public_api_summary(public_api: Sequence[str]) -> str:
+    seen: set[str] = set()
+    exports: list[str] = []
+    for name in public_api:
+        if not name or name.startswith("_"):
+            continue
+        if name in seen:
+            continue
+        seen.add(name)
+        exports.append(name)
+    if not exports:
+        return ""
+    if len(exports) == 1:
+        return f"Provides {exports[0]}"
+    if len(exports) == 2:
+        first, second = exports
+        return f"Provides {first} and {second}"
+    head = ", ".join(exports[:-1])
+    tail = exports[-1]
+    return f"Provides {head}, and {tail}"
 
 
 def _first_summary_line(text: str) -> str:

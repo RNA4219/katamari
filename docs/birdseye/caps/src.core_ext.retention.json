@@ -1,7 +1,7 @@
 {
   "id": "src/core_ext/retention.py",
   "role": "python",
-  "summary": "import math",
+  "summary": "Provides compute_semantic_retention, get_embedder, and reset_embedder_cache",
   "public_api": [
     "compute_semantic_retention",
     "get_embedder",
@@ -13,6 +13,6 @@
   "deps_in": [
     "src/app.py"
   ],
-  "generated_at": "2025-10-31T21:49:49Z",
-  "mtime": "2025-10-31T21:44:18Z"
+  "generated_at": "2025-11-02T11:06:05Z",
+  "mtime": "2025-11-02T10:47:47Z"
 }

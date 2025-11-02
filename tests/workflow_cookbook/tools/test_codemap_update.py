@@ -71,6 +71,25 @@ def test_hot_json_generated_at_and_mtime_are_iso8601() -> None:
     assert ISO_8601_UTC.match(mtime)
 
 
+def test_hot_json_timestamps_match_index() -> None:
+    docs_dir = REPO_ROOT / "docs" / "birdseye"
+    hot = _load(docs_dir / "hot.json")
+    index = _load(docs_dir / "index.json")
+
+    hot_generated_at = hot["generated_at"]
+    hot_mtime = hot["mtime"]
+    index_generated_at = index["generated_at"]
+    index_mtime = index["mtime"]
+
+    assert isinstance(hot_generated_at, str)
+    assert isinstance(hot_mtime, str)
+    assert isinstance(index_generated_at, str)
+    assert isinstance(index_mtime, str)
+
+    assert hot_generated_at == index_generated_at
+    assert hot_mtime == index_mtime
+
+
 def test_run_update_generates_codemap(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     module = _load_module()
     UpdateOptions = cast(Any, getattr(module, "UpdateOptions"))

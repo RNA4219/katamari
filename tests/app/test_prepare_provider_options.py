@@ -105,6 +105,17 @@ def test_prepare_provider_options_thinking_effort_default(app_module, model_id: 
     assert reasoning.get("effort") == app_module._REASONING_DEFAULT["effort"]
 
 
+def test_prepare_provider_options_removes_parallel_for_non_thinking(app_module) -> None:
+    base = {"reasoning": {"parallel": True, "effort": "high", "notes": "keep"}}
+
+    options = app_module._prepare_provider_options("gpt-5-main", base)
+
+    reasoning = options.get("reasoning")
+    assert reasoning is not None
+    assert "parallel" not in reasoning
+    assert reasoning == {"effort": "high", "notes": "keep"}
+
+
 def test_load_parallel_reasoning_models_uses_registry(
     app_module, monkeypatch
 ) -> None:

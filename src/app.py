@@ -169,7 +169,11 @@ def _prepare_provider_options(model_id: str, base: Mapping[str, Any]) -> Dict[st
         else:
             opts.pop("reasoning", None)
     elif reasoning_opts is not None:
-        opts["reasoning"] = reasoning_opts
+        reasoning_opts.pop("parallel", None)
+        if reasoning_opts:
+            opts["reasoning"] = reasoning_opts
+        else:
+            opts.pop("reasoning", None)
     return opts
 
 _DISABLED_RETENTION_VALUES = {"", "none", "off", "0", "false"}

@@ -83,8 +83,9 @@ const connectSseMcpWithRetry = async (
   mcp: IMcp
 ) => {
   let delay = RECONNECTION_DELAY_MS;
+  let lastError: unknown;
 
-  for (let retry = 0; retry <= RECONNECTION_ATTEMPTS; retry += 1) {
+  for (let attempt = 1; attempt <= RECONNECTION_ATTEMPTS; attempt += 1) {
     try {
       return await client.connectSseMCP(
         sessionId,
@@ -93,16 +94,22 @@ const connectSseMcpWithRetry = async (
         mcp.headers
       );
     } catch (error) {
-      if (retry === RECONNECTION_ATTEMPTS) {
-        throw error;
-      }
-
+      lastError = error;
       await waitFor(delay);
-      delay = Math.min(delay * 2, RECONNECTION_DELAY_MAX_MS);
+      if (attempt < RECONNECTION_ATTEMPTS) {
+        delay = Math.min(delay * 2, RECONNECTION_DELAY_MAX_MS);
+      }
     }
   }
 
-  throw new Error('Failed to connect to MCP via SSE');
+  const failureError = new Error(
+    `Failed to connect to ${mcp.name} via SSE after ${RECONNECTION_ATTEMPTS} attempts.`
+  );
+  const failureWithCause = failureError as Error & { cause?: unknown };
+  if (lastError && failureWithCause.cause === undefined) {
+    failureWithCause.cause = lastError;
+  }
+  throw failureError;
 };
 
 const useChatSession = () => {
@@ -234,7 +241,7 @@ const useChatSession = () => {
                   })
                 );
                 toast.error(
-                  `Failed to connect to ${mcp.name} after ${RECONNECTION_ATTEMPTS} retries.`
+                  `Failed to connect to ${mcp.name} after ${RECONNECTION_ATTEMPTS} attempts.`
                 );
               });
             return { ...mcp, status: 'connecting' };

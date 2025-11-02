@@ -266,6 +266,69 @@ async def test_stream_uses_recorded_sse(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 @ANYIO_ASYNCIO
+async def test_stream_supports_structured_delta_content(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Stream should concatenate structured content payloads into string tokens."""
+
+    messages = [{"role": "user", "content": "hello"}]
+    structured_events = [
+        {
+            "choices": [
+                {"delta": {"content": [{"type": "output_text", "text": "alpha"}]}},
+            ],
+        },
+        {
+            "choices": [
+                {
+                    "delta": {
+                        "content": [
+                            {"type": "output_text", "text": "be"},
+                            {"type": "output_text", "text": "ta"},
+                            {"type": "reasoning", "text": ""},
+                        ]
+                    }
+                }
+            ],
+        },
+        {
+            "choices": [
+                {
+                    "delta": {
+                        "content": [
+                            {"type": "output_text", "text": "gamma"},
+                            {"type": "tool_use", "id": "ignore", "text": None},
+                        ]
+                    }
+                }
+            ],
+        },
+    ]
+    payload = {
+        "messages": messages,
+        "stream_events": structured_events,
+        "completion": {"choices": [{"message": {"content": "unused"}}]},
+    }
+    bundle = _install_stubbed_openai(monkeypatch, payload)
+    provider = bundle["provider"]
+    completions: _StubChatCompletions = bundle["completions"]
+
+    chunks: List[str] = []
+    async for token in provider.stream("gpt-4o-mini", messages, temperature=0.1):
+        chunks.append(token)
+
+    assert chunks == ["alpha", "beta", "gamma"]
+    assert completions.calls == [
+        {
+            "model": "gpt-4o-mini",
+            "messages": messages,
+            "stream": True,
+            "opts": {"temperature": 0.1},
+        }
+    ]
+
+
+@ANYIO_ASYNCIO
 async def test_stream_retries_and_resumes_on_retryable_errors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

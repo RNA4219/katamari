@@ -45,6 +45,12 @@ class Codemap:
     edges: list[tuple[str, str]]
 
 
+@dataclass(frozen=True)
+class HotEntry:
+    identifier: str
+    reason: str
+
+
 def parse_args(argv: Iterable[str] | None = None) -> UpdateOptions:
     parser = argparse.ArgumentParser(
         description="Regenerate Birdseye index and capsules.",
@@ -81,6 +87,8 @@ def run_update(options: UpdateOptions) -> None:
     generated_at = _format_timestamp(generated_at_dt)
     latest_mtime_dt = max((capsule.mtime for capsule in codemap.nodes.values()), default=generated_at_dt)
     latest_mtime = _format_timestamp(latest_mtime_dt)
+    hot_path = output_dir / "hot.json"
+    hot_entries = _load_hot_entries(hot_path)
 
     if options.emit in {"index", "index+caps"}:
         index_path = output_dir / "index.json"
@@ -115,6 +123,8 @@ def run_update(options: UpdateOptions) -> None:
                 "mtime": _format_timestamp(capsule.mtime),
             }
             _dump_json(capsule_path, capsule_data)
+
+    _write_hot_list(hot_path, generated_at=generated_at, mtime=latest_mtime, entries=hot_entries)
 
 
 def generate_codemap(root: Path, targets: Sequence[Path]) -> Codemap:
@@ -593,6 +603,44 @@ def _file_mtime(path: Path) -> datetime:
 def _capsule_path_for(identifier: str) -> Path:
     stem = ".".join(Path(identifier).with_suffix("").parts)
     return OUTPUT_DIR / CAPS_DIR_NAME / f"{stem}.json"
+
+
+def _load_hot_entries(path: Path) -> list[HotEntry]:
+    if not path.exists():
+        return []
+    with path.open(encoding="utf-8") as file:
+        payload = json.load(file)
+    entries = payload.get("entries", [])
+    result: list[HotEntry] = []
+    for item in entries:
+        if not isinstance(item, Mapping):
+            continue
+        identifier = str(item.get("id", ""))
+        reason = str(item.get("reason", ""))
+        result.append(HotEntry(identifier=identifier, reason=reason))
+    return result
+
+
+def _serialize_hot_entries(entries: Sequence[HotEntry]) -> list[dict[str, str]]:
+    return [
+        {"id": entry.identifier, "reason": entry.reason}
+        for entry in entries
+    ]
+
+
+def _write_hot_list(
+    path: Path,
+    *,
+    generated_at: str,
+    mtime: str,
+    entries: Sequence[HotEntry],
+) -> None:
+    payload = {
+        "generated_at": generated_at,
+        "entries": _serialize_hot_entries(entries),
+        "mtime": mtime,
+    }
+    _dump_json(path, payload)
 
 
 def _dump_json(path: Path, data: object) -> None:

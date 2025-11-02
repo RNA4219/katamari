@@ -365,6 +365,22 @@ async def test_stream_handles_namespace_delta_content(
                 }
             ],
         },
+        {
+            "choices": [
+                {
+                    "delta": {
+                        "content": [
+                            SimpleNamespace(
+                                type="output_text",
+                                text=SimpleNamespace(
+                                    payload=SimpleNamespace(payload={"text": "gamma"})
+                                ),
+                            )
+                        ]
+                    }
+                }
+            ],
+        },
     ]
     payload = {
         "messages": messages,
@@ -379,7 +395,7 @@ async def test_stream_handles_namespace_delta_content(
     async for token in provider.stream("gpt-4o-mini", messages, temperature=0.2):
         chunks.append(token)
 
-    assert chunks == ["alpha", "beta"]
+    assert chunks == ["alpha", "beta", "gamma"]
     assert completions.calls == [
         {
             "model": "gpt-4o-mini",

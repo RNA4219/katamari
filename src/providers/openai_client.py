@@ -84,7 +84,12 @@ def _extract_token(part: Any) -> str | None:
             for item in vars(value).values():
                 if item is value:
                     continue
-                if isinstance(item, Mapping) or _is_sequence(item) or getattr(item, "text", None) is not None:
+                if (
+                    isinstance(item, Mapping)
+                    or _is_sequence(item)
+                    or getattr(item, "text", None) is not None
+                    or hasattr(item, "__dict__")
+                ):
                     fragments.extend(_collect_text(item))
             return fragments
         return []

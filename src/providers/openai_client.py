@@ -53,15 +53,39 @@ async def _start_chat_stream(
 def _extract_token(part: Any) -> str | None:
     """Return the SSE token content from a streamed part if present."""
 
+    def _collect_text(value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [value]
+        if isinstance(value, (list, tuple)):
+            fragments: list[str] = []
+            for item in value:
+                fragments.extend(_collect_text(item))
+            return fragments
+        if isinstance(value, dict):
+            if "text" in value:
+                return _collect_text(value["text"])
+            return []
+
+        text_attr = getattr(value, "text", None)
+        if text_attr is not None:
+            return _collect_text(text_attr)
+        return []
+
     choices = getattr(part, "choices", None)
     if not choices:
         return None
     choice = choices[0]
     delta = getattr(choice, "delta", None)
     content = getattr(delta, "content", "") if delta is not None else ""
-    if not content:
+    fragments = _collect_text(content)
+    if not fragments and isinstance(content, str):
+        fragments = [content]
+    if not fragments:
         return None
-    return str(content)
+    token = "".join(str(fragment) for fragment in fragments if fragment)
+    return token or None
 
 
 def _coerce_retryable(exc: BaseException) -> bool:

@@ -1,3 +1,6 @@
+This repository is an R&D artifact and is not used in my current workflow. Keeping it as an archive.
+Vibe Kanban ＋ LiteLLM の利用を検討してください。
+
 # Katamari (Chainlit Fork) – 要件&仕様パック
 
 <!-- LLM-BOOTSTRAP v1 -->

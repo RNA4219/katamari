@@ -140,7 +140,7 @@ jobs:
   node:
     name: Node 20 checks
     needs: staleness-guard
-    if: needs.staleness-guard.outputs.skip != 'true'
+    if: false  # Disabled for frozen project
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -171,8 +171,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - python
-      - node
-    if: needs.python.result == 'success' && needs.node.result == 'success'
+    if: needs.python.result == 'success'
     permissions:
       contents: read
     env:

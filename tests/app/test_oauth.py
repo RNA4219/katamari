@@ -6,7 +6,7 @@ import os
 import sys
 from importlib import import_module
 from pathlib import Path
-from typing import Any, Dict, Iterator, Tuple
+from typing import Iterator, Tuple
 
 import pytest
 from fastapi.testclient import TestClient

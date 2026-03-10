@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
 
 from .storage import (
     ConversationMessage,
@@ -12,6 +12,9 @@ from .storage import (
     MessageStore,
     MetadataStore,
 )
+
+if TYPE_CHECKING:
+    from .storage import MemoryStore
 
 
 class InMemoryMetadataStore(MetadataStore):
@@ -116,7 +119,7 @@ class InMemoryEmbeddingStore(EmbeddingStore):
         return len(records)
 
 
-def create_in_memory_store() -> "MemoryStore":
+def create_in_memory_store() -> MemoryStore:
     """Create an in-memory MemoryStore for testing and development."""
     from .storage import MemoryStore
 

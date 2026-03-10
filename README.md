@@ -82,6 +82,8 @@ make run
 
 `.env` の初期値は [`config/env.example`](config/env.example) を参照してください。サンプルとの差分を最小限に保ちながら、必要に応じて [`README_PERSONAS_THEMES.md`](README_PERSONAS_THEMES.md) も参照してください。
 
+### 必須・基本設定
+
 | 種別 | 名称 | 用途 | 設定例 | 備考 |
 | ---- | ---- | ---- | ------ | ---- |
 | 必須 | `OPENAI_API_KEY` | OpenAI プロバイダー利用時の API キー | `OPENAI_API_KEY=sk-...` | `.env` のみで管理し、Git には含めない |
@@ -96,6 +98,19 @@ make run
 | 任意 | `SEMANTIC_RETENTION_PROVIDER` | 会話保持率メトリクス算出時の埋め込みプロバイダー（`openai` / `gemini`） | `SEMANTIC_RETENTION_PROVIDER=gemini` | 指定時は下記モデル設定も併用。`/metrics` の `semantic_retention` で埋め込み類似度を公開し、欠損時は Prometheus では `NaN`、Chainlit ログや JSON では `null` を出力 |
 | 任意 | `SEMANTIC_RETENTION_OPENAI_MODEL` | OpenAI 埋め込みモデル名 | `SEMANTIC_RETENTION_OPENAI_MODEL=text-embedding-3-large` | OpenAI プロバイダー指定時に利用。欠損時は Prometheus では `NaN`、Chainlit ログや JSON では `null` |
 | 任意 | `SEMANTIC_RETENTION_GEMINI_MODEL` | Google Gemini 埋め込みモデル名 | `SEMANTIC_RETENTION_GEMINI_MODEL=text-embedding-004` | Gemini プロバイダー指定時に利用。欠損時は Prometheus では `NaN`、Chainlit ログや JSON では `null` |
+
+### OAuth 認証設定（M1.5）
+
+Chainlit UI への OAuth 認証を有効にするには、少なくとも1つのプロバイダーの環境変数を設定してください。詳細は [Chainlit OAuth Documentation](https://docs.chainlit.io/authentication/oauth) を参照。
+
+| プロバイダー | 環境変数 | 備考 |
+| ------------ | -------- | ---- |
+| GitHub | `OAUTH_GITHUB_CLIENT_ID`, `OAUTH_GITHUB_CLIENT_SECRET` | GitHub OAuth App を作成して設定 |
+| Google | `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GOOGLE_CLIENT_SECRET` | Google Cloud Console で OAuth 2.0 クライアント ID を作成 |
+| Azure AD | `OAUTH_AZURE_AD_CLIENT_ID`, `OAUTH_AZURE_AD_CLIENT_SECRET`, `OAUTH_AZURE_AD_TENANT_ID` | Azure AD アプリ登録から取得 |
+| その他 | `OAUTH_GENERIC_*` 系変数 | 汎用 OAuth プロバイダー設定を利用可能 |
+
+> **注意**: OAuth を設定すると、Chainlit UI へのアクセス時にログインが求められます。`/healthz` および `/metrics` エンドポイントは引き続き `Authorization: Bearer <CHAINLIT_AUTH_SECRET>` による認証が必要です。
 
 > まず `.env` に必須項目を入力し、環境に合わせて任意項目を追加してください。Chainlit の詳細ログが必要な場合は一時的に `DEBUG=1` を追加するか、`chainlit run src/app.py --debug` で直接起動します。
 
@@ -152,7 +167,9 @@ GitHub Container Registry への公開フローは [docs/addenda/H_Deploy_Guide.
 
 - `GET /healthz`: Chainlit アプリの Liveness。`{"status":"ok"}` を返却。
 - `GET /metrics`: Prometheus Text Format (`compress_ratio`, `semantic_retention`) を露出。`semantic_retention` は Trim 後の会話文脈と最新応答の埋め込み類似度を返却し、計算対象がない場合は Prometheus では `NaN`、CLI/JSON 収集（例: `scripts/perf/collect_metrics.py`）では `null` としてエクスポートされる。
-- **運用メモ（2025-10-23 現在）**：`/healthz`・`/metrics` へのアクセスは常に `Authorization: Bearer <CHAINLIT_AUTH_SECRET>` ヘッダーが必要。`CHAINLIT_AUTH_SECRET` が未設定または値が一致しない場合は HTTP 401 を返す。Chainlit UI 本体は引き続き無認証で公開されるため、監視トークン配布と UI への OAuth 導入（[`TASK.2025-10-19-0002.md`](TASK.2025-10-19-0002.md)）を並行管理する。
+- **認証要件**：
+  - `/healthz`・`/metrics` へのアクセスには `Authorization: Bearer <CHAINLIT_AUTH_SECRET>` ヘッダーが必須。
+  - Chainlit UI は OAuth 認証（M1.5）に対応。OAuth プロバイダー（GitHub / Google / Azure AD 等）の環境変数を設定すると、UI アクセス時にログインが求められます。設定方法は上記「OAuth 認証設定」を参照。
 
 ## 変更履歴の更新ルール
 

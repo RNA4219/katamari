@@ -120,8 +120,8 @@ exit 0
 
 
 def _base_command() -> List[str]:
-    return [
-        str(_SCRIPT),
+    # On Windows, we need to explicitly invoke bash to run shell scripts
+    base_args = [
         "--prefix",
         "upstream/chainlit",
         "--repo",
@@ -129,6 +129,23 @@ def _base_command() -> List[str]:
         "--tag",
         "v1.2.3",
     ]
+    if os.name == "nt":
+        bash_path = shutil.which("bash")
+        if bash_path:
+            return [bash_path, str(_SCRIPT)] + base_args
+    return [str(_SCRIPT)] + base_args
+
+
+def _assert_script_in_call(call: List[str]) -> None:
+    """Assert that the sync script is in the subprocess call."""
+    # On Windows, bash is first, script is second
+    # On Unix, script is first
+    if os.name == "nt":
+        assert any("sync_chainlit_subtree.sh" in part for part in call), \
+            f"Expected sync_chainlit_subtree.sh in {call}"
+    else:
+        assert call[0].endswith("sync_chainlit_subtree.sh"), \
+            f"Expected sync_chainlit_subtree.sh at start of {call}"
 
 
 def test_dry_run_prints_expected_commands(
@@ -149,7 +166,7 @@ def test_dry_run_prints_expected_commands(
         env=env,
     )
 
-    assert subprocess_calls[0][0].endswith("sync_chainlit_subtree.sh")
+    _assert_script_in_call(subprocess_calls[0])
     assert "git fetch https://example.com/chainlit.git +refs/tags/v1.2.3:refs/tags/v1.2.3" in completed.stdout
     assert "git subtree pull --prefix upstream/chainlit https://example.com/chainlit.git v1.2.3" in completed.stdout
     assert not log_path.exists()
@@ -174,7 +191,7 @@ def test_subtree_failure_bubbles_up(
             env=env,
         )
 
-    assert subprocess_calls[0][0].endswith("sync_chainlit_subtree.sh")
+    _assert_script_in_call(subprocess_calls[0])
     assert excinfo.value.returncode == 42
     log_lines = log_path.read_text(encoding="utf-8").strip().splitlines()
     assert any("git fetch" in line for line in log_lines)
@@ -199,7 +216,7 @@ def test_remote_is_used_for_subtree_pull(
         env=env,
     )
 
-    assert subprocess_calls[0][0].endswith("sync_chainlit_subtree.sh")
+    _assert_script_in_call(subprocess_calls[0])
     assert subprocess_calls[0][-1] == "origin"
 
     log_lines = log_path.read_text(encoding="utf-8").strip().splitlines()
@@ -234,7 +251,7 @@ def test_fetch_force_updates_existing_tag(
         env=env,
     )
 
-    assert subprocess_calls[0][0].endswith("sync_chainlit_subtree.sh")
+    _assert_script_in_call(subprocess_calls[0])
 
     log_lines = log_path.read_text(encoding="utf-8").strip().splitlines()
     fetch_line = next((line for line in log_lines if "git fetch" in line), "")
@@ -268,7 +285,7 @@ def test_rerun_cleans_existing_tag_before_fetch(
         env=env,
     )
 
-    assert subprocess_calls[0][0].endswith("sync_chainlit_subtree.sh")
+    _assert_script_in_call(subprocess_calls[0])
 
     log_lines = log_path.read_text(encoding="utf-8").strip().splitlines()
     delete_index = next(

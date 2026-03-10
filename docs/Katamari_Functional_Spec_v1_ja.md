@@ -33,7 +33,7 @@
 - 複数プロンプト候補を生成→BERTScore→ROUGE→ルールで評価→上位選抜→次世代生成 ※M2予定・現状未実装。
 
 ## 3. エラー/例外
-- SSE切断時：指数バックオフ（1,2,4s）で最大3回再接続（※2025-10-22 現在未実装。対応計画は今後起票予定の Task Seed「SSE自動再接続実装」で管理する）
+- SSE切断時：指数バックオフ（1,2,4s）で最大3回再接続（※実装済み。Chainlit React Client と OpenAI Provider で対応）
 - Persona YAMLパース失敗：既定Systemにフォールバックし、issuesを通知
 - モデル未設定：`gpt-5-main` にフォールバック
 

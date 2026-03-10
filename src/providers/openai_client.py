@@ -62,25 +62,25 @@ def _extract_token(part: Any) -> str | None:
         if isinstance(value, str):
             return [value]
         if _is_sequence(value):
-            fragments: list[str] = []
+            collected: list[str] = []
             for item in value:
-                fragments.extend(_collect_text(item))
-            return fragments
+                collected.extend(_collect_text(item))
+            return collected
         if isinstance(value, Mapping):
-            fragments: list[str] = []
+            collected_map: list[str] = []
             for key, item in value.items():
                 if key == "text":
-                    fragments.extend(_collect_text(item))
+                    collected_map.extend(_collect_text(item))
                 elif _is_sequence(item) or isinstance(item, Mapping) or getattr(item, "text", None) is not None:
-                    fragments.extend(_collect_text(item))
-            return fragments
+                    collected_map.extend(_collect_text(item))
+            return collected_map
 
         text_attr = getattr(value, "text", None)
         if text_attr is not None:
             return _collect_text(text_attr)
 
         if hasattr(value, "__dict__"):
-            fragments: list[str] = []
+            collected_obj: list[str] = []
             for item in vars(value).values():
                 if item is value:
                     continue
@@ -90,8 +90,8 @@ def _extract_token(part: Any) -> str | None:
                     or getattr(item, "text", None) is not None
                     or hasattr(item, "__dict__")
                 ):
-                    fragments.extend(_collect_text(item))
-            return fragments
+                    collected_obj.extend(_collect_text(item))
+            return collected_obj
         return []
 
     choices = getattr(part, "choices", None)

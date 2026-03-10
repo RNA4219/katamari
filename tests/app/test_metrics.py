@@ -51,7 +51,9 @@ def test_export_prometheus_reports_nan_when_retention_unset(app_module: object) 
 
     lines = payload.strip().splitlines()
 
-    assert lines[-1] == "semantic_retention NaN"
+    # Find semantic_retention line
+    retention_line = next((line for line in lines if line.startswith("semantic_retention")), None)
+    assert retention_line == "semantic_retention NaN"
     assert lines.count("semantic_retention NaN") == 1
 
 
@@ -64,7 +66,9 @@ def test_export_prometheus_formats_nan_for_missing_retention(app_module: object)
 
     lines = payload.strip().splitlines()
 
-    assert lines[-1] == "semantic_retention NaN"
+    # Find semantic_retention line
+    retention_line = next((line for line in lines if line.startswith("semantic_retention")), None)
+    assert retention_line == "semantic_retention NaN"
 
 
 def test_export_prometheus_normalizes_nan_like_strings(app_module: object) -> None:
@@ -76,4 +80,6 @@ def test_export_prometheus_normalizes_nan_like_strings(app_module: object) -> No
 
     lines = payload.strip().splitlines()
 
-    assert lines[-1] == "semantic_retention NaN"
+    # Find semantic_retention line
+    retention_line = next((line for line in lines if line.startswith("semantic_retention")), None)
+    assert retention_line == "semantic_retention NaN"

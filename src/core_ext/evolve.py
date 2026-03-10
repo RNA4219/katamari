@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Callable, Dict, Iterable, List, Mapping, MutableMapping, Sequence, TypedDict
+from typing import Callable, Dict, Iterable, List, Mapping, MutableMapping, Sequence
+from typing_extensions import TypedDict
 
 
 PromptEvaluator = Callable[[str, str], float]
@@ -51,13 +52,11 @@ def _mean(values: Iterable[float]) -> float:
 def _resolve_default_metric_functions() -> Dict[str, PromptEvaluator]:
     metric_functions: MutableMapping[str, PromptEvaluator] = {}
 
-    def _build_bertscore() -> PromptEvaluator:
+    def _build_bertscore() -> PromptEvaluator | None:
         try:
             from bert_score import score as bert_score_score
-        except ImportError as exc:  # pragma: no cover - optional dependency
-            raise RuntimeError(
-                "bert_score is required for default prompt evolution metrics"
-            ) from exc
+        except ImportError:
+            return None
 
         def _metric(candidate: str, objective: str) -> float:
             _, _, f1 = bert_score_score([candidate], [objective], lang="en")
@@ -65,13 +64,11 @@ def _resolve_default_metric_functions() -> Dict[str, PromptEvaluator]:
 
         return _metric
 
-    def _build_rouge() -> PromptEvaluator:
+    def _build_rouge() -> PromptEvaluator | None:
         try:
             from rouge_score import rouge_scorer
-        except ImportError as exc:  # pragma: no cover - optional dependency
-            raise RuntimeError(
-                "rouge_score is required for default prompt evolution metrics"
-            ) from exc
+        except ImportError:
+            return None
 
         scorer = rouge_scorer.RougeScorer(["rougeLsum"], use_stemmer=True)
 
@@ -91,9 +88,18 @@ def _resolve_default_metric_functions() -> Dict[str, PromptEvaluator]:
 
         return _metric
 
-    metric_functions["bertscore"] = _build_bertscore()
-    metric_functions["rouge"] = _build_rouge()
+    # Always add rule-based metric as fallback
     metric_functions["rule"] = _build_rule()
+
+    # Add optional metrics if available
+    bertscore_fn = _build_bertscore()
+    if bertscore_fn is not None:
+        metric_functions["bertscore"] = bertscore_fn
+
+    rouge_fn = _build_rouge()
+    if rouge_fn is not None:
+        metric_functions["rouge"] = rouge_fn
+
     return dict(metric_functions)
 
 

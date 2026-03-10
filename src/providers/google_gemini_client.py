@@ -6,10 +6,10 @@ from types import SimpleNamespace
 from typing import Any, AsyncIterator, Callable, Dict, Iterable, List, Optional, Sequence, cast
 
 _genai: Optional[Any] = None
-_genai_module: Any
 
 try:
-    import google.generativeai as _genai_module
+    import google.generativeai as _genai_module_imported
+    _genai_module: Any = _genai_module_imported
 except ModuleNotFoundError:  # pragma: no cover - optional dependency
     _genai_module = None
 

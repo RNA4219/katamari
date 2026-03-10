@@ -32,6 +32,7 @@ from core_ext.context_trimmer import ChatMessage as TrimMessage, trim_messages
 from core_ext.retention import compute_semantic_retention
 from core_ext.prethought import analyze_intent
 from core_ext.multistep import get_chain_steps, system_hint_for_step
+from core_ext.evolve import evolve_prompts, EvolutionResult
 from providers.google_gemini_client import GoogleGeminiProvider
 from providers.openai_client import OpenAIProvider
 
@@ -184,6 +185,10 @@ class MetricsRegistry:
         self._lock = Lock()
         self._compress_ratio: float = 1.0
         self._semantic_retention: float | None = math.nan
+        # Evolution metrics
+        self._evolution_success_total: int = 0
+        self._evolution_failure_total: int = 0
+        self._evolution_latency_ms: float = 0.0
 
     def observe_trim(
         self, *, compress_ratio: float, semantic_retention: float | None = None
@@ -197,11 +202,25 @@ class MetricsRegistry:
             self._compress_ratio = float(compress_ratio)
             self._semantic_retention = retention
 
+    def observe_evolution(
+        self, *, success: bool, latency_ms: float
+    ) -> None:
+        """Record evolution loop metrics."""
+        with self._lock:
+            if success:
+                self._evolution_success_total += 1
+            else:
+                self._evolution_failure_total += 1
+            self._evolution_latency_ms = latency_ms
+
     def snapshot(self) -> Dict[str, float | None]:
         with self._lock:
             return {
                 "compress_ratio": self._compress_ratio,
                 "semantic_retention": self._semantic_retention,
+                "evolution_success_total": self._evolution_success_total,
+                "evolution_failure_total": self._evolution_failure_total,
+                "evolution_latency_ms": self._evolution_latency_ms,
             }
 
     def export_prometheus(self) -> str:
@@ -232,6 +251,15 @@ class MetricsRegistry:
             "# HELP semantic_retention Semantic retention score for trimmed context.",
             "# TYPE semantic_retention gauge",
             f"semantic_retention {_format(retention)}",
+            "# HELP evolution_success_total Total number of successful prompt evolutions.",
+            "# TYPE evolution_success_total counter",
+            f"evolution_success_total {int(metrics['evolution_success_total'] or 0)}",
+            "# HELP evolution_failure_total Total number of failed prompt evolutions.",
+            "# TYPE evolution_failure_total counter",
+            f"evolution_failure_total {int(metrics['evolution_failure_total'] or 0)}",
+            "# HELP evolution_latency_ms Latency of the last evolution run in milliseconds.",
+            "# TYPE evolution_latency_ms gauge",
+            f"evolution_latency_ms {_format(metrics['evolution_latency_ms'])}",
         ]
         return "\n".join(lines) + "\n"
 
@@ -317,6 +345,69 @@ async def _header_auth_callback(headers: Headers) -> cl.User | None:
     if not _is_token_authorized(token):
         return None
     return cl.User(identifier="ops")
+
+
+def _has_oauth_provider_configured() -> bool:
+    """Check if at least one OAuth provider is configured via environment variables."""
+    oauth_env_prefixes = [
+        ("OAUTH_GITHUB_CLIENT_ID", "OAUTH_GITHUB_CLIENT_SECRET"),
+        ("OAUTH_GOOGLE_CLIENT_ID", "OAUTH_GOOGLE_CLIENT_SECRET"),
+        ("OAUTH_AZURE_AD_CLIENT_ID", "OAUTH_AZURE_AD_CLIENT_SECRET", "OAUTH_AZURE_AD_TENANT_ID"),
+        ("OAUTH_OKTA_CLIENT_ID", "OAUTH_OKTA_CLIENT_SECRET", "OAUTH_OKTA_DOMAIN"),
+        ("OAUTH_AUTH0_CLIENT_ID", "OAUTH_AUTH0_CLIENT_SECRET", "OAUTH_AUTH0_DOMAIN"),
+        ("OAUTH_DESCOPE_CLIENT_ID", "OAUTH_DESCOPE_CLIENT_SECRET"),
+        ("OAUTH_COGNITO_CLIENT_ID", "OAUTH_COGNITO_CLIENT_SECRET", "OAUTH_COGNITO_DOMAIN"),
+        ("OAUTH_GITLAB_CLIENT_ID", "OAUTH_GITLAB_CLIENT_SECRET", "OAUTH_GITLAB_DOMAIN"),
+        ("OAUTH_KEYCLOAK_CLIENT_ID", "OAUTH_KEYCLOAK_CLIENT_SECRET", "OAUTH_KEYCLOAK_REALM", "OAUTH_KEYCLOAK_BASE_URL"),
+        ("OAUTH_GENERIC_CLIENT_ID", "OAUTH_GENERIC_CLIENT_SECRET"),
+    ]
+    for env_vars in oauth_env_prefixes:
+        if all(os.environ.get(var) for var in env_vars):
+            return True
+    return False
+
+
+async def _oauth_callback_impl(
+    provider_id: str,
+    token: str,
+    raw_user_data: dict[str, str],
+    default_app_user: cl.User,
+    id_token: str | None = None,
+) -> cl.User | None:
+    """Handle OAuth authentication callback from configured providers.
+
+    This callback is invoked after a successful OAuth flow with providers
+    like GitHub, Google, Azure AD, etc. The default_app_user contains
+    user information extracted from the OAuth provider.
+
+    Args:
+        provider_id: The OAuth provider identifier (e.g., 'github', 'google')
+        token: The OAuth access token
+        raw_user_data: Raw user data from the OAuth provider
+        default_app_user: Default user object created by Chainlit
+        id_token: Optional ID token (for providers that support it)
+
+    Returns:
+        cl.User object if authentication succeeds, None otherwise
+    """
+    # Accept the default user from the OAuth provider
+    # In production, you may want to validate against an allowlist
+    return default_app_user
+
+
+# Register OAuth callback only if at least one provider is configured
+if _has_oauth_provider_configured():
+    @cl.oauth_callback
+    async def _oauth_callback(
+        provider_id: str,
+        token: str,
+        raw_user_data: dict[str, str],
+        default_app_user: cl.User,
+        id_token: str | None = None,
+    ) -> cl.User | None:
+        return await _oauth_callback_impl(
+            provider_id, token, raw_user_data, default_app_user, id_token
+        )
 
 
 def _to_int(value: Any) -> int:
@@ -408,6 +499,61 @@ async def metrics() -> PlainTextResponse:
         payload,
         media_type="text/plain; version=0.0.4; charset=utf-8",
     )
+
+
+class EvolveRequest:
+    """Request body for /evolve endpoint."""
+
+    def __init__(
+        self,
+        seed_prompt: str,
+        objective: str,
+        pop: int = 6,
+        gen: int = 5,
+    ) -> None:
+        self.seed_prompt = seed_prompt
+        self.objective = objective
+        self.pop = pop
+        self.gen = gen
+
+
+@ops_router.post("/evolve", dependencies=[Depends(_require_header_auth)])
+async def evolve_endpoint(
+    seed_prompt: Annotated[str, Header(alias="X-Seed-Prompt")],
+    objective: Annotated[str, Header(alias="X-Objective")],
+    pop: Annotated[int, Header(alias="X-Population")] = 6,
+    gen: Annotated[int, Header(alias="X-Generations")] = 5,
+) -> EvolutionResult:
+    """Run prompt evolution and return the best prompt with history.
+
+    Parameters
+    ----------
+    seed_prompt: Initial prompt to evolve from.
+    objective: Target objective for evaluation.
+    pop: Population size per generation (default: 6).
+    gen: Number of generations to run (default: 5).
+    """
+
+    start = perf_counter()
+    try:
+        result = await asyncio.to_thread(
+            evolve_prompts,
+            seed_prompt=seed_prompt,
+            objective=objective,
+            pop=pop,
+            gen=gen,
+        )
+        elapsed_ms = (perf_counter() - start) * 1000.0
+        METRICS_REGISTRY.observe_evolution(success=True, latency_ms=elapsed_ms)
+        return result
+    except Exception as exc:
+        elapsed_ms = (perf_counter() - start) * 1000.0
+        METRICS_REGISTRY.observe_evolution(success=False, latency_ms=elapsed_ms)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Evolution failed: {exc}",
+        ) from exc
+
 
 chainlit_app.include_router(ops_router, prefix=chainlit_router.prefix)
 for _path in ("/metrics", "/healthz"):

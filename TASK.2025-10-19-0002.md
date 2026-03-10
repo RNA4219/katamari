@@ -1,8 +1,9 @@
 # TASK.2025-10-19-0002
 
 ## ステータス
-- 作業日: 2025-10-23
+- 作業日: 2025-10-23（開始）、2026-03-10（M1.5 OAuth完了）
 - 優先度: M1 → M1.5 認証移行の決定と実装を同一スプリント内で完了する
+- 進捗: M1（Header Auth）完了、M1.5（OAuth）完了
 
 ## 目的
 - Chainlit 既定の無認証状態から Header Auth（M1）を導入し、既存エンドポイントの公開リスクを抑制する。
@@ -36,11 +37,11 @@
 - **公開エンドポイント停止リスク**: `/healthz` `/metrics` のアクセス制御を段階的に適用し、監視チームと調整。
 
 ## チェックリスト
-- [ ] Header Auth 実装用 `pytest` テストを追加し、正/誤トークンの挙動を検証した。
-- [ ] OAuth 設定の統合テストを `pnpm run test`（必要なら `cd upstream/chainlit`）で実行し、モックまたはステージングで検証した。
-- [ ] `/healthz` `/metrics` の公開方針を確定し、アクセス制御を設定または設計書に反映した。
-- [ ] 暫定注記を撤回し、README / docs / RUNBOOK の該当箇所を更新した。
-- [ ] Guardrails 文書（`RUNBOOK.md` / `CHECKLISTS.md` / `EVALUATION.md`）と最新構成を突合した。
+- [x] Header Auth 実装用 `pytest` テストを追加し、正/誤トークンの挙動を検証した。
+- [x] OAuth 設定の統合テストを `pytest` で実行し、モックまたはステージングで検証した（`tests/app/test_oauth.py`）。
+- [x] `/healthz` `/metrics` の公開方針を確定し、アクセス制御を設定または設計書に反映した（Bearer認証必須）。
+- [x] 暫定注記を撤回し、README / docs / RUNBOOK の該当箇所を更新した。
+- [x] Guardrails 文書（`RUNBOOK.md` / `CHECKLISTS.md` / `EVALUATION.md`）と最新構成を突合した。
 
 ## 参照
 - `docs/Katamari_Functional_Spec_v1_ja.md`

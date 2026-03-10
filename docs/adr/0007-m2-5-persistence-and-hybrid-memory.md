@@ -32,4 +32,4 @@
 - [x] ストレージ設定（接続情報・TTL・圧縮方針）が `config/` とドキュメントで同期されている。
   - `config/env.example` に `MEMORY_STORAGE_BACKEND`, PostgreSQL接続情報, TTL設定を追加済み。
 - [ ] PII サニタイズとアクセス監査ログの要件を満たす証跡が残っている。
-- フォローアップ: `TASK.2025-10-19-0002.md` で進行管理し、実装完了時点で上記 DoD を満たしたうえで Consequences の注記を削除する。
+- フォローアップ: `tasks/TASK.2025-10-19-0002.md` で進行管理し、実装完了時点で上記 DoD を満たしたうえで Consequences の注記を削除する。

@@ -60,7 +60,7 @@ class ProviderClient(Protocol):
   - `/healthz` と `/metrics` は上記ヘッダを検証して 401/200 を切り替える
   - RUNBOOK（`RUNBOOK.md`）ではシークレットのローテーションと Bearer 発行手順を記載済み
 - CORS 制限・Rate Limit・HTTPS はプロキシ層での適用を 8章デプロイで管理
-- OAuth など追加認証フローは `TASK.2025-10-19-0002.md` で扱う範囲に留め、本仕様では Bearer 認証を基準とする
+- OAuth など追加認証フローは `tasks/TASK.2025-10-19-0002.md` で扱う範囲に留め、本仕様では Bearer 認証を基準とする
 
 ## 8. デプロイ
 - dev: `chainlit run src/app.py --host 0.0.0.0 --port 8787`
@@ -69,4 +69,4 @@ class ProviderClient(Protocol):
 ## 9. 受け入れ試験（抜粋）
 - Settings反映・Trim圧縮率・Reflect順序・Header/Bearer 認証（`CHAINLIT_AUTH_SECRET` に基づく `/healthz`・`/metrics` の 401/200 切替と RUNBOOK 記載手順との整合）・メトリクス出力（`semantic_retention` は埋め込み類似度から算出した実測値を `/metrics` で露出し、欠損時は Prometheus では `NaN`、CLI/JSON では `null` を返す）
 
-[^oauth-task]: OAuth など追加認証方式は `TASK.2025-10-19-0002.md` にて検討する。
+[^oauth-task]: OAuth など追加認証方式は `tasks/TASK.2025-10-19-0002.md` にて検討する。

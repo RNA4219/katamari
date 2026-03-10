@@ -22,5 +22,5 @@
 ## DoD
 - [ ] `upstream/chainlit/` を subtree として初期化済みであること。
 - [ ] フォーク運用手順（`docs/UPSTREAM.md`, `docs/FORK_NOTES.md`）が本 ADR と整合していること。
-- [ ] `scripts/sync_chainlit_subtree.sh --prefix <path> --repo <repository> --tag <tag> [--remote <remote>]` の使い方と `--dry-run` フローが [`docs/UPSTREAM.md`](../UPSTREAM.md#%E6%9B%B4%E6%96%B0%E5%8F%96%E3%82%8A%E8%BE%BC%E3%81%BFgit-subtree-pull) に明文化され、Task Seed（[`TASK.2025-10-19-0001.md`](../TASK.2025-10-19-0001.md)）から辿れること。
+- [ ] `scripts/sync_chainlit_subtree.sh --prefix <path> --repo <repository> --tag <tag> [--remote <remote>]` の使い方と `--dry-run` フローが [`docs/UPSTREAM.md`](../UPSTREAM.md#%E6%9B%B4%E6%96%B0%E5%8F%96%E3%82%8A%E8%BE%BC%E3%81%BFgit-subtree-pull) に明文化され、Task Seed（[`TASK.2025-10-19-0001.md`](../tasks/TASK.2025-10-19-0001.md)）から辿れること。
 - [ ] CI（[`ci.yml`](../../.github/workflows/ci.yml)）の `pytest` ジョブで `tests/scripts/test_sync_chainlit_subtree.py` を実行し、`--dry-run` のコマンド表示とエラー伝播を継続検証できていること。失敗時はフォローアップ Issue を起票する運用が確立していること。

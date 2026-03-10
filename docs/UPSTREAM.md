@@ -49,7 +49,7 @@
    - [`src/core_ext/`](../src/core_ext/) 外へ波及しない差分に抑制
    - 必要に応じて upstream 側修正内容をコメントで明示
 
-> メモ: GitHub Actions [`ci.yml`](../.github/workflows/ci.yml) の `pytest` ジョブで `tests/scripts/test_sync_chainlit_subtree.py` を実行し、ドライラン挙動を継続検証する。Task Seed からの導線は [`TASK.2025-10-19-0001.md`](../TASK.2025-10-19-0001.md) を参照。
+> メモ: GitHub Actions [`ci.yml`](../.github/workflows/ci.yml) の `pytest` ジョブで `tests/scripts/test_sync_chainlit_subtree.py` を実行し、ドライラン挙動を継続検証する。Task Seed からの導線は [`TASK.2025-10-19-0001.md`](tasks/TASK.2025-10-19-0001.md) を参照。
 
 ## 週次チェック運用フロー
 

@@ -39,8 +39,8 @@
 - [ ] 公開 API 変更がない、または段階移行フラグを設定した。
 - [ ] Birdseye index/caps を更新し、該当ノードの要約を最新化した。
 - [ ] AI 提案を採用した実装は人間が検証した証跡を Task Seed に残した。
-- [ ] 認証実装時に暫定注記（`README.md` / `docs/Katamari_*` / `H_Deploy_Guide`）を撤回し、[`TASK.2025-10-19-0002.md`](TASK.2025-10-19-0002.md) のチェックを完了した。
-- [x] ログ実装（FR-06 / Functional Spec 5章）に着手する際は [`TASK.2025-10-21-0003.md`](TASK.2025-10-21-0003.md) を参照し、暫定注記の撤回と `katamari.request` 構造化ログ（`tests/app/test_logging.py`）の検証を完了した。
+- [ ] 認証実装時に暫定注記（`README.md` / `docs/Katamari_*` / `H_Deploy_Guide`）を撤回し、[`TASK.2025-10-19-0002.md`](docs/tasks/TASK.2025-10-19-0002.md) のチェックを完了した。
+- [x] ログ実装（FR-06 / Functional Spec 5章）に着手する際は [`TASK.2025-10-21-0003.md`](docs/tasks/TASK.2025-10-21-0003.md) を参照し、暫定注記の撤回と `katamari.request` 構造化ログ（`tests/app/test_logging.py`）の検証を完了した。
 
 ### Pull Request / Review
 - [ ] 変更理由と影響範囲を `docs/ROADMAP_AND_SPECS.md` の該当項目にリンクした。

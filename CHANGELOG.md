@@ -10,16 +10,24 @@
 - 各エントリの先頭に 4 桁ゼロ埋めの通番（例: `0001`）を付け、既存の最大値から 1 ずつ増やす。
 - リリース時に対応バージョン見出しへ移し、日付を YYYY-MM-DD 形式で記録する。
 
+## [1.0.0-frozen] - 2026-03-10
+
+### Added
+- 0008: ルートフォルダ整理（TASK.*.md を docs/tasks/ に移動、重複 .env.sample を削除）
+- 0009: マルチプロバイダー対応（OpenAI, Anthropic, Google Gemini, OpenRouter, Alibaba Cloud）
+- 0010: Windows用起動スクリプト start.bat（ポート自動検出機能付き）
+- 0011: M1.5 OAuth認証実装（条件付きデコレータ登録、テスト8件追加）
+
+### Security
+- 0012: .gitignore に .env を追加し、シークレットの誤コミットを防止
+
+### Note
+このリリースをもってプロジェクトを凍結します。今後の開発・メンテナンスは行いません。
+
 ## [Unreleased]
 
 ### Added
-- 0005: CHANGELOG を Keep a Changelog 形式で整備し、README/ロードマップから更新手順へ導線を追加。
 ### Changed
-- 0002: CHANGELOG のエントリに通番を付けるルールを追加。
-- 0003: README とロードマップに CHANGELOG 更新導線とタスク移管ルールを明文化。
-- 0004: README の主要導線にタスク移管の導線を追記し、完了タスクの CHANGELOG 反映を必須化。
-- 0006: OpenAI ストリームの再試行を 1s→2s→4s の backoff と `katamari.request` 計測に対応させ、ログ/RUNBOOK を更新。
-- 0007: Birdseye 再生成スクリプトを ±2 hop 解析と UTC タイムスタンプ対応に刷新し、運用手順を README へ反映。
 ### Deprecated
 ### Removed
 ### Fixed

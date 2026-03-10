@@ -1,6 +1,10 @@
-This repository is an R&D artifact and is not used in my current workflow. Keeping it as an archive.
-
-Vibe Kanban ＋ LiteLLM の利用を検討してください。
+> **⚠️ このリポジトリは凍結されています（Frozen）**
+>
+> 本プロジェクトは R&D 成果物としてアーカイブされており、今後の開発・メンテナンスは行いません。
+> 代わりに **Vibe Kanban ＋ LiteLLM** の利用を検討してください。
+>
+> 凍結日: 2026-03-10
+> 最終バージョン: v1.0.0-frozen
 
 # Katamari (Chainlit Fork) – 要件&仕様パック
 

@@ -31,6 +31,51 @@ Vibe Kanban ＋ LiteLLM の利用を検討してください。
 - ADR: [`docs/adr/README.md`](docs/adr/README.md)
 - Day8 HUB / Guardrails / Blueprint 群（導線まとめ: [`docs/ROADMAP_AND_SPECS.md#day8-sequence`](docs/ROADMAP_AND_SPECS.md#day8-sequence)）: `third_party/Day8/workflow-cookbook/HUB.codex.md`, `third_party/Day8/workflow-cookbook/GUARDRAILS.md`, `third_party/Day8/workflow-cookbook/BLUEPRINT.md`
 
+## クイックスタート
+
+### Windows
+
+```batch
+# 1. .envファイルを作成
+copy config\env.example .env
+
+# 2. .envを編集してAPIキーを設定（最低1つ必要）
+#    OPENAI_API_KEY=sk-...
+#    ANTHROPIC_API_KEY=sk-ant-...
+#    GOOGLE_GEMINI_API_KEY=...
+#    OPENROUTER_API_KEY=sk-or-...
+#    ALIBABA_CLOUD_API_KEY=...
+
+# 3. 起動（自動で仮想環境作成・依存インストール）
+start.bat
+```
+
+### macOS / Linux
+
+```bash
+# 1. .envファイルを作成
+cp config/env.example .env
+
+# 2. .envを編集してAPIキーを設定
+nano .env
+
+# 3. 起動
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+chainlit run src/app.py --host 0.0.0.0 --port 8787
+```
+
+### 対応プロバイダー
+
+| プロバイダー | 環境変数 | 取得先 |
+|-------------|---------|--------|
+| OpenAI | `OPENAI_API_KEY` | https://platform.openai.com/api-keys |
+| Anthropic | `ANTHROPIC_API_KEY` | https://console.anthropic.com/settings/keys |
+| Google Gemini | `GOOGLE_GEMINI_API_KEY` | https://aistudio.google.com/apikey |
+| OpenRouter | `OPENROUTER_API_KEY` | https://openrouter.ai/keys |
+| Alibaba Cloud | `ALIBABA_CLOUD_API_KEY` | https://bailian.console.aliyun.com/ |
+
 ## 主要導線
 - 要件・仕様ハブ: [`docs/ROADMAP_AND_SPECS.md`](docs/ROADMAP_AND_SPECS.md)
 - 詳細要件: [`docs/Katamari_Requirements_v3_ja.md`](docs/Katamari_Requirements_v3_ja.md)

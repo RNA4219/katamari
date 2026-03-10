@@ -1,7 +1,7 @@
 name: CI
 
 env:
-  CACHE_VERSION: v1
+  CACHE_VERSION: v2
   REQUESTED_REF: ${{ inputs.ref || (github.event_name == 'workflow_dispatch' && github.event.inputs.ref) || '' }}
 
 on:
@@ -112,7 +112,7 @@ jobs:
           case "${{ matrix.check }}" in
             ruff) python -m pip install ruff ;;
             mypy) python -m pip install mypy ;;
-            pytest) python -m pip install pytest ;; 
+            pytest) python -m pip install pytest pytest-asyncio ;;
           esac
       - name: Run ${{ matrix.check }}
         run: |

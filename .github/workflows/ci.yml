@@ -118,7 +118,7 @@ jobs:
         run: |
           case "${{ matrix.check }}" in
             ruff) ruff check . ;;
-            mypy) mypy --strict ;;
+            mypy) mypy --strict src/ ;;
             pytest) pytest -q ;;
           esac
       - name: Summarize python job metrics

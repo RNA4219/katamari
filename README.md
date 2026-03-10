@@ -21,7 +21,7 @@
 
 補足リンク:
 - docs/birdseye/hot.json …… Birdseye ホットスポット一覧
-- Guardrails ドキュメント …… [`BLUEPRINT.md`](BLUEPRINT.md) / [`RUNBOOK.md`](RUNBOOK.md) / [`EVALUATION.md`](EVALUATION.md) / [`CHECKLISTS.md`](CHECKLISTS.md)（個人+AI運用向けガードレール）
+- Guardrails ドキュメント …… [`docs/guardrails/`](docs/guardrails/)（BLUEPRINT.md / RUNBOOK.md / EVALUATION.md / CHECKLISTS.md）
 <!-- /LLM-BOOTSTRAP -->
 
 ## 同梱物

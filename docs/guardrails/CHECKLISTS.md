@@ -67,7 +67,7 @@
 - [ ] AI からの復旧案を採用する際は人間が検証し、結果を `RUNBOOK.md` と Task Seed に反映した。
 
 ## 参照
-- [docs/ROADMAP_AND_SPECS.md](docs/ROADMAP_AND_SPECS.md)
-- [docs/Release_Checklist.md](docs/Release_Checklist.md)
-- [docs/Security_Review_Checklist.md](docs/Security_Review_Checklist.md)
-- [third_party/Day8/workflow-cookbook/GUARDRAILS.md](third_party/Day8/workflow-cookbook/GUARDRAILS.md)
+- [docs/ROADMAP_AND_SPECS.md](../ROADMAP_AND_SPECS.md)
+- [docs/Release_Checklist.md](../Release_Checklist.md)
+- [docs/Security_Review_Checklist.md](../Security_Review_Checklist.md)
+- [third_party/Day8/workflow-cookbook/GUARDRAILS.md](../../third_party/Day8/workflow-cookbook/GUARDRAILS.md)

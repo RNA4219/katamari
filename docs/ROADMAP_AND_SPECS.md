@@ -14,17 +14,17 @@
 | マイルストーン DoD | `docs/adr/0004-m1-metrics-and-retention.md` ほか [ADR #0004〜#0007](adr/README.md) | M1〜M2.5 の到達基準と DoD チェックリスト。 |
 | フォーク運用 | `docs/UPSTREAM.md`, `docs/FORK_NOTES.md`<br>[ADR #0001](adr/0001-use-chainlit-subtree.md) | Chainlit subtree の取得・差分吸収手順。 |
 | リリース & セキュリティ | `docs/Release_Checklist.md`, `docs/Security_Review_Checklist.md` | 準備→検証→リリース順のチェックリスト、受入証跡・CI 結果確認・影響範囲同期・CHANGELOG/NOTICE 更新を含む品質ゲート。 |
-| Guardrails 連動ドキュメント | `BLUEPRINT.md`, `RUNBOOK.md`, `EVALUATION.md`, `CHECKLISTS.md`, `TASK.*.md` | Guardrails フローに沿った設計・運用・評価・追跡の基盤文書。 |
+| Guardrails 連動ドキュメント | `docs/guardrails/`, `docs/tasks/` | Guardrails フローに沿った設計・運用・評価・追跡の基盤文書。 |
 | Day8 HUB→Guardrails | `third_party/Day8/workflow-cookbook/HUB.codex.md` → `third_party/Day8/workflow-cookbook/GUARDRAILS.md` | Day8 観測ハブから統制基準へ進む推奨導線（役割: HUB が全体俯瞰、GUARDRAILS が安全策定）。 |
 | Day8 HUB | `third_party/Day8/workflow-cookbook/HUB.codex.md` | 観測ハブとして Day8 オペレーション全体の入口を提示する役割ドキュメント。 |
 | Day8 Guardrails | `third_party/Day8/workflow-cookbook/GUARDRAILS.md` | HUB からのインサイトを受けて統制基準・安全策を定義する役割ドキュメント。 |
 | Day8 Blueprint | `third_party/Day8/workflow-cookbook/BLUEPRINT.md` | Guardrails を適用した運用ブループリント（実装設計）。 |
 
 > Guardrails 連動ドキュメントの概要（いずれも個人+AI 運用に必要なガードレールを網羅）
-> - [BLUEPRINT.md](../BLUEPRINT.md): Persona/Trim/Reflect チェーンの責務分離・再試行方針・個人/AI 共同運用の境界を整理。
-> - [RUNBOOK.md](../RUNBOOK.md): 「準備→実行→検証」の実務手順とトラブルシュート、AI からの提案を受ける際の確認ステップを定義。
-> - [EVALUATION.md](../EVALUATION.md): 成果の受入判定フローとメトリクス、ガードレール逸脱時のエスカレーション手順を明文化。
-> - [CHECKLISTS.md](../CHECKLISTS.md): Dev→PR→Release→Ops の帽子を被り替えながら自己チェックするためのテンプレート。
+> - [BLUEPRINT.md](guardrails/BLUEPRINT.md): Persona/Trim/Reflect チェーンの責務分離・再試行方針・個人/AI 共同運用の境界を整理。
+> - [RUNBOOK.md](guardrails/RUNBOOK.md): 「準備→実行→検証」の実務手順とトラブルシュート、AI からの提案を受ける際の確認ステップを定義。
+> - [EVALUATION.md](guardrails/EVALUATION.md): 成果の受入判定フローとメトリクス、ガードレール逸脱時のエスカレーション手順を明文化。
+> - [CHECKLISTS.md](guardrails/CHECKLISTS.md): Dev→PR→Release→Ops の帽子を被り替えながら自己チェックするためのテンプレート。
 > - [TASK.<YYYY-MM-DD>-0001.md](tasks/TASK.2025-10-19-0001.md): 初期 Task Seed。目的・要件・想定コマンド・評価ログ連携を記録し、フォローアップを管理。
 > - Guardrails 原典: [third_party/Day8/workflow-cookbook/GUARDRAILS.md](../third_party/Day8/workflow-cookbook/GUARDRAILS.md)。各節の目的・
 >   スコープ・AC を参照し、上記ドキュメント更新時は整合性を必ず確認する。
@@ -98,8 +98,8 @@
 
 ## 5. Guardrails ドキュメント更新フロー
 
-1. 設計変更を検討したら `BLUEPRINT.md` で影響範囲と担当ロールを確認し、目的・スコープ・I/O・AC を見直したドラフトへ落とし込んで個人運用で実施可能な手順へ分解する。
-2. 実装・運用手順の変更は `RUNBOOK.md` と `CHECKLISTS.md` を同時に更新し、準備→実行→検証 / Dev→PR→Release→Ops の順序と担当ロールのチェック項目を維持する（同一人物でも帽子を被り替えてレビューする）。
-3. 受入条件や計測指標の変更は `EVALUATION.md` と Task Seed（`TASK.<YYYY-MM-DD>-0001.md` など）に同期し、証跡取得コマンドや個人実行で得たログへのリンクを追記する。
-4. 変更差分を Pull Request にまとめ、[`CONTRIBUTING.md#guardrails-ドキュメント更新フロー`](../CONTRIBUTING.md#guardrails-%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88%E6%9B%B4%E6%96%B0%E3%83%95%E3%83%AD%E3%83%BC) のレビュー手順に従って証跡確認とチェックリスト更新を行う。
+1. 設計変更を検討したら `docs/guardrails/BLUEPRINT.md` で影響範囲と担当ロールを確認し、目的・スコープ・I/O・AC を見直したドラフトへ落とし込んで個人運用で実施可能な手順へ分解する。
+2. 実装・運用手順の変更は `docs/guardrails/RUNBOOK.md` と `docs/guardrails/CHECKLISTS.md` を同時に更新し、準備→実行→検証 / Dev→PR→Release→Ops の順序と担当ロールのチェック項目を維持する（同一人物でも帽子を被り替えてレビューする）。
+3. 受入条件や計測指標の変更は `docs/guardrails/EVALUATION.md` と Task Seed（`TASK.<YYYY-MM-DD>-0001.md` など）に同期し、証跡取得コマンドや個人実行で得たログへのリンクを追記する。
+4. 変更差分を Pull Request にまとめ、証跡確認とチェックリスト更新を行う。
 5. Birdseye 図および Guardrails 原典（`third_party/Day8/workflow-cookbook/HUB.codex.md` / `third_party/Day8/workflow-cookbook/GUARDRAILS.md` / `third_party/Day8/workflow-cookbook/BLUEPRINT.md`）を照合し、役割や手順の齟齬がないことを最終確認する。
